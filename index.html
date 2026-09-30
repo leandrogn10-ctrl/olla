@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Shell</title>
-<meta name="theme-color" content="#24273a">
+<title>La Olla</title>
+<meta name="theme-color" content="#15190f">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -15,16 +15,16 @@
    Extracted from Bitácora (the reference implementation). Per-app identity (name, icon, fonts,
    dominant color) is decided at build time — see README.md. */
 window.APP = {
-  name: 'Shell',                       // <title>, manifest, A2HS label
-  shortName: 'Shell',
-  tagline: '— a single-file PWA shell',
-  description: 'App-shell template',
-  iconLetter: 'S',                     // drawn on the canvas icon
-  iconBg: '#24273a', iconFg: '#f5a97f',
-  STORAGE_KEY: 'shell.v1',             // localStorage key for the whole state object
-  GIST_FILENAME: 'shell.json',         // file inside the (dedicated) sync gist
-  gistDescription: 'Shell — app state',
-  themeColors: { macchiato: '#24273a', tokyo: '#1a1b26' },   // <meta theme-color> per theme
+  name: 'La Olla',                     // <title>, manifest, A2HS label
+  shortName: 'Olla',
+  tagline: '¿qué hay en la olla?',
+  description: 'Tomorrow\'s dinner exists before tonight\'s is eaten — the meal-stock organ of the estate.',
+  iconLetter: 'O',                     // drawn on the canvas icon
+  iconBg: '#15190f', iconFg: '#a3d15c', // enamel black, cilantro green
+  STORAGE_KEY: 'olla.v1',              // localStorage key for the whole state object
+  GIST_FILENAME: 'olla.json',          // file inside the (dedicated) sync gist
+  gistDescription: 'La Olla — meal plan, the pot, the book (his layer only)',
+  themeColors: { macchiato: '#15190f', tokyo: '#f4efe3' },   // <meta theme-color> per theme: Esmalte (night) / Loza (day)
 };
 </script>
 <script>
@@ -66,32 +66,32 @@ window.APP = {
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<!-- SLOT:APP-FONTS — swap for the app's own type identity at build time -->
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- SLOT:APP-FONTS — Instrument Serif (the estate's shared voice) + Azeret Mono (minutes, portions, quantities). Not JetBrains (La Forja), not Departure (the city). -->
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Azeret+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 /* ═══ Theme CSS-var system (Bitácora's, verbatim). Default = Macchiato; override via <html data-theme="tokyo">.
    SLOT:APP-THEME — a new app keeps the VARIABLE NAMES and re-skins the values for its own identity. ═══ */
-:root, [data-theme="macchiato"] {
-  --bg: #24273a; --bg-elev: #363a4f; --paper: #494d64; --paper-hi: #5b6078;
-  --ink: #cad3f5; --ink-dim: #a5adcb; --ink-faint: #6e738d;
-  --accent: #f5a97f; --accent-soft: #ee99a0;
-  --line: #494d64; --line-soft: #363a4f;
-  --gold: #eed49f;
-  --shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 24px rgba(0,0,0,0.45);
-  --c-sage-fg: #a6da95; --c-sage-bg: rgba(166,218,149,0.14); --c-sage-bd: rgba(166,218,149,0.4);
-  --c-dusty-fg: #91d7e3; --c-dusty-bg: rgba(145,215,227,0.14); --c-dusty-bd: rgba(145,215,227,0.4);
-  --danger: #ed8796;
+:root, [data-theme="macchiato"] {                                 /* "Esmalte" — the pot at night: enamel black, chalk ink, one cilantro green */
+  --bg: #15190f; --bg-elev: #1c2114; --paper: #222819; --paper-hi: #2c3320;
+  --ink: #f1eadb; --ink-dim: #bdb6a4; --ink-faint: #75765f;
+  --accent: #a3d15c; --accent-soft: #86b53f;
+  --line: #2f3724; --line-soft: #232a1b;
+  --gold: #e2c26a;
+  --shadow: 0 1px 0 rgba(241,234,219,0.04) inset, 0 10px 30px rgba(0,0,0,0.55);
+  --c-sage-fg: #a3d15c; --c-sage-bg: rgba(163,209,92,0.12); --c-sage-bd: rgba(163,209,92,0.4);
+  --c-dusty-fg: #8fbfd6; --c-dusty-bg: rgba(143,191,214,0.12); --c-dusty-bd: rgba(143,191,214,0.4);
+  --danger: #e07a6a;
 }
-[data-theme="tokyo"] {
-  --bg: #1a1b26; --bg-elev: #24283b; --paper: #2f334d; --paper-hi: #414868;
-  --ink: #c0caf5; --ink-dim: #a9b1d6; --ink-faint: #565f89;
-  --accent: #bb9af7; --accent-soft: #9d7cd8;
-  --line: #2f334d; --line-soft: #1f2335;
-  --gold: #e0af68;
-  --shadow: 0 1px 0 rgba(187,154,247,0.06) inset, 0 8px 24px rgba(0,0,0,0.5);
-  --c-sage-fg: #9ece6a; --c-sage-bg: rgba(158,206,106,0.14); --c-sage-bd: rgba(158,206,106,0.4);
-  --c-dusty-fg: #7aa2f7; --c-dusty-bg: rgba(122,162,247,0.14); --c-dusty-bd: rgba(122,162,247,0.4);
-  --danger: #f7768e;
+[data-theme="tokyo"] {                                              /* "Loza" — the same pot on a cream counter by day */
+  --bg: #f4efe3; --bg-elev: #ece6d6; --paper: #e6dfcd; --paper-hi: #ddd5c0;
+  --ink: #1e2414; --ink-dim: #4d5340; --ink-faint: #8a8c78;
+  --accent: #4f7f1d; --accent-soft: #6a9c2f;
+  --line: #d3cbb6; --line-soft: #e0d9c6;
+  --gold: #a8842a;
+  --shadow: 0 1px 0 rgba(255,255,255,0.5) inset, 0 8px 24px rgba(60,50,20,0.12);
+  --c-sage-fg: #4f7f1d; --c-sage-bg: rgba(79,127,29,0.10); --c-sage-bd: rgba(79,127,29,0.35);
+  --c-dusty-fg: #2f6f8c; --c-dusty-bg: rgba(47,111,140,0.10); --c-dusty-bd: rgba(47,111,140,0.35);
+  --danger: #b4432f;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -397,7 +397,118 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
 ::-webkit-scrollbar-thumb { background: var(--paper-hi); border-radius: 0; }
 ::-webkit-scrollbar-thumb:hover { background: var(--line); }
 
-/* ═══ SLOT:APP-CSS — the app's own component styles go below this line ═══ */
+/* ═══ SLOT:APP-CSS — La Olla ═══
+   Enamel and chalk: an enamel pot at night (Esmalte) or on a cream counter by day (Loza). One green in the
+   estate — cilantro / ají verde — and it means "alive": a live pot, a hand-set row, the thing to do next.
+   Instrument Serif speaks; Azeret Mono counts (minutes, portions, quantities, hours). Nothing else is loud. */
+body { font-family: 'Azeret Mono', ui-monospace, monospace; font-size: 13px; }
+body {
+  background-image:
+    radial-gradient(ellipse at 20% 0%, color-mix(in srgb, var(--accent) 10%, transparent) 0%, transparent 45%),
+    radial-gradient(ellipse at 100% 100%, color-mix(in srgb, var(--gold) 6%, transparent) 0%, transparent 50%),
+    repeating-radial-gradient(circle at 50% 120%, transparent 0 22px, color-mix(in srgb, var(--ink) 2.5%, transparent) 22px 23px);   /* enamel rings: the bottom of a pot */
+}
+.mono { font-family: 'Azeret Mono', ui-monospace, monospace; }
+.meta { color: var(--ink-faint); font-size: 11px; letter-spacing: 0.02em; }
+.content { max-width: 720px; }
+.fab { display: none !important; }                       /* v1 has no primary gesture; the tap on a row is the gesture */
+.nav-list li[data-view] { cursor: pointer; }
+
+/* ── the pot ── */
+.olla-card { position: relative; background: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 18px 20px 16px; margin-bottom: 18px; overflow: hidden; box-shadow: var(--shadow); animation: rise .6s cubic-bezier(.2,.7,.2,1) both; }
+.olla-card h3 { font-size: 13px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-faint); font-family: 'Azeret Mono', monospace; margin-bottom: 8px; }
+.olla-card .big { font-size: 26px; line-height: 1.15; color: var(--ink); }
+.olla-card.empty .big { color: var(--ink-dim); font-style: italic; }
+.olla-card.live { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.olla-card.live::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 2px; background: linear-gradient(90deg, transparent, var(--accent), transparent); opacity: .8; }
+.batch { display: flex; flex-direction: column; gap: 2px; padding: 6px 0; }
+.batch + .batch { border-top: 1px dashed var(--line); }
+.steam { position: absolute; right: 22px; top: 8px; width: 60px; height: 40px; pointer-events: none; }
+.steam i { position: absolute; bottom: 0; width: 2px; height: 26px; border-radius: 2px; background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--ink) 55%, transparent)); opacity: 0; transform-origin: bottom; animation: steam 3.2s ease-out infinite; }
+.steam i:nth-child(1) { left: 14px; animation-delay: .2s; }
+.steam i:nth-child(2) { left: 30px; animation-delay: 1.1s; height: 32px; }
+.steam i:nth-child(3) { left: 46px; animation-delay: 2s; height: 22px; }
+@keyframes steam { 0% { opacity: 0; transform: translateY(6px) scaleY(.4) rotate(0); } 25% { opacity: .55; } 100% { opacity: 0; transform: translateY(-22px) scaleY(1.2) rotate(6deg); } }
+@media (prefers-reduced-motion: reduce) { .steam i, .olla-card, .day-card, .meal-row { animation: none !important; } }
+
+/* ── today / a day ── */
+.hoy, .day-card { border: 1px solid var(--line); border-radius: 4px; padding: 14px 16px 10px; margin-bottom: 14px; background: color-mix(in srgb, var(--paper) 55%, transparent); animation: rise .55s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(80ms + var(--i, 0) * 60ms); }
+.hoy h3, .day-card h3 { font-size: 22px; display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; color: var(--ink); }
+.hoy h3 .date { font-size: 11px; color: var(--ink-faint); letter-spacing: .04em; }
+.tag { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent); border-radius: 2px; padding: 1px 6px; }
+.meal-row { display: grid; grid-template-columns: 78px 78px 1fr auto; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line-soft); }
+.meal-row:first-of-type { border-top: 0; }
+.meal-row .slot { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-faint); }
+.meal-row .kind { font-family: 'Azeret Mono', monospace; font-size: 11px; letter-spacing: .04em; padding: 4px 8px; border-radius: 2px; border: 1px solid var(--line); color: var(--ink-dim); text-align: center; transition: border-color .15s, color .15s, background .15s; }
+.meal-row .kind:hover { border-color: var(--accent-soft); color: var(--ink); }
+.meal-row .kind.k-swipe { color: var(--c-dusty-fg); border-color: var(--c-dusty-bd); background: var(--c-dusty-bg); }
+.meal-row .kind.k-cook { color: var(--bg); background: var(--accent); border-color: var(--accent); }
+.meal-row .kind.k-leftover { color: var(--c-sage-fg); border-color: var(--c-sage-bd); background: var(--c-sage-bg); }
+.meal-row .kind.k-home { color: var(--ink-dim); }
+.meal-row .kind.k-out { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 45%, transparent); }
+.meal-row .label { font-size: 18px; line-height: 1.2; color: var(--ink); text-align: left; padding: 0; }
+button.label:hover { color: var(--accent); }
+.meal-row.hand .slot::after { content: ' ·'; color: var(--accent); }
+.meal-row.past { opacity: .5; }
+.meal-row .note { font-size: 10px; color: var(--danger); letter-spacing: .08em; text-transform: uppercase; }
+.cook-row { display: grid; grid-template-columns: 78px 1fr auto auto; align-items: center; gap: 10px; padding: 9px 0 6px; margin-top: 4px; border-top: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); }
+.cook-row .at { color: var(--accent); font-size: 14px; }
+.cook-row .label { font-size: 17px; color: var(--ink); text-align: left; padding: 0; }
+.cook-row .ghost { color: var(--ink-faint); font-size: 15px; padding: 2px 6px; }
+.cook-row .ghost:hover { color: var(--accent); }
+.feed { font-size: 11px; color: var(--ink-faint); padding: 8px 0 4px; border-top: 1px dashed var(--line-soft); margin-top: 4px; }
+.feed .serif { font-size: 15px; color: var(--ink-dim); }
+.week-meta { color: var(--ink-faint); font-size: 11px; letter-spacing: .04em; margin-bottom: 12px; }
+.refusals { border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--line)); border-radius: 4px; padding: 12px 16px; margin-top: 8px; font-size: 11px; color: var(--danger); }
+.refusals h3 { font-size: 18px; margin-bottom: 4px; }
+
+/* ── the book ── */
+.lead { font-size: 18px; color: var(--ink-dim); font-style: italic; margin-bottom: 18px; }
+.rung { border-top: 1px solid var(--line); padding: 12px 0 6px; }
+.rung h3 { font-size: 20px; display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+.rung.here h3 { color: var(--accent); }
+.rung.far { opacity: .45; }
+.recipe-line { display: flex; width: 100%; justify-content: space-between; align-items: baseline; gap: 12px; padding: 7px 8px; border-radius: 2px; text-align: left; }
+.recipe-line:hover { background: var(--paper); }
+.recipe-line .serif { font-size: 18px; color: var(--ink); }
+
+/* ── the list ── */
+.list { list-style: none; }
+.list li label { display: grid; grid-template-columns: 18px 1fr auto; grid-template-areas: "c n q" "c f f"; column-gap: 12px; align-items: baseline; padding: 8px 4px; border-top: 1px solid var(--line-soft); cursor: pointer; }
+.list li input { grid-area: c; accent-color: var(--accent); }
+.list li .serif { grid-area: n; font-size: 18px; color: var(--ink); }
+.list li .meta { grid-area: q; }
+.list li .for { grid-area: f; font-size: 10px; color: var(--ink-faint); }
+.list li.done .serif { text-decoration: line-through; color: var(--ink-faint); }
+
+/* ── the recipe sheet ── */
+#recipe-modal .modal { width: min(560px, 94vw); }
+#recipe-body h2 { font-size: 30px; font-style: italic; margin-bottom: 4px; }
+#recipe-body h4 { font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-faint); font-family: 'Azeret Mono', monospace; margin: 16px 0 6px; }
+.ings { list-style: none; } .ings li { padding: 3px 0; font-size: 14px; font-family: 'Instrument Serif', serif; } .ings .mono { color: var(--accent); font-size: 12px; margin-right: 6px; }
+.steps { padding-left: 20px; } .steps li { padding: 4px 0; font-size: 15px; line-height: 1.5; font-family: 'Instrument Serif', serif; color: var(--ink); }
+.steps li::marker { color: var(--accent); font-family: 'Azeret Mono', monospace; font-size: 11px; }
+
+/* ── settings: la cocina ── */
+.dows { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.dow { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; text-transform: none; letter-spacing: 0; color: var(--ink-dim); padding: 4px 8px; border: 1px solid var(--line); border-radius: 2px; }
+.dow input { accent-color: var(--accent); }
+.wins { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; margin-top: 4px; }
+.win { display: grid; grid-template-columns: 34px 1fr; align-items: center; gap: 6px; }
+.win input { background: var(--bg); border: 1px solid var(--line); border-radius: 2px; padding: 6px 8px; font-size: 12px; }
+#kitchen-settings textarea { min-height: 70px; }
+
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (max-width: 880px) {
+  .content { padding: 18px 16px 90px; }
+  .meal-row { grid-template-columns: 64px 70px 1fr; }
+  .meal-row .note { grid-column: 2 / -1; }
+  .cook-row { grid-template-columns: 64px 1fr auto; }
+  .cook-row .meta { grid-column: 2; }
+  .wins { grid-template-columns: 1fr; }
+  .olla-card .big { font-size: 23px; }
+}
+
 </style>
 </head>
 <body>
@@ -415,7 +526,16 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
   </header>
 
   <aside class="sidebar">
-    <!-- SLOT:NAV — app nav sections (collections, views, filters) go here -->
+    <!-- SLOT:NAV — La Olla's four views -->
+    <section>
+      <h3>La Olla</h3>
+      <ul class="nav-list">
+        <li data-view="olla" class="active"><span>la olla</span></li>
+        <li data-view="semana"><span>la semana</span></li>
+        <li data-view="libro"><span>el libro</span></li>
+        <li data-view="lista"><span>la lista</span></li>
+      </ul>
+    </section>
     <section class="tools">
       <h3>Tools</h3>
       <button class="ghost-btn" id="settings-btn">⚙ settings</button>
@@ -427,15 +547,11 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
   <main class="content">
     <!-- SLOT:APP-UI — the app's main view replaces everything inside <main> -->
     <div class="content-header">
-      <h2 id="current-view">Shell</h2>
-      <div class="view-meta" id="view-meta">template</div>
+      <h2 id="current-view">La olla</h2>
+      <div class="view-meta" id="view-meta">¿qué hay?</div>
     </div>
     <div id="app-root">
-      <div class="empty-state">
-        <div class="ornament">❦</div>
-        <h3>this is the shell</h3>
-        <p>Fill <strong>SLOT:APP-UI</strong> with your app. Settings, theme, gist sync, and Claude plumbing already work.</p>
-      </div>
+
     </div>
   </main>
 </div>
@@ -445,18 +561,23 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
     <header><div><h2>Settings</h2><p>House rules, Claude integration, cloud sync.</p></div><button type="button" class="close" data-close="settings">×</button></header>
     <div class="modal-body">
       <div class="settings-section">
+        <h3>La cocina</h3>
+        <div class="desc">Lo que la semana sabe de tu vida: el comedor, las ventanas para cocinar, el gym, lo que hay en la cocina. Se pregunta, nunca se adivina.</div>
+        <div id="kitchen-settings"></div>
+      </div>
+      <div class="settings-section">
         <h3>Theme</h3>
-        <div class="desc">Two flavors. Both bright, both dark. Pick whichever fits your mood.</div>
+        <div class="desc">La misma olla de noche o de día.</div>
         <div class="theme-toggle">
           <button type="button" data-theme-pick="macchiato">
-            <span class="swatches"><span class="sw" style="background:#24273a"></span><span class="sw" style="background:#f5a97f"></span><span class="sw" style="background:#c6a0f6"></span></span>
-            <span class="label">Macchiato</span>
-            <span class="sub">warm slate / peach</span>
+            <span class="swatches"><span class="sw" style="background:#15190f"></span><span class="sw" style="background:#a3d15c"></span><span class="sw" style="background:#f1eadb"></span></span>
+            <span class="label">Esmalte</span>
+            <span class="sub">de noche · negro esmaltado</span>
           </button>
           <button type="button" data-theme-pick="tokyo">
-            <span class="swatches"><span class="sw" style="background:#1a1b26"></span><span class="sw" style="background:#bb9af7"></span><span class="sw" style="background:#7dcfff"></span></span>
-            <span class="label">Tokyo</span>
-            <span class="sub">deep navy / lavender</span>
+            <span class="swatches"><span class="sw" style="background:#f4efe3"></span><span class="sw" style="background:#4f7f1d"></span><span class="sw" style="background:#1e2414"></span></span>
+            <span class="label">Loza</span>
+            <span class="sub">de día · loza crema</span>
           </button>
         </div>
       </div>
@@ -529,6 +650,13 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
   </div>
 </dialog>
 
+<dialog id="recipe-modal">
+  <div class="modal">
+    <header><div><p>El libro</p></div><button type="button" class="close" id="recipe-close">×</button></header>
+    <div class="modal-body" id="recipe-body"></div>
+  </div>
+</dialog>
+
 <aside class="claude-panel hidden" id="claude-panel">
   <header>
     <span class="badge">✦ claude</span>
@@ -546,9 +674,11 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
 <div class="sheet-backdrop" id="sheet-backdrop"></div>
 <button class="fab" id="fab-primary" aria-label="Primary action" title="Primary action">＋</button>
 <nav class="bottom-tabs" id="bottom-tabs">
-  <button class="tab active" data-tab="home"><span class="icon" id="tab-home-icon">S</span><span>Home</span></button>
-  <button class="tab" data-tab="menu"><span class="icon">▽</span><span>Menu</span></button>
-  <button class="tab" data-tab="settings"><span class="icon">⚙</span><span>Settings</span></button>
+  <button class="tab active" data-tab="home" data-view="olla"><span class="icon" id="tab-home-icon">O</span><span>Olla</span></button>
+  <button class="tab" data-tab="semana" data-view="semana"><span class="icon">7</span><span>Semana</span></button>
+  <button class="tab" data-tab="libro" data-view="libro"><span class="icon">❦</span><span>Libro</span></button>
+  <button class="tab" data-tab="lista" data-view="lista"><span class="icon">✓</span><span>Lista</span></button>
+  <button class="tab" data-tab="settings"><span class="icon">⚙</span><span>Ajustes</span></button>
 </nav>
 
 <div class="toast" id="toast"></div>
@@ -586,24 +716,613 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
 
 const STORAGE_KEY = APP.STORAGE_KEY;
 const GIST_FILENAME = APP.GIST_FILENAME;
-const DEFAULT_CLAUDE_RULES = 'Be concise and direct. No filler.';   // SLOT: replace with the app's house rules
+const DEFAULT_CLAUDE_RULES = 'Eres el cocinero de la casa, no un nutricionista. Nada de calorías ni macros. Propones platos del libro, al peldaño actual o uno más; el código decide qué día cocina.';   // the coach is step 4; unused in v1
 
 document.getElementById('brand-name').textContent = APP.name;
 document.getElementById('brand-tagline').textContent = APP.tagline;
 document.getElementById('tab-home-icon').textContent = APP.iconLetter;
 
-/* ── app hooks (SLOT:APP-LOGIC) — override these for your app ── */
-function appDefaultState() { return {}; }                 // app-owned top-level state fields
-function appMigrate(s) { return s; }                      // upgrade old app fields in place
-function looksLikeMyState(s) {                            // validator: is this remote JSON OUR app's state?
-  return !!(s && typeof s === 'object' && s.settings);    // SLOT: tighten per app (e.g. Array.isArray(s.sessions))
+/* ═══ OLLA-ENGINE-BEGIN ═══ pure, no DOM, no clock of its own: every function takes `today` (YYYY-MM-DD).
+   test-olla.js extracts this block by its two markers and runs it in node, so nothing in here may touch
+   `document`, `state`, `localStorage` or `Date.now()`. The UI below is the only caller in the browser.
+   Kinds: swipe (a meal-plan exchange at the hall) · cook (tonight's pot, made in a cook window) ·
+   leftover (a serving of a live pot) · home (a fridge default, no cooking, a rung-1 assembly recipe) ·
+   out (eating out / ordering). Dinner is NEVER a swipe: the hall's last station closes at 6pm. */
+const OLLA = (function () {
+  const SLOTS = ['bf', 'lunch', 'dinner'];
+  const KINDS = ['swipe', 'leftover', 'cook', 'home', 'out'];
+  const p2 = n => (n < 10 ? '0' : '') + n;
+  function ymd(d) { return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()); }
+  function parse(s) { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s)); if (!m) return null; return new Date(+m[1], +m[2] - 1, +m[3], 12); }   // noon anchor: a setDate walk can't be shifted a day by DST
+  function addDays(s, n) { const d = parse(s); d.setDate(d.getDate() + n); return ymd(d); }
+  function dow(s) { return parse(s).getDay(); }
+  function diffDays(a, b) { return Math.round((parse(b) - parse(a)) / 86400000); }
+  function weekStart(s) { return addDays(s, -dow(s)); }                 // Sunday — the swipe allotment runs Sun–Sat
+  function isoWeek(s) { const d = parse(s); const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const dn = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - dn); const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1)); return t.getUTCFullYear() + '-W' + p2(Math.ceil(((t - y0) / 86400000 + 1) / 7)); }
+  function hm(str) { const m = /^(\d{1,2}):(\d{2})$/.exec(String(str).trim()); return m ? (+m[1]) * 60 + (+m[2]) : null; }
+  function fmtHM(min) { return p2(Math.floor(min / 60)) + ':' + p2(min % 60); }
+  function windowsFor(settings, date) {
+    const arr = ((settings && settings.cookWindows) || {})[String(dow(date))] || [];
+    return arr.map(w => { const parts = String(w).split('-'); const s = hm(parts[0] || ''), e = hm(parts[1] || ''); return { s, e, str: String(w).trim() }; })
+              .filter(w => w.s != null && w.e != null && w.e > w.s);
+  }
+  function hallDay(settings, date) { return ((settings.hall && settings.hall.days) || []).indexOf(dow(date)) >= 0; }
+  function outDay(settings, date) { return (settings.outDays || []).indexOf(dow(date)) >= 0; }
+  function trainDay(settings, date) { return (settings.trainDays || []).indexOf(dow(date)) >= 0; }
+  function recipeById(state, id) { return (state.recipes || []).find(r => r.id === id) || null; }
+  /* ONE staple per rung is the law; a rung with none borrows the nearest LOWER rung's (a rung-3 week with
+     no rung-3 staple still eats), never a higher one (a rung-5 dish scheduled in week 2 is a skipped meal). */
+  function staple(state, rung) {
+    const st = (state.recipes || []).filter(r => r.staple && r.rung <= rung).sort((a, b) => b.rung - a.rung);
+    return st[0] || null;
+  }
+  function maxServings(rec) { return (rec.servings || 2) * (rec.doubles === true ? 2 : 1); }
+  function gearOk(settings, rec) { const g = (settings && settings.gear) || {}; return (rec.gear || []).every(k => g[k] !== false); }   // unknown gear reads as owned; only an explicit `false` refuses
+  function eligible(state, rec) { return !!rec && rec.rung <= ((state.ladder && state.ladder.rung) || 1) + 1 && gearOk(state.settings, rec); }
+
+  /* The pot: every batch a cook row made, minus every row that ate from it. Derived from the plan, never stored. */
+  function potFrom(state, plan, upto) {
+    const days = (plan && plan.days) || {}, batches = {};
+    Object.keys(days).sort().forEach(d => {
+      const day = days[d];
+      if (day.cook && day.cook.batch) {
+        const rec = recipeById(state, day.cook.recipe) || {};
+        batches[day.cook.batch] = { id: day.cook.batch, date: d, recipe: day.cook.recipe, name: rec.name || day.cook.recipe,
+          servings: day.cook.servings || 0, left: day.cook.servings || 0, fridgeDays: rec.fridgeDays || 3, eaters: [] };
+      }
+    });
+    Object.keys(days).sort().forEach(d => {
+      if (upto && d > upto) return;
+      const day = days[d];
+      SLOTS.forEach(sl => { const r = day[sl]; if (!r) return;
+        const bid = r.kind === 'cook' ? (day.cook && day.cook.batch) : r.kind === 'leftover' ? r.of : null;
+        if (bid && batches[bid]) { batches[bid].left--; batches[bid].eaters.push(d + ':' + sl); } });   // left goes NEGATIVE on an overdrawn pot — the gate reads it; a floor at zero hid a fourth eater on a three-serving pot
+    });
+    return Object.values(batches).sort((a, b) => a.date < b.date ? -1 : 1);
+  }
+  function alive(b, date) { return b.left > 0 && diffDays(b.date, date) >= 0 && diffDays(b.date, date) <= b.fridgeDays; }
+  function liveBatches(state, plan, date) { return potFrom(state, plan).filter(b => alive(b, date)); }
+  /* What is PHYSICALLY in the pot on `date`, per the plan: every batch cooked on or before it, minus the meals already
+     behind it. liveBatches answers the planner (uncommitted servings); this answers him («¿qué hay?»). Without the ate
+     tap, a past slot is assumed eaten and today's are still in the pot. */
+  function potNow(state, plan, date) {
+    return potFrom(state, plan).filter(b => b.date <= date).map(b => {
+      const ahead = b.eaters.filter(k => k.slice(0, 10) >= date).length;   // eaters not yet behind us
+      const left = b.left + ahead;                                         // b.left already subtracted every eater
+      return Object.assign({}, b, { left, expires: addDays(b.date, b.fridgeDays) });
+    }).filter(b => b.left > 0 && diffDays(b.date, date) <= b.fridgeDays);
+  }
+
+  /* How many servings a cook on `date` should make: tonight, plus every pot-eating slot until the next day that
+     can cook, capped by the recipe's fridge life. Clamped to [2, maxServings]: every cook is a double. */
+  function coverAhead(settings, rec, date) {
+    let n = 1;
+    for (let k = 1; k <= (rec.fridgeDays || 3); k++) {
+      const e = addDays(date, k);
+      if (!hallDay(settings, e) && !outDay(settings, e)) n++;   // a lunch at home eats the pot
+      if (windowsFor(settings, e).length) break;                // that day cooks for itself
+      n++;                                                      // its dinner eats the pot
+    }
+    return Math.max(2, Math.min(maxServings(rec), n));
+  }
+  const batchId = (date, slot) => 'b' + date.replace(/-/g, '').slice(2) + (slot ? slot[0] : 'd');
+
+  /* THE FALLBACK WEEK — the default planner; the coach (later) is additive. Rows he set by hand (`hand:true`)
+     are kept; past days are kept verbatim; everything else from `today` for `span` days is rebuilt. */
+  function buildWeek(state, today, span) {
+    span = span || 7;
+    const S = state.settings, old = (state.plan && state.plan.days) || {}, days = {};
+    const rung = (state.ladder && state.ladder.rung) || 1;
+    Object.keys(old).forEach(d => { if (d < today && diffDays(d, today) <= 21) days[d] = old[d]; });   // the past is a record; prune past three weeks
+    const plan = { via: 'fallback', days };
+    const keep = (d, sl) => (old[d] && old[d][sl] && old[d][sl].hand) ? old[d][sl] : null;
+    for (let i = 0; i < span; i++) {
+      const d = addDays(today, i), day = { train: trainDay(S, d) };
+      const oldDay = old[d] || {};
+      if (oldDay.cook && oldDay.cook.hand) day.cook = oldDay.cook;
+      const hall = hallDay(S, d), wins = windowsFor(S, d);
+      const takeLeftover = () => { const b = liveBatches(state, plan, d)[0]; return b ? { kind: 'leftover', of: b.id } : null; };
+      const home = sl => ({ kind: 'home', recipe: (S.fridge || {})[sl === 'bf' ? 'bf' : 'meal'] || null });
+      days[d] = day;                                             // in place so liveBatches sees today's own rows as it fills
+      // breakfast
+      day.bf = keep(d, 'bf') || ((hall && S.hall.breakfastSwipe) ? { kind: 'swipe' } : home('bf'));
+      // lunch
+      day.lunch = keep(d, 'lunch') || (hall ? { kind: 'swipe' } : outDay(S, d) ? { kind: 'out' } : (takeLeftover() || home('lunch')));
+      // dinner — never a swipe
+      let din = keep(d, 'dinner');
+      if (!din) {
+        din = takeLeftover();
+        if (!din && (day.cook || wins.length)) {
+          if (!day.cook) { const rec = staple(state, rung);
+            if (rec) day.cook = { recipe: rec.id, at: fmtHM(wins[0].s), servings: coverAhead(S, rec, d), batch: batchId(d) }; }
+          if (day.cook) din = { kind: 'cook' };
+        }
+        if (!din) din = home('dinner');
+      } else if (din.kind === 'cook' && !day.cook) {            // a hand cook whose cook row was lost: rebuild it
+        const rec = staple(state, rung); if (rec && wins.length) day.cook = { recipe: rec.id, at: fmtHM(wins[0].s), servings: coverAhead(S, rec, d), batch: batchId(d) };
+      }
+      day.dinner = din;
+    }
+    trimSwipes(state, plan, today);
+    return plan;
+  }
+  /* The allotment is Sun–Sat; a week over budget loses its LATEST non-hand swipes to `home`. */
+  function trimSwipes(state, plan, today) {
+    const S = state.settings, budget = (S.hall && S.hall.swipesPerWeek) || 0, byWeek = {};
+    Object.keys(plan.days).sort().forEach(d => { if (d < today) return;
+      SLOTS.forEach(sl => { const r = plan.days[d][sl]; if (r && r.kind === 'swipe') (byWeek[weekStart(d)] = byWeek[weekStart(d)] || []).push({ d, sl, r }); }); });
+    Object.keys(byWeek).forEach(w => {
+      // swipes already spent this week on past days count against the same allotment
+      let spent = 0; Object.keys(plan.days).forEach(d => { if (weekStart(d) === w && d < today) SLOTS.forEach(sl => { const r = plan.days[d][sl]; if (r && r.kind === 'swipe') spent++; }); });
+      const list = byWeek[w]; let over = spent + list.length - budget;
+      for (let i = list.length - 1; i >= 0 && over > 0; i--) { if (list[i].r.hand) continue; plan.days[list[i].d][list[i].sl] = { kind: 'home', recipe: (S.fridge || {})[list[i].sl === 'bf' ? 'bf' : 'meal'] || null, trimmed: true }; over--; }
+    });
+  }
+  function swipesUsed(plan, weekStartYmd) { let n = 0; Object.keys(plan.days || {}).forEach(d => { if (weekStart(d) !== weekStartYmd) return; SLOTS.forEach(sl => { const r = plan.days[d][sl]; if (r && r.kind === 'swipe') n++; }); }); return n; }
+
+  /* THE GATE — refuses, never warns. Runs on every plan the coach will ever propose and on every hand edit. */
+  function validateWeek(state, plan, today) {
+    const S = state.settings, out = [], rung = (state.ladder && state.ladder.rung) || 1, days = (plan && plan.days) || {};
+    const push = (date, slot, code, msg) => out.push({ date, slot, code, msg });
+    const pot = potFrom(state, plan);
+    Object.keys(days).sort().forEach(d => {
+      if (d < today) return;                                   // the past is a record, not a proposal
+      const day = days[d], wins = windowsFor(S, d);
+      if (day.cook) {
+        const rec = recipeById(state, day.cook.recipe);
+        if (!rec) push(d, 'cook', 'unknown-recipe', 'receta desconocida: ' + day.cook.recipe);
+        else {
+          if (rec.rung > rung + 1) push(d, 'cook', 'rung', rec.name + ' es del peldaño ' + rec.rung + '; vas en el ' + rung);
+          if (!gearOk(S, rec)) push(d, 'cook', 'gear', rec.name + ' necesita ' + (rec.gear || []).filter(k => (S.gear || {})[k] === false).join(', '));
+          if (day.cook.servings > maxServings(rec)) push(d, 'cook', 'servings', rec.name + ' rinde ' + maxServings(rec) + ' como mucho');
+        }
+        const at = hm(day.cook.at);
+        if (at == null || !wins.some(w => at >= w.s && at + 1 <= w.e)) push(d, 'cook', 'no-window', 'no hay ventana para cocinar el ' + d + (day.cook.at ? ' a las ' + day.cook.at : ''));
+      }
+      SLOTS.forEach(sl => { const r = day[sl]; if (!r) { push(d, sl, 'missing', 'sin fila'); return; }
+        if (KINDS.indexOf(r.kind) < 0) push(d, sl, 'kind', 'tipo desconocido: ' + r.kind);
+        if (r.kind === 'swipe' && (!hallDay(S, d) || sl === 'dinner')) push(d, sl, 'hall', 'el comedor no sirve ' + sl + ' el ' + d);
+        if (r.kind === 'cook' && !day.cook) push(d, sl, 'no-cook', 'cena «cook» sin olla ese día');
+        if (r.kind === 'leftover') { const b = pot.find(x => x.id === r.of); if (!b) push(d, sl, 'no-batch', 'sobra sin olla: ' + r.of); else if (diffDays(b.date, d) > b.fridgeDays || diffDays(b.date, d) < 0) push(d, sl, 'stale', b.name + ' del ' + b.date + ' ya no aguanta el ' + d); }
+        if (r.kind === 'home' && r.recipe && !recipeById(state, r.recipe)) push(d, sl, 'unknown-recipe', 'receta desconocida: ' + r.recipe); });
+    });
+    pot.forEach(b => { if (b.left < 0) push(b.date, 'cook', 'overdrawn', b.name + ': más comidas que porciones'); });
+    const weeks = {}; Object.keys(days).forEach(d => { weeks[weekStart(d)] = 1; });
+    Object.keys(weeks).forEach(w => { const n = swipesUsed(plan, w); if (n > ((S.hall && S.hall.swipesPerWeek) || 0)) push(w, 'week', 'swipes', n + ' swipes en la semana del ' + w + '; hay ' + S.hall.swipesPerWeek); });
+    return out;
+  }
+
+  /* A hand edit: set one slot's kind. Refused when the gate would refuse it — the row never goes in wrong. */
+  function setKind(state, date, slot, kind, today) {
+    if (date < today) return { ok: false, why: 'ese día ya pasó' };
+    if (SLOTS.indexOf(slot) < 0 || KINDS.indexOf(kind) < 0) return { ok: false, why: 'fila o tipo inválido' };
+    const S = state.settings, plan = state.plan, day = plan.days[date]; if (!day) return { ok: false, why: 'ese día no está en el plan' };
+    const wins = windowsFor(S, date);
+    let row;
+    if (kind === 'swipe') { if (slot === 'dinner') return { ok: false, why: 'el comedor cierra antes de la cena' }; if (!hallDay(S, date)) return { ok: false, why: 'el comedor no abre ese día' }; row = { kind: 'swipe' }; }
+    else if (kind === 'leftover') { const b = liveBatches(state, plan, date).filter(x => !(day[slot] && day[slot].kind === 'leftover' && day[slot].of === x.id))[0] || liveBatches(state, plan, date)[0]; if (!b) return { ok: false, why: 'la olla está vacía ese día' }; row = { kind: 'leftover', of: b.id }; }
+    else if (kind === 'cook') { if (slot !== 'dinner') return { ok: false, why: 'se cocina para la cena' }; if (!wins.length) return { ok: false, why: 'no hay ventana para cocinar ese día (Ajustes → La cocina)' };
+      const rec = day.cook ? recipeById(state, day.cook.recipe) : staple(state, (state.ladder || {}).rung || 1); if (!rec) return { ok: false, why: 'no hay receta base para tu peldaño' };
+      if (!day.cook) day.cook = { recipe: rec.id, at: fmtHM(wins[0].s), servings: coverAhead(S, rec, date), batch: batchId(date) };
+      day.cook.hand = true; row = { kind: 'cook' }; }
+    else if (kind === 'home') row = { kind: 'home', recipe: (S.fridge || {})[slot === 'bf' ? 'bf' : 'meal'] || null };
+    else row = { kind: 'out' };
+    row.hand = true;
+    day[slot] = row;
+    if (slot === 'dinner' && kind !== 'cook' && day.cook && day.cook.hand) delete day.cook;   // a hand cook is undone by moving the dinner off it
+    state.plan = buildWeek(state, today);                       // consumption changed: every non-hand row downstream is re-derived
+    const bad = validateWeek(state, state.plan, today).filter(x => x.date === date && (x.slot === slot || x.slot === 'cook'));
+    return bad.length ? { ok: false, why: bad[0].msg } : { ok: true };
+  }
+  function nextKind(state, date, slot, today) {           // the tap cycle: the next kind the gate would accept
+    const cur = ((state.plan.days[date] || {})[slot] || {}).kind || 'home';
+    const i = KINDS.indexOf(cur);
+    for (let k = 1; k <= KINDS.length; k++) { const cand = KINDS[(i + k) % KINDS.length];
+      const snap = JSON.stringify(state.plan); const r = setKind(state, date, slot, cand, today);
+      if (r.ok) return cand;
+      state.plan = JSON.parse(snap); }
+    return cur;
+  }
+  function setCookRecipe(state, date, recipeId, today) {
+    const day = state.plan.days[date], rec = recipeById(state, recipeId);
+    if (!day || !day.cook) return { ok: false, why: 'ese día no cocina' };
+    if (!rec) return { ok: false, why: 'receta desconocida' };
+    if (!eligible(state, rec)) return { ok: false, why: rec.name + ' está más arriba en la escalera, o falta un aparato' };
+    day.cook.recipe = rec.id; day.cook.servings = coverAhead(state.settings, rec, date); day.cook.hand = true;
+    state.plan = buildWeek(state, today);
+    return { ok: true };
+  }
+
+  /* THE LIST — derived from plan × recipes, minus the pantry, plus the weekly staples. `checked` is the only hand state. */
+  function groceries(state, today) {
+    const S = state.settings, days = (state.plan && state.plan.days) || {}, agg = {};
+    const add = (n, q, u, why) => { const k = (n + '|' + (u || '')).toLowerCase(); const it = agg[k] || (agg[k] = { n, q: 0, u: u || '', for: [] }); it.q += q || 0; if (why && it.for.indexOf(why) < 0) it.for.push(why); };
+    const pantry = (S.pantry || []).map(x => String(x).toLowerCase().trim());
+    Object.keys(days).sort().forEach(d => { if (d < today || diffDays(today, d) > 6) return; const day = days[d];
+      if (day.cook) { const rec = recipeById(state, day.cook.recipe); if (rec) { const f = (day.cook.servings || rec.servings) / (rec.servings || 1); (rec.ingredients || []).forEach(g => add(g.n, +(g.q * f).toFixed(2), g.u, rec.name)); } }
+      SLOTS.forEach(sl => { const r = day[sl]; if (r && r.kind === 'home' && r.recipe) { const rec = recipeById(state, r.recipe); if (rec) (rec.ingredients || []).forEach(g => add(g.n, +(g.q / (rec.servings || 1)).toFixed(2), g.u, rec.name)); } }); });
+    (S.weekly || []).forEach(n => { const has = Object.values(agg).some(it => it.n.toLowerCase() === String(n).toLowerCase()); if (has) Object.values(agg).forEach(it => { if (it.n.toLowerCase() === String(n).toLowerCase() && it.for.indexOf('siempre') < 0) it.for.push('siempre'); }); else add(n, 0, '', 'siempre'); });   // a staple already on the list is one line, not two
+    return Object.values(agg).filter(it => pantry.indexOf(it.n.toLowerCase()) < 0).sort((a, b) => a.n.localeCompare(b.n));
+  }
+
+  /* THE REGISTER — append-only, never touches the plan, refuses the future. */
+  function logMeal(state, date, slot, s, today) {
+    if (SLOTS.indexOf(slot) < 0) return { ok: false, why: 'fila inválida' };
+    if (s !== 'ate' && s !== 'skipped') return { ok: false, why: 'ate o skipped' };
+    if (!parse(date) || date > today) return { ok: false, why: 'esa comida todavía no pasó' };
+    state.log = state.log || {}; state.log[date + ':' + slot] = { s, ts: parse(today).getTime() };
+    return { ok: true };
+  }
+  /* seated vs eaten, per slot, for one Sun–Sat week — the read path that makes the register not landfill */
+  function weekRegister(state, weekStartYmd, today) {
+    const days = (state.plan && state.plan.days) || {}, log = state.log || {}, out = { bf: { seated: 0, ate: 0, skipped: 0 }, lunch: { seated: 0, ate: 0, skipped: 0 }, dinner: { seated: 0, ate: 0, skipped: 0 } };
+    for (let i = 0; i < 7; i++) { const d = addDays(weekStartYmd, i); if (d > today || !days[d]) continue;
+      SLOTS.forEach(sl => { if (!days[d][sl]) return; out[sl].seated++; const e = log[d + ':' + sl]; if (e && e.s === 'ate') out[sl].ate++; if (e && e.s === 'skipped') out[sl].skipped++; }); }
+    return out;
+  }
+  /* A rung is PASSED by code: ≥6 POT meals (cook or leftover rows — the fridge defaults never count) eaten at the current
+     rung, spanning ≥10 days. Never asserted. Not "two ISO weeks": a Wed→Tue week straddles two of those by itself. */
+  function rungCheck(state, today) {
+    const rung = (state.ladder && state.ladder.rung) || 1, days = (state.plan && state.plan.days) || {}, log = state.log || {};
+    let n = 0; const weeks = {}; let first = null, last = null;
+    Object.keys(days).forEach(d => { if (d > today) return; const day = days[d];
+      SLOTS.forEach(sl => { const r = day[sl]; if (!r) return; const e = log[d + ':' + sl]; if (!e || e.s !== 'ate') return;
+        const rid = r.kind === 'cook' ? (day.cook && day.cook.recipe) : r.kind === 'leftover' ? (function () { const b = potFrom(state, state.plan).find(x => x.id === r.of); return b && b.recipe; })() : null;
+        const rec = rid && recipeById(state, rid); if (rec && rec.rung === rung) { n++; weeks[isoWeek(d)] = 1; if (!first || d < first) first = d; if (!last || d > last) last = d; } }); });
+    const span = first ? diffDays(first, last) : 0;
+    return { pass: n >= 6 && span >= 10, n, weeks: Object.keys(weeks).length, span, rung };
+  }
+  function rungUp(state, today) { const c = rungCheck(state, today); if (!c.pass) return c; state.ladder.passed = state.ladder.passed || []; state.ladder.passed.push({ rung: c.rung, on: today, ate: c.n }); state.ladder.rung = c.rung + 1; state.ladder.since = today; return c; }
+
+  /* What a meal COSTS in minutes — the city's packer reads this off los.olla. Clamped: a missing reading is not a 0-minute meal. */
+  function minutesFor(state, date, slot) {
+    const S = state.settings, day = (state.plan && state.plan.days || {})[date]; if (!day || !day[slot]) return null;
+    const r = day[slot], walk = (S.hall && S.hall.walkMin) || 10; let m;
+    if (r.kind === 'swipe') m = 2 * walk + 20; else if (r.kind === 'leftover') m = 15; else if (r.kind === 'home') m = 10; else if (r.kind === 'out') m = 60;
+    else { const rec = day.cook && recipeById(state, day.cook.recipe); m = rec ? (rec.minutes || {}).total || 30 : 30; }
+    return Math.max(10, Math.min(180, m));
+  }
+  function slotLabel(state, date, slot) {
+    const day = (state.plan && state.plan.days || {})[date]; if (!day || !day[slot]) return '';
+    const r = day[slot], S = state.settings;
+    if (r.kind === 'swipe') return (S.hall && S.hall.name) || 'swipe';
+    if (r.kind === 'out') return 'fuera';
+    if (r.kind === 'cook') { const rec = day.cook && recipeById(state, day.cook.recipe); return rec ? rec.name : 'cocinar'; }
+    if (r.kind === 'leftover') { const b = potFrom(state, state.plan).find(x => x.id === r.of); return b ? b.name + ' (sobra)' : 'sobra'; }
+    const rec = r.recipe && recipeById(state, r.recipe); return rec ? rec.name : 'de la nevera';
+  }
+  return { SLOTS, KINDS, ymd, parse, addDays, dow, diffDays, weekStart, isoWeek, hm, fmtHM, windowsFor, hallDay, outDay, trainDay,
+           recipeById, staple, maxServings, gearOk, eligible, potFrom, liveBatches, potNow, coverAhead, buildWeek, trimSwipes, swipesUsed,
+           validateWeek, setKind, nextKind, setCookRecipe, groceries, logMeal, weekRegister, rungCheck, rungUp, minutesFor, slotLabel };
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = OLLA;
+/* ═══ OLLA-ENGINE-END ═══ */
+
+/* ═══ OLLA-SEED-BEGIN ═══ the book and the defaults. Minutes, servings, fridge days and protein are ESTIMATES
+   from the 29-sep-2026 ladder brief (LA-OLLA-PLAN.md in leandro-os-prototype), not measurements; the UI says so.
+   Exactly ONE `staple:true` per rung — the fallback week's cook. `assembly:true` = no knife, no heat worth the name;
+   those are the fridge defaults and never count toward passing a rung. Gear keys: pot, pan, oven, microwave,
+   riceCooker, blender, thermometer, sheetPan. */
+const OLLA_SEED = {
+  settings: {
+    hall: { name: 'The Local', walkMin: 10, swipesPerWeek: 14, breakfastSwipe: true, days: [1, 2, 3, 4, 5] },   // Mon–Fri; weekend hours unpublished → not a swipe day until he confirms
+    outDays: [0],                                                        // Sunday lunch is on the Hilltop; not the pot's
+    cookWindows: { '0': [], '1': [], '2': [], '3': ['13:00-17:30'], '4': ['13:00-17:30'], '5': ['11:00-21:00'], '6': ['11:00-21:00'] },
+    trainDays: [1, 2, 4, 5],                                             // La Forja's plan.schedule as of 29-sep; the city will feed this later
+    fridge: { bf: 'yogur-bowl', meal: 'atun-huevo-bowl' },               // the two no-cook defaults
+    feed: 'leche (2 tazas) + yogur griego + mantequilla de maní',        // the fourth meal on a lift night, ~40 g, no cooking
+    gear: { pot: true, pan: true, oven: true, microwave: true, riceCooker: false, blender: false, thermometer: false, sheetPan: true },
+    pantry: ['sal', 'pimienta', 'aceite', 'aceite de oliva', 'ajo', 'sillao', 'vinagre', 'comino', 'orégano', 'azúcar'],
+    weekly: ['leche', 'yogur griego', 'mantequilla de maní'],
+  },
+  ladder: { rung: 1, since: null, passed: [] },
+  recipes: [
+    { id: 'yogur-bowl', name: 'Bowl de yogur griego', rung: 1, cuisine: 'US', assembly: true, staple: false, gear: [],
+      minutes: { active: 3, total: 3 }, servings: 1, doubles: false, fridgeDays: 0, proteinG: 22,
+      ingredients: [{ q: 200, u: 'g', n: 'yogur griego' }, { q: 40, u: 'g', n: 'granola' }, { q: 80, u: 'g', n: 'frutos rojos' }],
+      steps: ['Yogur en el bowl, granola encima, fruta encima. Ya.', 'Un scoop de whey revuelto en el yogur lo sube a ~40 g.'] },
+    { id: 'avena-nocturna', name: 'Avena nocturna (3 frascos)', rung: 1, cuisine: 'US', assembly: true, staple: false, gear: [],
+      minutes: { active: 8, total: 8 }, servings: 3, doubles: false, fridgeDays: 3, proteinG: 30,
+      ingredients: [{ q: 150, u: 'g', n: 'avena' }, { q: 300, u: 'g', n: 'yogur griego' }, { q: 300, u: 'ml', n: 'leche' }, { q: 3, u: 'cda', n: 'chía' }, { q: 1, u: '', n: 'plátano' }],
+      steps: ['Sábado: tres frascos. En cada uno 50 g de avena, 100 g de yogur, 100 ml de leche, 1 cda de chía.', 'Tapa, nevera. El del martes es el día 3: el último.', 'Plátano en rodajas al servir.'] },
+    { id: 'atun-huevo-bowl', name: 'Bowl de atún y huevo', rung: 1, cuisine: 'JP', assembly: true, staple: false, gear: ['microwave', 'pan'],
+      minutes: { active: 6, total: 8 }, servings: 1, doubles: false, fridgeDays: 0, proteinG: 35,
+      ingredients: [{ q: 1, u: 'bolsa', n: 'arroz listo (Ready Rice)' }, { q: 1, u: 'lata', n: 'atún' }, { q: 1, u: '', n: 'huevo' }, { q: 1, u: 'cda', n: 'sillao' }, { q: 1, u: 'cdta', n: 'aceite de sésamo' }, { q: 1, u: '', n: 'cebollita china' }],
+      steps: ['Arroz 90 s en el microondas.', 'Huevo frito en la sartén, 2 min por lado, o 60 s en una taza en el microondas.', 'Atún escurrido sobre el arroz, huevo encima, sillao + sésamo, cebollita picada con tijera.'] },
+    { id: 'revuelto-3', name: 'Revuelto de 3 huevos con tostada', rung: 1, cuisine: 'US', assembly: true, staple: false, gear: ['pan'],
+      minutes: { active: 8, total: 10 }, servings: 1, doubles: false, fridgeDays: 0, proteinG: 35,
+      ingredients: [{ q: 3, u: '', n: 'huevos' }, { q: 2, u: 'rebanadas', n: 'pan integral' }, { q: 150, u: 'g', n: 'yogur griego' }, { q: 1, u: 'cda', n: 'mantequilla' }],
+      steps: ['Sartén a fuego BAJO con la mantequilla. Huevos batidos con una pizca de sal.', 'Mueve despacio con una espátula hasta que cuajen pero brillen. Fuera del fuego antes de que se sequen.', 'Tostada, y el yogur al lado: ahí está la proteína que falta.'] },
+    { id: 'salsa-criolla', name: 'Salsa criolla', rung: 1, cuisine: 'PE', assembly: false, staple: false, gear: [],
+      minutes: { active: 8, total: 15 }, servings: 4, doubles: true, fridgeDays: 2, proteinG: 0,
+      ingredients: [{ q: 1, u: '', n: 'cebolla roja' }, { q: 2, u: '', n: 'limones' }, { q: 1, u: 'puñado', n: 'culantro' }, { q: 1, u: '', n: 'ají amarillo fresco (opcional)' }],
+      steps: ['Cebolla en pluma FINA: la primera cosa peruana, y enseña el cuchillo en la verdura más barata.', 'Enjuaga la cebolla en agua con sal 5 min, escurre.', 'Limón, sal, culantro picado. Reposa 10 min. Va encima de cualquier bowl de la semana.'] },
+    { id: 'pollo-rostizado-bowl', name: 'Pollo rostizado con arroz', rung: 1, cuisine: 'PE', assembly: true, staple: true, gear: ['microwave'],
+      minutes: { active: 8, total: 12 }, servings: 4, doubles: true, fridgeDays: 3, proteinG: 40,
+      ingredients: [{ q: 1, u: '', n: 'pollo rostizado (Safeway, deli)' }, { q: 4, u: 'bolsas', n: 'arroz listo (Ready Rice)' }, { q: 2, u: 'bolsas', n: 'verdura congelada' }, { q: 2, u: '', n: 'limones' }, { q: 1, u: '', n: 'ají o hot sauce' }],
+      steps: ['El peldaño 1 no cocina: ARMA. Deshuesa el pollo con las manos mientras está tibio; cuatro porciones.', 'Cada porción a su táper: pollo + una bolsa de arroz (90 s) + verdura (3 min al microondas) + limón.', 'Nevera, tres días. Sábado se hace la olla grande: dos pollos si la semana lo pide.', 'Salsa criolla encima si la hiciste.'] },
+    { id: 'arroz-graneado', name: 'Arroz graneado', rung: 2, cuisine: 'PE', assembly: false, staple: false, gear: ['pot'],
+      minutes: { active: 5, total: 25 }, servings: 4, doubles: true, fridgeDays: 2, proteinG: 4,
+      ingredients: [{ q: 2, u: 'tazas', n: 'arroz' }, { q: 2, u: 'dientes', n: 'ajo' }, { q: 1, u: 'cda', n: 'aceite' }],
+      steps: ['Lava el arroz hasta que el agua salga casi clara.', 'Olla con el aceite, el ajo picado 30 s, el arroz 1 min revolviendo.', 'Agua 1:1.25, sal. Hierve destapado hasta que el agua baje al nivel del arroz.', 'Tapa, fuego mínimo 15 min. Apaga, 5 min sin destapar, suelta con un tenedor.', 'Enfría RÁPIDO lo que sobre y a la nevera: el arroz es la sobra que más muerde.'] },
+    { id: 'bowl-coreano', name: 'Bowl coreano de carne molida', rung: 2, cuisine: 'KR', assembly: false, staple: true, gear: ['pan'],
+      minutes: { active: 15, total: 20 }, servings: 3, doubles: true, fridgeDays: 3, proteinG: 30,
+      ingredients: [{ q: 450, u: 'g', n: 'carne molida 85%' }, { q: 3, u: 'cda', n: 'sillao' }, { q: 1, u: 'cda', n: 'azúcar morena' }, { q: 3, u: 'dientes', n: 'ajo' }, { q: 1, u: 'cdta', n: 'jengibre rallado' }, { q: 1, u: 'cda', n: 'gochujang' }, { q: 1, u: 'cdta', n: 'aceite de sésamo' }, { q: 3, u: 'bolsas', n: 'arroz listo (Ready Rice)' }, { q: 2, u: '', n: 'cebollita china' }],
+      steps: ['Sartén caliente, la carne suelta hasta que dore; escurre la grasa si hay mucha.', 'Sillao, azúcar, ajo, jengibre, gochujang: 2 min.', 'Fuera del fuego el aceite de sésamo. Sobre arroz, cebollita encima. Dobla sin miedo: la salsa escala.'] },
+    { id: 'oyakodon', name: 'Oyakodon', rung: 2, cuisine: 'JP', assembly: false, staple: false, gear: ['pan'],
+      minutes: { active: 12, total: 15 }, servings: 1, doubles: true, fridgeDays: 2, proteinG: 45,
+      ingredients: [{ q: 1, u: '', n: 'muslo de pollo deshuesado' }, { q: 0.5, u: '', n: 'cebolla' }, { q: 2, u: '', n: 'huevos' }, { q: 100, u: 'ml', n: 'caldo (dashi o de pollo)' }, { q: 1, u: 'cda', n: 'sillao' }, { q: 1, u: 'cda', n: 'mirin' }, { q: 1, u: 'bolsa', n: 'arroz listo (Ready Rice)' }],
+      steps: ['Cebolla en pluma con el caldo, sillao y mirin: hierve 3 min en la sartén.', 'Pollo en trozos, 5 min tapado.', 'Huevos batidos por encima, tapa 1 min: cuajados por fuera, cremosos por dentro. Sobre arroz. Máximo dos por sartén.'] },
+    { id: 'pollo-bandeja', name: 'Pollo mediterráneo a la bandeja', rung: 2, cuisine: 'MED', assembly: false, staple: false, gear: ['oven', 'sheetPan'],
+      minutes: { active: 10, total: 40 }, servings: 4, doubles: false, fridgeDays: 3, proteinG: 40,
+      ingredients: [{ q: 4, u: '', n: 'muslos de pollo' }, { q: 500, u: 'g', n: 'papas' }, { q: 2, u: '', n: 'pimientos' }, { q: 200, u: 'g', n: 'tomates cherry' }, { q: 100, u: 'g', n: 'queso feta' }, { q: 1, u: '', n: 'limón' }, { q: 1, u: 'cda', n: 'orégano' }],
+      steps: ['Horno a 425°F. Muslos, papas en cubos y pimientos en la bandeja con aceite, limón, orégano, sal.', '20 min. Tomates y feta encima, 10 min más.', 'Una bandeja rinde 4; dos bandejas necesitan dos rejillas. Miércoles y jueves: al horno a las 4:45 o se come antes de las 5:30.'] },
+    { id: 'arroz-con-pollo', name: 'Arroz con pollo', rung: 3, cuisine: 'PE', assembly: false, staple: true, gear: ['pot', 'blender'],
+      minutes: { active: 25, total: 60 }, servings: 6, doubles: false, fridgeDays: 3, proteinG: 35,
+      ingredients: [{ q: 6, u: '', n: 'muslos de pollo' }, { q: 3, u: 'tazas', n: 'arroz' }, { q: 1, u: 'atado', n: 'culantro' }, { q: 1, u: '', n: 'cebolla roja' }, { q: 2, u: 'cda', n: 'pasta de ají amarillo' }, { q: 4, u: 'dientes', n: 'ajo' }, { q: 1, u: 'taza', n: 'arvejas congeladas' }, { q: 1, u: '', n: 'pimiento rojo' }, { q: 1, u: 'botella', n: 'cerveza negra' }, { q: 1, u: 'cubo', n: 'caldo de pollo' }],
+      steps: ['Dora los muslos por los dos lados en la olla; sácalos.', 'Sofrito: cebolla, ajo, ají amarillo 5 min. Culantro licuado con media taza de agua, adentro, 2 min.', 'Arroz, cerveza, caldo hasta cubrir dos dedos. Pollo encima. Hierve, tapa, mínimo 35 min.', 'Arvejas y pimiento los últimos 5. Reposa 10. Seis porciones: la olla del sábado.'] },
+    { id: 'chili', name: 'Chili de una olla', rung: 3, cuisine: 'US', assembly: false, staple: false, gear: ['pot'],
+      minutes: { active: 15, total: 55 }, servings: 6, doubles: true, fridgeDays: 4, proteinG: 35,
+      ingredients: [{ q: 900, u: 'g', n: 'carne molida 85%' }, { q: 1, u: '', n: 'cebolla' }, { q: 4, u: 'dientes', n: 'ajo' }, { q: 2, u: 'cda', n: 'chili powder' }, { q: 1, u: 'cda', n: 'comino' }, { q: 1, u: 'lata', n: 'tomate triturado' }, { q: 2, u: 'latas', n: 'frijoles' }],
+      steps: ['Dora la carne en la olla; cebolla y ajo 5 min.', 'Especias 1 min, tomate y frijoles, 30–45 min a fuego bajo.', 'Se congela 3 meses. La olla más fácil de doblar del libro.'] },
+    { id: 'tallarin-saltado', name: 'Tallarín saltado de pollo', rung: 3, cuisine: 'PE', assembly: false, staple: false, gear: ['pot', 'pan'],
+      minutes: { active: 25, total: 30 }, servings: 2, doubles: 'two-rounds', fridgeDays: 2, proteinG: 45,
+      ingredients: [{ q: 250, u: 'g', n: 'espagueti' }, { q: 400, u: 'g', n: 'pechuga de pollo' }, { q: 1, u: '', n: 'cebolla roja' }, { q: 2, u: '', n: 'tomates' }, { q: 1, u: '', n: 'pimiento' }, { q: 3, u: 'cda', n: 'sillao' }, { q: 1, u: 'cda', n: 'salsa de ostión' }],
+      steps: ['Pasta hirviendo mientras cortas.', 'Sartén MUY caliente: pollo en tiras 2 min, fuera.', 'Cebolla, tomate y pimiento 2 min rápido; sillao y ostión; pollo de vuelta, pasta adentro, 1 min.', 'Dos porciones por sartén como mucho; para cuatro, dos rondas.'] },
+    { id: 'lomo-saltado', name: 'Lomo saltado', rung: 4, cuisine: 'PE', assembly: false, staple: true, gear: ['pan', 'oven'],
+      minutes: { active: 25, total: 30 }, servings: 2, doubles: 'two-rounds', fridgeDays: 2, proteinG: 40,
+      ingredients: [{ q: 400, u: 'g', n: 'lomo o bistec' }, { q: 1, u: '', n: 'cebolla roja' }, { q: 2, u: '', n: 'tomates' }, { q: 1, u: 'cda', n: 'pasta de ají amarillo' }, { q: 3, u: 'cda', n: 'sillao' }, { q: 1, u: 'cda', n: 'vinagre' }, { q: 1, u: 'bolsa', n: 'papas fritas congeladas' }, { q: 2, u: 'bolsas', n: 'arroz listo (Ready Rice)' }, { q: 1, u: 'puñado', n: 'culantro' }],
+      steps: ['Papas al horno según la bolsa, en paralelo.', 'Sartén hasta que humee. Carne en tiras, en DOS tandas, 1–2 min cada una: fuera.', 'Cebolla en gajos gruesos, tomate en gajos, ají: 1 min a fuego máximo.', 'Carne de vuelta, sillao y vinagre por el borde, 30 s. Papas y culantro adentro. Con arroz.', 'Las sobras: solo la carne se recalienta; las papas no.'] },
+    { id: 'aji-de-gallina', name: 'Ají de gallina', rung: 5, cuisine: 'PE', assembly: false, staple: true, gear: ['pot', 'blender'],
+      minutes: { active: 30, total: 45 }, servings: 4, doubles: true, fridgeDays: 3, proteinG: 40,
+      ingredients: [{ q: 1, u: '', n: 'pollo rostizado (Safeway, deli)' }, { q: 4, u: 'rebanadas', n: 'pan de molde' }, { q: 1, u: 'lata', n: 'leche evaporada' }, { q: 50, u: 'g', n: 'nueces' }, { q: 50, u: 'g', n: 'parmesano' }, { q: 3, u: 'cda', n: 'pasta de ají amarillo' }, { q: 1, u: '', n: 'cebolla' }, { q: 3, u: 'dientes', n: 'ajo' }, { q: 4, u: '', n: 'papas' }, { q: 2, u: '', n: 'huevos duros' }],
+      steps: ['Pan remojado en la leche evaporada; licúa con las nueces.', 'Sofrito de cebolla, ajo y ají amarillo, 6 min.', 'La crema adentro, el pollo deshilachado, el parmesano; 10 min a fuego bajo hasta que espese.', 'Sobre papa sancochada y arroz; huevo duro encima.'] },
+  ],
+};
+/* ═══ OLLA-SEED-END ═══ */
+
+/* ── app hooks (SLOT:APP-LOGIC) — La Olla ── */
+const OLLA_SCHEMA = 1;   // 1 = settings.{hall,outDays,cookWindows,trainDays,fridge,feed,gear,pantry,weekly}, ladder, recipes, plan{via,days}, log, groceries
+function appDefaultState() {
+  const s = JSON.parse(JSON.stringify(OLLA_SEED));
+  return { settings: s.settings, ladder: s.ladder, recipes: s.recipes, plan: { via: 'fallback', days: {} }, log: {}, groceries: { week: null, checked: {} }, schema: OLLA_SCHEMA };
 }
-function appBuildClaudeSystem() {                         // system prompt = house rules + app context
-  return state.settings.claudeRules || DEFAULT_CLAUDE_RULES;
+/* Idempotent on every load AND every gist pull: MERGE over the seed's defaults, never assign wholesale — a
+   restored pre-field snapshot must come back with the new field, not with `undefined` flowing into the week. */
+function appMigrate(s) {
+  const seed = JSON.parse(JSON.stringify(OLLA_SEED));
+  s.settings = s.settings || {};
+  const S = s.settings, D = seed.settings;
+  S.hall = Object.assign({}, D.hall, S.hall || {});
+  if (!Array.isArray(S.hall.days)) S.hall.days = D.hall.days.slice();
+  if (!Array.isArray(S.outDays)) S.outDays = D.outDays.slice();
+  S.cookWindows = Object.assign({}, D.cookWindows, S.cookWindows || {});
+  if (!Array.isArray(S.trainDays)) S.trainDays = D.trainDays.slice();
+  S.fridge = Object.assign({}, D.fridge, S.fridge || {});
+  if (typeof S.feed !== 'string') S.feed = D.feed;
+  S.gear = Object.assign({}, D.gear, S.gear || {});
+  if (!Array.isArray(S.pantry)) S.pantry = D.pantry.slice();
+  if (!Array.isArray(S.weekly)) S.weekly = D.weekly.slice();
+  s.ladder = Object.assign({}, seed.ladder, s.ladder || {});
+  if (!Array.isArray(s.ladder.passed)) s.ladder.passed = [];
+  if (!(s.ladder.rung >= 1)) s.ladder.rung = 1;
+  // the book: seed recipes are added by id when missing (a newer build ships a new dish); his edits to an existing id win
+  if (!Array.isArray(s.recipes)) s.recipes = [];
+  seed.recipes.forEach(r => { if (!s.recipes.some(x => x.id === r.id)) s.recipes.push(r); });
+  s.plan = s.plan || {}; s.plan.days = s.plan.days || {}; s.plan.via = s.plan.via || 'fallback';
+  s.log = s.log || {};
+  s.groceries = s.groceries || {}; s.groceries.checked = s.groceries.checked || {};
+  if (!(s.schema >= OLLA_SCHEMA)) s.schema = OLLA_SCHEMA;
+  return s;
 }
-function appPrimaryAction() { toast('wire appPrimaryAction() to your main flow.'); }   // FAB / main CTA
-function appRender() {}                                   // re-render the app UI (called by renderAll)
-function appInit() {}                                     // one-time wiring after boot
+function looksLikeMyState(s) {                            // OUR gist: settings + a ladder + a plan with days + a recipe book. Rejects cuaderno.json (sessions) and lampara.json (reading) by shape.
+  return !!(s && typeof s === 'object' && s.settings && s.ladder && s.plan && typeof s.plan === 'object' && s.plan.days && typeof s.plan.days === 'object' && Array.isArray(s.recipes));
+}
+function appBuildClaudeSystem() { return state.settings.claudeRules || DEFAULT_CLAUDE_RULES; }   // the coach is step 4; nothing calls Claude in v1
+function appPrimaryAction() { OLLAUI.go('semana'); }
+function appRender() { OLLAUI.render(); }
+function appInit() { OLLAUI.boot(); }
+
+/* ── La Olla UI ── */
+const OLLAUI = (function () {
+  const DOWS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  const DOWS3 = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+  const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  const SLOT_ES = { bf: 'desayuno', lunch: 'almuerzo', dinner: 'cena' };
+  const KIND_ES = { swipe: 'swipe', leftover: 'sobra', cook: 'cocinar', home: 'nevera', out: 'fuera' };
+  const RUNG_ES = { 1: 'armar, sin cuchillo', 2: 'una sartén', 3: 'arroz y un guiso', 4: 'el saltado, fuego alto', 5: 'el plato de verdad' };
+  let view = 'olla';
+  const todayYmd = () => OLLA.ymd(new Date());           // LOCAL day — the shell's today() is UTC and filed La Forja's late sessions under tomorrow
+  const esc = s => escapeHtml(s == null ? '' : s);
+  const fmtDate = d => { const p = OLLA.parse(d); return DOWS[p.getDay()] + ' ' + p.getDate() + ' de ' + MONTHS[p.getMonth()]; };
+  const fmtShort = d => { const p = OLLA.parse(d); return DOWS3[p.getDay()] + ' ' + p.getDate(); };
+  const fmtQ = q => { if (!q) return ''; return (Math.round(q * 100) / 100).toString().replace('.', ','); };
+
+  function ensureWeek() {                                 // the default week is CODE; rebuilt every boot, keeping hand rows and the past
+    const t = todayYmd();
+    const before = JSON.stringify(state.plan);
+    state.plan = OLLA.buildWeek(state, t);
+    if (state.groceries.week !== OLLA.weekStart(t)) { state.groceries = { week: OLLA.weekStart(t), checked: {} }; }
+    if (JSON.stringify(state.plan) !== before) save({ markModified: false });   // a re-derivation is not his edit: it must not win a sync against another device
+  }
+
+  function rowHtml(d, sl, compact) {
+    const day = state.plan.days[d], r = day[sl]; if (!r) return '';
+    const t = todayYmd(), past = d < t;
+    const label = OLLA.slotLabel(state, d, sl);
+    let rec = null; if (r.kind === 'home' && r.recipe) rec = OLLA.recipeById(state, r.recipe);
+    if (r.kind === 'cook' && day.cook) rec = OLLA.recipeById(state, day.cook.recipe);
+    if (r.kind === 'leftover') { const b = OLLA.potFrom(state, state.plan).find(x => x.id === r.of); rec = b && OLLA.recipeById(state, b.recipe); }
+    return '<div class="meal-row' + (past ? ' past' : '') + (r.hand ? ' hand' : '') + '" data-date="' + d + '" data-slot="' + sl + '">' +
+      '<span class="slot">' + SLOT_ES[sl] + '</span>' +
+      '<button type="button" class="kind k-' + r.kind + '" data-act="cycle" title="toca para cambiar">' + KIND_ES[r.kind] + '</button>' +
+      (rec ? '<button type="button" class="label serif" data-act="recipe" data-id="' + esc(rec.id) + '">' + esc(label) + '</button>' : '<span class="label serif">' + esc(label) + '</span>') +
+      (r.trimmed ? '<span class="note">sin swipes</span>' : '') +
+      '</div>';
+  }
+  function cookHtml(d) {
+    const day = state.plan.days[d]; if (!day.cook) return '';
+    const rec = OLLA.recipeById(state, day.cook.recipe); if (!rec) return '';
+    return '<div class="cook-row" data-date="' + d + '">' +
+      '<span class="at mono">' + esc(day.cook.at) + '</span>' +
+      '<button type="button" class="label serif" data-act="recipe" data-id="' + esc(rec.id) + '">' + esc(rec.name) + '</button>' +
+      '<span class="mono meta">' + rec.minutes.total + ' min · ' + day.cook.servings + ' porc.</span>' +
+      '<button type="button" class="ghost" data-act="pick" title="otra receta">⇄</button>' +
+      '</div>';
+  }
+  function feedHtml(d) { const day = state.plan.days[d]; return day && day.train ? '<div class="feed">después del gym: <span class="serif">' + esc(state.settings.feed) + '</span></div>' : ''; }
+
+  function potHtml() {
+    const t = todayYmd(), live = OLLA.potNow(state, state.plan, t);
+    const steam = '<div class="steam" aria-hidden="true"><i></i><i></i><i></i></div>';
+    if (!live.length) {
+      const next = Object.keys(state.plan.days).sort().find(d => d >= t && state.plan.days[d].cook);
+      return '<section class="olla-card empty"><h3 class="serif">En la olla</h3><p class="serif big">La olla está vacía.</p>' +   // per the plan: v1 has no ate tap, so a past cook is assumed done
+        (next ? '<p class="mono meta">se llena el ' + fmtShort(next) + ' a las ' + esc(state.plan.days[next].cook.at) + '</p>' : '<p class="mono meta">ningún día de esta semana cocina — abre una ventana en Ajustes</p>') + '</section>';
+    }
+    return '<section class="olla-card live">' + steam + '<h3 class="serif">En la olla</h3>' + live.map(b =>
+      '<div class="batch"><span class="serif big">' + esc(b.name) + '</span><span class="mono meta">' + b.left + ' porc. · hecho ' + fmtShort(b.date) + ' · come antes del ' + fmtShort(b.expires) + '</span></div>').join('') + '<p class="mono meta">según el plan</p></section>';
+  }
+  function viewOlla() {
+    const t = todayYmd();
+    if (!state.plan.days[t]) ensureWeek();
+    return potHtml() +
+      '<section class="hoy"><h3 class="serif">Hoy <span class="mono date">' + fmtDate(t) + '</span></h3>' +
+      ['bf', 'lunch', 'dinner'].map(sl => rowHtml(t, sl)).join('') + cookHtml(t) + feedHtml(t) + '</section>' +
+      refusalsHtml();
+  }
+  function refusalsHtml() {
+    const bad = OLLA.validateWeek(state, state.plan, todayYmd());
+    return bad.length ? '<section class="refusals"><h3 class="serif">La semana no cuadra</h3>' + bad.map(b => '<div class="mono">' + esc(b.date) + ' · ' + esc(b.msg) + '</div>').join('') + '</section>' : '';
+  }
+  function viewSemana() {
+    const t = todayYmd(), days = Object.keys(state.plan.days).filter(d => d >= t).sort().slice(0, 7);
+    const used = OLLA.swipesUsed(state.plan, OLLA.weekStart(t)), budget = state.settings.hall.swipesPerWeek;
+    return '<div class="week-meta mono">' + used + ' swipes en la semana del ' + fmtShort(OLLA.weekStart(t)) + ' · ' + Math.max(0, budget - used) + ' libres · plan: ' + esc(state.plan.via === 'fallback' ? 'regla, sin coach' : 'coach') + '</div>' +
+      days.map((d, i) => '<section class="day-card" style="--i:' + i + '"><h3 class="serif">' + fmtDate(d) + (state.plan.days[d].train ? ' <span class="mono tag">gym</span>' : '') + '</h3>' +
+        ['bf', 'lunch', 'dinner'].map(sl => rowHtml(d, sl, true)).join('') + cookHtml(d) + '</section>').join('') + refusalsHtml();
+  }
+  function viewLibro() {
+    const rung = state.ladder.rung, by = {};
+    state.recipes.forEach(r => (by[r.rung] = by[r.rung] || []).push(r));
+    return '<p class="serif lead">Tres platos hasta aburrirte, luego uno más. Se sube de peldaño comiendo, no leyendo.</p>' +
+      Object.keys(by).sort((a, b) => a - b).map(k => '<section class="rung' + (+k === rung ? ' here' : +k > rung + 1 ? ' far' : '') + '"><h3 class="serif">Peldaño ' + k + ' <span class="mono meta">' + esc(RUNG_ES[k] || '') + (+k === rung ? ' · vas aquí' : '') + '</span></h3>' +
+        by[k].map(r => '<button type="button" class="recipe-line" data-act="recipe" data-id="' + esc(r.id) + '"><span class="serif">' + esc(r.name) + '</span><span class="mono meta">' + esc(r.cuisine) + ' · ' + r.minutes.total + ' min · ' + r.servings + ' porc.' + (r.staple ? ' · base' : '') + '</span></button>').join('') + '</section>').join('');
+  }
+  function viewLista() {
+    const items = OLLA.groceries(state, todayYmd()), chk = state.groceries.checked || {};
+    if (!items.length) return '<div class="empty-state"><div class="ornament">❦</div><h3>nada que comprar</h3><p>La lista sale de la semana: cuando un día cocine, aquí aparecen sus ingredientes.</p></div>';
+    return '<p class="mono week-meta">Safeway 490 L St · ' + items.filter(i => !chk[i.n]).length + ' por comprar</p><ul class="list">' + items.map(i =>
+      '<li class="' + (chk[i.n] ? 'done' : '') + '"><label><input type="checkbox" data-act="check" data-n="' + esc(i.n) + '"' + (chk[i.n] ? ' checked' : '') + '><span class="serif">' + esc(i.n) + '</span><span class="mono meta">' + esc(fmtQ(i.q)) + ' ' + esc(i.u) + '</span><span class="mono for">' + esc(i.for.join(', ')) + '</span></label></li>').join('') + '</ul>';
+  }
+  const TITLES = { olla: ['La olla', '¿qué hay?'], semana: ['La semana', 'toca una fila para cambiarla'], libro: ['El libro', 'la escalera'], lista: ['La lista', 'derivada de la semana'] };
+  function render() {
+    document.getElementById('current-view').textContent = TITLES[view][0];
+    document.getElementById('view-meta').textContent = TITLES[view][1];
+    const root = document.getElementById('app-root');
+    root.className = 'view-' + view;
+    root.innerHTML = view === 'olla' ? viewOlla() : view === 'semana' ? viewSemana() : view === 'libro' ? viewLibro() : viewLista();
+    document.querySelectorAll('.nav-list li[data-view]').forEach(li => li.classList.toggle('active', li.dataset.view === view));
+    document.querySelectorAll('#bottom-tabs .tab[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+  }
+  function go(v) { view = v; render(); window.scrollTo(0, 0); }
+
+  /* the recipe sheet: read; and, opened from a cook row, the picker for that day */
+  function openRecipe(id, pickDate) {
+    const r = OLLA.recipeById(state, id); if (!r) return;
+    const dlg = document.getElementById('recipe-modal');
+    const f = r.servings;
+    document.getElementById('recipe-body').innerHTML =
+      '<h2 class="serif">' + esc(r.name) + '</h2>' +
+      '<p class="mono meta">peldaño ' + r.rung + ' · ' + esc(r.cuisine) + ' · ' + r.minutes.active + ' min activos, ' + r.minutes.total + ' en total · rinde ' + f + (r.doubles === true ? ' (se dobla)' : r.doubles === 'two-rounds' ? ' (para más, dos rondas)' : ' (no se dobla)') + ' · nevera ' + r.fridgeDays + ' d' + (r.proteinG ? ' · ~' + r.proteinG + ' g proteína (estimado)' : '') + '</p>' +
+      (r.gear && r.gear.length ? '<p class="mono meta">necesita: ' + esc(r.gear.join(', ')) + '</p>' : '') +
+      '<h4 class="serif">Ingredientes</h4><ul class="ings">' + (r.ingredients || []).map(g => '<li><span class="mono">' + esc(fmtQ(g.q)) + ' ' + esc(g.u) + '</span> ' + esc(g.n) + '</li>').join('') + '</ul>' +
+      '<h4 class="serif">Pasos</h4><ol class="steps">' + (r.steps || []).map(s => '<li>' + esc(s) + '</li>').join('') + '</ol>';
+    dlg.showModal();
+  }
+  function openPicker(d) {
+    const dlg = document.getElementById('recipe-modal'), day = state.plan.days[d];
+    const list = state.recipes.filter(r => !r.assembly || r.staple).filter(r => OLLA.eligible(state, r));
+    document.getElementById('recipe-body').innerHTML = '<h2 class="serif">¿Qué se cocina el ' + esc(fmtShort(d)) + '?</h2><p class="mono meta">hasta el peldaño ' + (state.ladder.rung + 1) + ', con lo que tienes</p>' +
+      list.map(r => '<button type="button" class="recipe-line" data-act="choose" data-date="' + d + '" data-id="' + esc(r.id) + '"><span class="serif">' + esc(r.name) + (day.cook && day.cook.recipe === r.id ? ' ·' : '') + '</span><span class="mono meta">' + r.minutes.total + ' min · rinde ' + OLLA.maxServings(r) + '</span></button>').join('');
+    dlg.showModal();
+  }
+
+  function onRootClick(e) {
+    const b = e.target.closest('[data-act]'); if (!b) return;
+    const act = b.dataset.act, t = todayYmd();
+    if (act === 'cycle') { const row = b.closest('.meal-row'); const d = row.dataset.date, sl = row.dataset.slot;
+      if (d < t) { toast('ese día ya pasó.'); return; }
+      const next = OLLA.nextKind(state, d, sl, t); const r = OLLA.setKind(state, d, sl, next, t);
+      if (!r.ok) { toast(r.why, true); return; }
+      save(); render(); return; }
+    if (act === 'recipe') { openRecipe(b.dataset.id); return; }
+    if (act === 'pick') { openPicker(b.closest('.cook-row').dataset.date); return; }
+    if (act === 'check') { const n = b.dataset.n; state.groceries.checked[n] = !!b.checked; save(); render(); return; }
+  }
+  function onModalClick(e) {
+    const b = e.target.closest('[data-act="choose"]'); if (!b) return;
+    const r = OLLA.setCookRecipe(state, b.dataset.date, b.dataset.id, todayYmd());
+    if (!r.ok) { toast(r.why, true); return; }
+    document.getElementById('recipe-modal').close(); save(); render();
+  }
+
+  /* Settings → La cocina */
+  const GEAR_ES = { pot: 'olla', pan: 'sartén', oven: 'horno', microwave: 'microondas', riceCooker: 'arrocera', blender: 'licuadora', thermometer: 'termómetro', sheetPan: 'bandeja' };
+  function renderKitchenSettings() {
+    const S = state.settings, el = document.getElementById('kitchen-settings'); if (!el) return;
+    const dowChecks = (name, arr) => DOWS3.map((n, i) => '<label class="dow"><input type="checkbox" data-k="' + name + '" value="' + i + '"' + (arr.indexOf(i) >= 0 ? ' checked' : '') + '>' + n + '</label>').join('');
+    el.innerHTML =
+      '<div class="form-grid">' +
+      '<label>Swipes por semana<input type="text" data-k="swipes" value="' + S.hall.swipesPerWeek + '"></label>' +
+      '<label>Minutos a pie al comedor<input type="text" data-k="walk" value="' + S.hall.walkMin + '"></label>' +
+      '<label class="span-2">Días con swipe (desayuno y almuerzo; la cena nunca)<div class="dows">' + dowChecks('hallDays', S.hall.days) + '</div></label>' +
+      '<label class="span-2"><span class="toggle-row"><input type="checkbox" data-k="bfSwipe"' + (S.hall.breakfastSwipe ? ' checked' : '') + '> el desayuno también es un swipe</span></label>' +
+      '<label class="span-2">Días fuera al almuerzo (campus principal)<div class="dows">' + dowChecks('outDays', S.outDays) + '</div></label>' +
+      '<label class="span-2">Días de gym (la cuarta comida)<div class="dows">' + dowChecks('trainDays', S.trainDays) + '</div></label>' +
+      '<label class="span-2">Ventanas para cocinar, por día (HH:MM-HH:MM, varias con coma; vacío = ese día no cocina)<div class="wins">' + DOWS3.map((n, i) => '<span class="win"><span class="mono">' + n + '</span><input type="text" data-k="win" data-dow="' + i + '" value="' + esc((S.cookWindows[String(i)] || []).join(', ')) + '" placeholder="—"></span>').join('') + '</div></label>' +
+      '<label class="span-2">Lo que hay en la cocina<div class="dows">' + Object.keys(GEAR_ES).map(k => '<label class="dow"><input type="checkbox" data-k="gear" value="' + k + '"' + (S.gear[k] !== false ? ' checked' : '') + '>' + GEAR_ES[k] + '</label>').join('') + '</div></label>' +
+      '<label class="span-2">Después del gym (la cuarta comida, sin cocinar)<input type="text" data-k="feed" value="' + esc(S.feed) + '"></label>' +
+      '<label class="span-2">Despensa (nunca va a la lista, una por línea)<textarea data-k="pantry">' + esc(S.pantry.join('\n')) + '</textarea></label>' +
+      '<label class="span-2">Siempre en la lista (una por línea)<textarea data-k="weekly">' + esc(S.weekly.join('\n')) + '</textarea></label>' +
+      '</div>';
+  }
+  function onKitchenChange(e) {
+    const el = e.target, k = el.dataset.k, S = state.settings; if (!k) return;
+    const dowSet = name => Array.from(document.querySelectorAll('#kitchen-settings input[data-k="' + name + '"]:checked')).map(x => +x.value);
+    if (k === 'swipes') { const n = parseInt(el.value, 10); if (n >= 0 && n <= 30) S.hall.swipesPerWeek = n; }
+    else if (k === 'walk') { const n = parseInt(el.value, 10); if (n >= 0 && n <= 120) S.hall.walkMin = n; }
+    else if (k === 'hallDays') S.hall.days = dowSet('hallDays');
+    else if (k === 'outDays') S.outDays = dowSet('outDays');
+    else if (k === 'trainDays') S.trainDays = dowSet('trainDays');
+    else if (k === 'bfSwipe') S.hall.breakfastSwipe = !!el.checked;
+    else if (k === 'gear') { S.gear[el.value] = !!el.checked; }
+    else if (k === 'win') { const list = el.value.split(',').map(x => x.trim()).filter(Boolean); const ok = list.every(w => /^\d{1,2}:\d{2}-\d{1,2}:\d{2}$/.test(w)); if (!ok) { toast('formato: 13:00-17:30', true); return; } S.cookWindows[el.dataset.dow] = list; }
+    else if (k === 'feed') S.feed = el.value;
+    else if (k === 'pantry') S.pantry = el.value.split('\n').map(x => x.trim()).filter(Boolean);
+    else if (k === 'weekly') S.weekly = el.value.split('\n').map(x => x.trim()).filter(Boolean);
+    save(); ensureWeek(); render();
+  }
+
+  function boot() {
+    ensureWeek();
+    document.getElementById('app-root').addEventListener('click', onRootClick);
+    document.getElementById('app-root').addEventListener('change', e => { if (e.target.dataset.act === 'check') onRootClick(e); });
+    document.getElementById('recipe-modal').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.close(); else onModalClick(e); });
+    document.getElementById('recipe-close').addEventListener('click', () => document.getElementById('recipe-modal').close());
+    document.querySelectorAll('.nav-list li[data-view]').forEach(li => li.addEventListener('click', () => go(li.dataset.view)));
+    document.getElementById('bottom-tabs').addEventListener('click', e => { const b = e.target.closest('.tab[data-view]'); if (b) go(b.dataset.view); });
+    document.getElementById('kitchen-settings').addEventListener('change', onKitchenChange);
+    settingsModal.addEventListener('close', () => render());
+    // openSettings is a shell function declaration whose reference the shell already captured, so the kitchen section
+    // is rendered by CAPTURE-phase listeners on every door into the sheet, never by rebinding the name.
+    document.getElementById('settings-btn').addEventListener('click', renderKitchenSettings, true);
+    document.getElementById('sync-pip').addEventListener('click', renderKitchenSettings, true);
+    document.getElementById('bottom-tabs').addEventListener('click', e => { if (e.target.closest('.tab[data-tab="settings"]')) renderKitchenSettings(); }, true);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) { ensureWeek(); render(); } });   // the day may have turned while the phone slept
+  }
+  return { render, go, boot, openRecipe, todayYmd };
+})();
 
 /* ── state skeleton ── */
 // The ONE list of model ids this app may send. The <select> is built from it and resolveClaudeModel()

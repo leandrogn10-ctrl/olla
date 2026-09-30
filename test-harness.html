@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<!-- La Olla boot harness: loads index.html in an iframe on a REAL layout, writes HARNESS: PASS/FAIL lines into #out.
+     Run: bash gate.sh   (python3 -m http.server → chrome --headless --virtual-time-budget=20000 --dump-dom …/test-harness.html)
+     const/let globals are NOT window properties in a classic script, so the harness reaches them with W().eval(name).
+     What it pins that node cannot: the app boots on a cold localStorage, today's three rows render, a tap cycles a row and
+     the change SURVIVES A RELOAD (persistence smoke-test — a rule of the estate), the theme survives too, the kitchen
+     settings render on the way into the sheet, and the sibling gist file is refused by the import path. -->
+<html>
+<head><meta charset="utf-8"></head>
+<body>
+<pre id="out"></pre>
+<iframe id="f" src="about:blank" style="width:420px;height:860px"></iframe>
+<script>
+'use strict';
+const out = [];
+function log(name, ok, extra) { out.push(`HARNESS: ${ok ? 'PASS' : 'FAIL'} >> ${name}${extra ? ' >> ' + extra : ''}`); render(); }
+function render() { document.getElementById('out').textContent = out.join('\n'); }
+const f = document.getElementById('f');
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function W() { return f.contentWindow; }
+function D() { return f.contentDocument; }
+function q(sel) { return D().querySelector(sel); }
+function qa(sel) { return Array.from(D().querySelectorAll(sel)); }
+function st() { return JSON.parse(W().localStorage.getItem('olla.v1')); }
+async function loadApp() { f.src = 'index.html?h=' + Date.now(); await new Promise(r => f.onload = r); await sleep(700); }
+(async () => {
+  try {
+    localStorage.clear();
+    await loadApp();
+    const today = W().eval('OLLAUI').todayYmd();
+    log('boots with the olla view', q('#current-view') && q('#current-view').textContent === 'La olla');
+    log('state written on boot with the plan built for today', !!(st() && st().plan && st().plan.days[today]));
+    log('today renders three meal rows', qa('#app-root .meal-row').length === 3, String(qa('#app-root .meal-row').length));
+    log('the pot card is there', !!q('#app-root .olla-card'));
+    log('the gate is quiet on the seed week', !q('#app-root .refusals'), q('#app-root .refusals') && q('#app-root .refusals').textContent.slice(0, 120));
+    // tap the lunch kind pill: it must move to the next kind the gate accepts, and be marked hand
+    const lunchBefore = st().plan.days[today].lunch.kind;
+    q('#app-root .meal-row[data-slot="lunch"] .kind').click(); await sleep(150);
+    const lunchAfter = st().plan.days[today].lunch;
+    log('a tap cycles the row to another kind and marks it hand', lunchAfter.kind !== lunchBefore && lunchAfter.hand === true, lunchBefore + ' → ' + lunchAfter.kind);
+    // theme
+    W().document.querySelector('[data-theme-pick="tokyo"]').click(); await sleep(100);
+    log('theme switches to Loza', D().documentElement.getAttribute('data-theme') === 'tokyo');
+    // RELOAD: the hand row and the theme must survive; the rebuilt week must keep the hand row
+    await loadApp();
+    const again = st().plan.days[today].lunch;
+    log('RELOAD keeps the hand-set lunch', again.kind === lunchAfter.kind && again.hand === true, JSON.stringify(again));
+    log('RELOAD keeps the theme', D().documentElement.getAttribute('data-theme') === 'tokyo');
+    log('the pill shows the persisted kind', q('#app-root .meal-row[data-slot="lunch"] .kind').classList.contains('k-' + again.kind));
+    // week view + list view
+    qa('#bottom-tabs .tab[data-view="semana"]')[0].click(); await sleep(100);
+    log('semana renders seven day cards', qa('#app-root .day-card').length === 7, String(qa('#app-root .day-card').length));
+    log('at least one day cooks (a cook row exists)', qa('#app-root .cook-row').length >= 1);
+    qa('#bottom-tabs .tab[data-view="lista"]')[0].click(); await sleep(100);
+    log('lista derives items', qa('#app-root .list li').length >= 5, String(qa('#app-root .list li').length));
+    const firstItem = q('#app-root .list li input'); const nm = firstItem.dataset.n; firstItem.click(); await sleep(100);
+    log('checking an item persists', st().groceries.checked[nm] === true);
+    // recipe sheet
+    qa('#bottom-tabs .tab[data-view="libro"]')[0].click(); await sleep(100);
+    q('#app-root .recipe-line').click(); await sleep(100);
+    log('a recipe opens the sheet with steps', q('#recipe-modal').open && qa('#recipe-body .steps li').length >= 2);
+    q('#recipe-close').click(); await sleep(50);
+    // settings: the kitchen section renders on the way in
+    qa('#bottom-tabs .tab[data-tab="settings"]')[0].click(); await sleep(150);
+    log('kitchen settings render inside the sheet', q('#settings-modal').open && qa('#kitchen-settings input[data-k="win"]').length === 7);
+    // closing a Wednesday window from the sheet must rebuild the week
+    const wed = qa('#kitchen-settings input[data-k="win"]').find(i => i.dataset.dow === '3');
+    wed.value = ''; wed.dispatchEvent(new (W().Event)('change', { bubbles: true })); await sleep(150);
+    log('an emptied window is stored', Array.isArray(st().settings.cookWindows['3']) && st().settings.cookWindows['3'].length === 0);
+    // import path refuses a sibling's file
+    log('looksLikeMyState refuses cuaderno.json', W().eval('looksLikeMyState')({ settings: {}, exercises: [], sessions: [] }) === false);
+    log('looksLikeMyState accepts our state', W().eval('looksLikeMyState')(st()) === true);
+    // the shell's UTC today() is not what the app reads
+    log('the app reads the LOCAL day', typeof W().eval('OLLAUI').todayYmd() === 'string' && W().eval('OLLAUI').todayYmd() === W().eval('OLLA').ymd(new (W().Date)()));
+    // CONTROL — this harness must be able to go red: a deliberately wrong assertion, expected FAIL, counted by gate.sh
+    log('CONTROL (must read FAIL): the seed week has zero meal rows', qa('#app-root .meal-row').length === 0 && false);
+  } catch (e) { log('harness crashed', false, String(e && e.stack || e).slice(0, 300)); }
+  out.push('HARNESS: DONE'); render();
+})();
+</script>
+</body>
+</html>
