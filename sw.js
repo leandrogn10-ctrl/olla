@@ -1,6 +1,6 @@
 // App-shell service worker — offline-first for the app shell, pass-through for APIs.
 // SLOT: rename CACHE_NAME per app (e.g. 'cuaderno-v1') and bump the suffix to force-refresh clients.
-const CACHE_NAME = 'olla-v1';   // bump on every index.html ship, same commit — an installed copy keeps serving the old shell otherwise
+const CACHE_NAME = 'olla-v2';   // bump on every index.html ship, same commit — an installed copy keeps serving the old shell otherwise
 const APP_SHELL = ['./', './index.html'];
 
 self.addEventListener('install', e => {

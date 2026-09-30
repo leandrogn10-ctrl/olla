@@ -15,7 +15,8 @@ before changing what a week IS. This file is the build.
   Saturday ritual, because a skipper skips planning too. The coach (step 4) is ADDITIVE and gated by the
   same `validateWeek`; the fallback week is what ships when the model is off — `plan.via` says which served.
 - **Dinner is never a swipe.** The Local's last station closes at 6pm and Urban Kitchen at 3pm (read
-  29-sep-2026, hoyaeats.com/menu-hours; no weekend or Ignite hours are published). Swipes are weekday
+  29-sep-2026, hoyaeats.com/menu-hours). **Weekends nothing is open at the Capitol Campus** (Leandro, 30-sep):
+  Sat/Sun are never swipe days. Swipes are weekday
   breakfasts and lunches; every dinner is `cook`, `leftover`, `home` (a fridge default) or `out`.
 - **Every cook is a double** (`coverAhead`, clamped [2, maxServings]): Wed cooks two, Thu eats it; Fri cooks
   two, Sat lunch finishes it; Sat cooks the pot for Sun/Mon/Tue. Leftovers live ≤ `fridgeDays` (USDA 3–4).
