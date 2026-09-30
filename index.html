@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Shell</title>
+<meta name="theme-color" content="#24273a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Shell">
+<link rel="apple-touch-icon" id="apple-touch-icon-link">
+<script>
+/* ═══════════════ SLOT:APP-CONFIG — the ONLY block a new app must edit to boot ═══════════════
+   Extracted from Bitácora (the reference implementation). Per-app identity (name, icon, fonts,
+   dominant color) is decided at build time — see README.md. */
+window.APP = {
+  name: 'Shell',                       // <title>, manifest, A2HS label
+  shortName: 'Shell',
+  tagline: '— a single-file PWA shell',
+  description: 'App-shell template',
+  iconLetter: 'S',                     // drawn on the canvas icon
+  iconBg: '#24273a', iconFg: '#f5a97f',
+  STORAGE_KEY: 'shell.v1',             // localStorage key for the whole state object
+  GIST_FILENAME: 'shell.json',         // file inside the (dedicated) sync gist
+  gistDescription: 'Shell — app state',
+  themeColors: { macchiato: '#24273a', tokyo: '#1a1b26' },   // <meta theme-color> per theme
+};
+</script>
+<script>
+/* Manifest + icon generation (canvas → data-URI → blob manifest). Genericized via APP. */
+(function() {
+  document.title = APP.name;
+  document.querySelector('meta[name="apple-mobile-web-app-title"]').setAttribute('content', APP.name);
+  const c = document.createElement('canvas');
+  c.width = 180; c.height = 180;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = APP.iconBg;
+  ctx.fillRect(0, 0, 180, 180);
+  ctx.fillStyle = APP.iconFg;
+  ctx.font = 'italic 150px Georgia, "Times New Roman", serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(APP.iconLetter, 90, 102);
+  const pngUri = c.toDataURL('image/png');
+  const ati = document.getElementById('apple-touch-icon-link');
+  if (ati) ati.href = pngUri;
+  const favicon = document.createElement('link');
+  favicon.rel = 'icon'; favicon.type = 'image/png'; favicon.href = pngUri;
+  document.head.appendChild(favicon);
+  const manifest = {
+    name: APP.name, short_name: APP.shortName,
+    description: APP.description,
+    start_url: window.location.pathname,
+    display: 'standalone',
+    background_color: APP.iconBg, theme_color: APP.iconBg,
+    orientation: 'portrait',
+    icons: [{ src: pngUri, sizes: '180x180', type: 'image/png', purpose: 'any' }]
+  };
+  const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+  const mlink = document.createElement('link');
+  mlink.rel = 'manifest';
+  mlink.href = URL.createObjectURL(blob);
+  document.head.appendChild(mlink);
+})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- SLOT:APP-FONTS — swap for the app's own type identity at build time -->
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ═══ Theme CSS-var system (Bitácora's, verbatim). Default = Macchiato; override via <html data-theme="tokyo">.
+   SLOT:APP-THEME — a new app keeps the VARIABLE NAMES and re-skins the values for its own identity. ═══ */
+:root, [data-theme="macchiato"] {
+  --bg: #24273a; --bg-elev: #363a4f; --paper: #494d64; --paper-hi: #5b6078;
+  --ink: #cad3f5; --ink-dim: #a5adcb; --ink-faint: #6e738d;
+  --accent: #f5a97f; --accent-soft: #ee99a0;
+  --line: #494d64; --line-soft: #363a4f;
+  --gold: #eed49f;
+  --shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 24px rgba(0,0,0,0.45);
+  --c-sage-fg: #a6da95; --c-sage-bg: rgba(166,218,149,0.14); --c-sage-bd: rgba(166,218,149,0.4);
+  --c-dusty-fg: #91d7e3; --c-dusty-bg: rgba(145,215,227,0.14); --c-dusty-bd: rgba(145,215,227,0.4);
+  --danger: #ed8796;
+}
+[data-theme="tokyo"] {
+  --bg: #1a1b26; --bg-elev: #24283b; --paper: #2f334d; --paper-hi: #414868;
+  --ink: #c0caf5; --ink-dim: #a9b1d6; --ink-faint: #565f89;
+  --accent: #bb9af7; --accent-soft: #9d7cd8;
+  --line: #2f334d; --line-soft: #1f2335;
+  --gold: #e0af68;
+  --shadow: 0 1px 0 rgba(187,154,247,0.06) inset, 0 8px 24px rgba(0,0,0,0.5);
+  --c-sage-fg: #9ece6a; --c-sage-bg: rgba(158,206,106,0.14); --c-sage-bd: rgba(158,206,106,0.4);
+  --c-dusty-fg: #7aa2f7; --c-dusty-bg: rgba(122,162,247,0.14); --c-dusty-bd: rgba(122,162,247,0.4);
+  --danger: #f7768e;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.55;
+  background-image:
+    radial-gradient(ellipse at 15% 10%, color-mix(in srgb, var(--accent) 8%, transparent) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 90%, color-mix(in srgb, var(--gold) 5%, transparent) 0%, transparent 55%),
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--ink) 1%, transparent) 0 1px, transparent 1px 3px);
+  min-height: 100vh; -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, .serif { font-family: 'Instrument Serif', 'Times New Roman', serif; font-weight: 400; letter-spacing: -0.01em; }
+.italic { font-style: italic; }
+button { font-family: inherit; font-size: inherit; color: inherit; cursor: pointer; background: none; border: none; }
+input, textarea, select { font-family: inherit; font-size: inherit; color: inherit; background: none; border: none; outline: none; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dashed var(--accent-soft); }
+
+.app {
+  display: grid; grid-template-columns: 240px 1fr;
+  grid-template-rows: auto 1fr;
+  grid-template-areas: "topbar topbar" "sidebar content";
+  min-height: 100vh; max-width: 1400px; margin: 0 auto;
+}
+
+.topbar { grid-area: topbar; display: flex; align-items: baseline; justify-content: space-between; padding: 28px 36px 18px; border-bottom: 1px solid var(--line); position: relative; }
+.topbar::after { content:''; position:absolute; left:36px; right:36px; bottom:-3px; height:1px; background: var(--line-soft); }
+.brand { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.brand h1 { font-size: 44px; font-style: italic; color: var(--ink); letter-spacing: -0.02em; }
+.brand h1::first-letter { color: var(--accent); }
+.tagline { color: var(--ink-faint); font-style: italic; font-family: 'Instrument Serif', serif; font-size: 16px; }
+.actions { display: flex; gap: 10px; align-items: center; }
+
+.sync-pip { display: inline-flex; align-items: center; gap: 6px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-faint); padding: 4px 10px; border: 1px solid var(--line); border-radius: 2px; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+.sync-pip:hover { color: var(--ink-dim); border-color: var(--accent-soft); }
+.sync-pip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-faint); transition: background 0.15s; }
+.sync-pip.on .dot { background: var(--c-sage-fg); }
+.sync-pip.syncing .dot { background: var(--accent); animation: pulse 1s infinite; }
+.sync-pip.error .dot { background: var(--danger); }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+.sidebar { grid-area: sidebar; padding: 28px 24px 28px 36px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 28px; }
+.sidebar section { display: flex; flex-direction: column; gap: 6px; }
+.sidebar h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.18em; color: var(--ink-faint); font-family: 'JetBrains Mono', monospace; font-weight: 600; margin-bottom: 6px; padding-left: 2px; }
+.nav-list { list-style: none; display: flex; flex-direction: column; gap: 1px; }
+.nav-list li { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-radius: 2px; cursor: pointer; color: var(--ink-dim); transition: background 0.12s, color 0.12s; font-size: 13px; user-select: none; }
+.nav-list li:hover { background: var(--paper); color: var(--ink); }
+.nav-list li.active { background: var(--paper); color: var(--ink); border-left: 2px solid var(--accent); padding-left: 8px; }
+.ghost-btn { color: var(--ink-faint); text-align: left; padding: 6px 10px; border-radius: 2px; font-size: 12px; transition: color 0.12s, background 0.12s; }
+.ghost-btn:hover { color: var(--ink); background: var(--paper); }
+.tools .ghost-btn { font-size: 11px; }
+
+.content { grid-area: content; padding: 28px 36px 60px; overflow: hidden; }
+.content-header { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--line-soft); padding-bottom: 14px; margin-bottom: 22px; flex-wrap: wrap; gap: 8px; }
+.content-header h2 { font-size: 32px; font-style: italic; color: var(--ink); }
+.view-meta { font-size: 11px; color: var(--ink-faint); letter-spacing: 0.06em; text-transform: uppercase; font-variant-numeric: tabular-nums; }
+
+.empty-state { text-align: center; padding: 80px 20px; color: var(--ink-faint); }
+.empty-state .ornament { font-family: 'Instrument Serif', serif; font-size: 60px; color: var(--accent); opacity: 0.4; margin-bottom: 8px; }
+.empty-state h3 { font-family: 'Instrument Serif', serif; font-size: 26px; font-style: italic; color: var(--ink-dim); margin-bottom: 8px; }
+.empty-state p { font-size: 12px; max-width: 340px; margin: 0 auto; line-height: 1.6; }
+
+dialog { border: none; padding: 0; background: transparent; color: inherit; max-width: none; max-height: none; }
+dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); }
+.modal { background: var(--bg-elev); border: 1px solid var(--line); border-radius: 3px; width: min(620px, 92vw); max-height: 88vh; display: flex; flex-direction: column; box-shadow: var(--shadow); animation: modalIn 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.modal.wide { width: min(760px, 94vw); }
+@keyframes modalIn { from { opacity: 0; transform: translateY(14px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.modal header { display: flex; justify-content: space-between; align-items: baseline; padding: 22px 26px 14px; border-bottom: 1px solid var(--line); }
+.modal header h2 { font-size: 26px; font-style: italic; }
+.modal header p { color: var(--ink-faint); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; }
+.modal .close { font-size: 22px; color: var(--ink-faint); padding: 0 6px; line-height: 1; }
+.modal .close:hover { color: var(--accent); }
+.modal-body { padding: 20px 26px; overflow-y: auto; }
+.modal footer { display: flex; justify-content: space-between; padding: 16px 26px 22px; border-top: 1px solid var(--line); gap: 12px; flex-wrap: wrap; }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; }
+.form-grid label { display: flex; flex-direction: column; gap: 5px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-faint); font-weight: 600; }
+.form-grid label.span-2 { grid-column: 1 / -1; }
+.form-grid input[type="text"], .form-grid input[type="password"], .form-grid select, .form-grid textarea {
+  background: var(--paper); border: 1px solid var(--line); border-radius: 2px; padding: 9px 11px; font-size: 13px; color: var(--ink);
+  font-family: 'JetBrains Mono', monospace; letter-spacing: 0; text-transform: none; font-weight: 400;
+  transition: border-color 0.12s, background 0.12s;
+}
+.form-grid input:focus, .form-grid select:focus, .form-grid textarea:focus { border-color: var(--accent); background: var(--paper-hi); }
+.form-grid textarea { resize: vertical; min-height: 70px; line-height: 1.5; }
+.form-grid select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%23b09a7a' fill='none' stroke-width='1.2'/></svg>");
+  background-repeat: no-repeat; background-position: right 11px center; padding-right: 28px;
+}
+
+.modal footer .submit, .btn-primary { background: var(--accent); color: var(--bg); padding: 9px 22px; border-radius: 2px; font-weight: 600; letter-spacing: 0.02em; transition: filter 0.15s; }
+.modal footer .submit:hover, .btn-primary:hover { filter: brightness(1.1); }
+.btn-danger { color: var(--danger); padding: 9px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; transition: filter 0.15s; }
+.btn-danger:hover { filter: brightness(1.2); }
+.btn-secondary { color: var(--ink-dim); padding: 9px 16px; border: 1px solid var(--line); border-radius: 2px; font-size: 12px; transition: color 0.15s, border-color 0.15s; }
+.btn-secondary:hover { color: var(--ink); border-color: var(--accent-soft); }
+
+.prompt-modal { background: var(--bg-elev); border: 1px solid var(--line); border-radius: 3px; width: min(460px, 92vw); padding: 24px 26px; box-shadow: var(--shadow); }
+.prompt-modal h2 { font-size: 22px; font-style: italic; margin-bottom: 6px; }
+.prompt-modal p { color: var(--ink-dim); font-size: 12px; margin-bottom: 16px; line-height: 1.6; }
+.prompt-modal input { width: 100%; background: var(--paper); border: 1px solid var(--line); border-radius: 2px; padding: 10px 12px; font-size: 13px; margin-bottom: 16px; }
+.prompt-modal input:focus { border-color: var(--accent); }
+.prompt-modal .actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+
+.settings-section { background: var(--paper); border: 1px solid var(--line); border-radius: 3px; padding: 16px 18px; margin-bottom: 14px; }
+.settings-section h3 { font-family: 'Instrument Serif', serif; font-size: 18px; font-style: italic; color: var(--ink); margin-bottom: 4px; text-transform: none; letter-spacing: 0; }
+.settings-section .desc { color: var(--ink-faint); font-size: 11px; line-height: 1.5; margin-bottom: 12px; }
+.settings-section textarea { width: 100%; min-height: 120px; background: var(--bg); border: 1px solid var(--line); border-radius: 2px; padding: 10px 12px; font-size: 12px; color: var(--ink-dim); font-family: 'JetBrains Mono', monospace; line-height: 1.5; resize: vertical; }
+.settings-section textarea:focus { border-color: var(--accent); color: var(--ink); }
+.toggle-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 12px; color: var(--ink-dim); cursor: pointer; user-select: none; }
+.toggle-row input[type="checkbox"] { appearance: none; width: 32px; height: 18px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; position: relative; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+.toggle-row input[type="checkbox"]::before { content: ''; position: absolute; top: 1px; left: 1px; width: 14px; height: 14px; background: var(--ink-faint); border-radius: 50%; transition: left 0.15s, background 0.15s; }
+.toggle-row input[type="checkbox"]:checked { background: var(--c-sage-bg); border-color: var(--c-sage-bd); }
+.toggle-row input[type="checkbox"]:checked::before { left: 15px; background: var(--c-sage-fg); }
+
+.theme-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.theme-toggle button {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+  padding: 14px 16px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px;
+  cursor: pointer; transition: border-color 0.15s, background 0.15s, transform 0.08s;
+  text-align: left;
+}
+.theme-toggle button:hover { border-color: var(--accent-soft); }
+.theme-toggle button:active { transform: scale(0.98); }
+.theme-toggle button.active { border-color: var(--accent); background: var(--paper); box-shadow: 0 0 0 1px var(--accent) inset; }
+.theme-toggle .swatches { display: flex; gap: 4px; }
+.theme-toggle .sw { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.08); }
+.theme-toggle .label { font-family: 'Instrument Serif', serif; font-style: italic; font-size: 17px; color: var(--ink); }
+.theme-toggle .sub { font-size: 10px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.12em; }
+@media (max-width: 880px) { .theme-toggle { grid-template-columns: 1fr; } }
+
+.sync-status { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--ink-faint); margin-top: 10px; text-transform: uppercase; letter-spacing: 0.08em; }
+.sync-status.ok { color: var(--c-sage-fg); }
+.sync-status.err { color: var(--danger); }
+
+.claude-panel { position: fixed; bottom: 24px; right: 24px; width: 380px; max-height: 60vh; background: var(--bg-elev); border: 1px solid var(--c-dusty-bd); border-radius: 3px; box-shadow: var(--shadow); display: flex; flex-direction: column; z-index: 900; animation: claudeIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.claude-panel.hidden { display: none; }
+@keyframes claudeIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+.claude-panel header { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.claude-panel .badge { color: var(--c-dusty-fg); font-size: 10px; text-transform: uppercase; letter-spacing: 0.18em; font-weight: 600; }
+.claude-panel .panel-title { flex: 1; font-family: 'Instrument Serif', serif; font-style: italic; color: var(--ink); font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.claude-panel .panel-close { color: var(--ink-faint); font-size: 18px; line-height: 1; padding: 0 4px; }
+.claude-panel .panel-close:hover { color: var(--accent); }
+.claude-panel .panel-body { padding: 14px 16px; font-size: 13px; line-height: 1.6; color: var(--ink); overflow-y: auto; white-space: pre-wrap; }
+.claude-panel .panel-body.thinking { color: var(--ink-faint); font-style: italic; display: flex; align-items: center; gap: 8px; }
+.claude-panel .panel-body.thinking::before { content: '✦'; color: var(--c-dusty-fg); animation: pulse 1.2s infinite; font-style: normal; }
+.claude-panel.error .panel-body { color: var(--danger); font-size: 12px; }
+.claude-panel .panel-foot { padding: 8px 16px 12px; font-size: 10px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.1em; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--line-soft); }
+
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--paper-hi); border: 1px solid var(--accent-soft); color: var(--ink); padding: 10px 18px; font-size: 12px; border-radius: 2px; box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; z-index: 1000; max-width: 80vw; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+.toast.err { border-color: var(--danger); }
+
+/* ── mobile: native iOS-style structure (verbatim from Bitácora minus domain widgets) ── */
+.bottom-tabs, .fab, .sheet-backdrop { display: none; }
+
+@media (max-width: 880px) {
+  .app { grid-template-columns: 1fr; grid-template-areas: "topbar" "content"; }
+  .topbar {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--bg);
+    padding: 12px 16px 10px;
+    border-bottom: 1px solid var(--line);
+    flex-wrap: nowrap; gap: 8px;
+  }
+  .topbar::after { display: none; }
+  .brand { gap: 10px; }
+  .brand h1 { font-size: 28px; }
+  .tagline { display: none; }
+  .actions { gap: 6px; flex-wrap: nowrap; }
+  .sync-pip { padding: 4px 8px; font-size: 9px; }
+  .sync-pip .dot { width: 5px; height: 5px; }
+
+  .content { padding: 16px 16px 100px; }
+  .content-header h2 { font-size: 24px; }
+  .form-grid { grid-template-columns: 1fr; }
+
+  .sidebar {
+    display: none;
+    position: fixed; top: auto; left: 0; right: 0; bottom: 0;
+    grid-area: unset;
+    background: var(--bg-elev);
+    border: 1px solid var(--line); border-bottom: none;
+    border-radius: 16px 16px 0 0;
+    padding: 14px 18px calc(20px + env(safe-area-inset-bottom));
+    max-height: 78vh; overflow-y: auto;
+    z-index: 850;
+    flex-direction: column; gap: 22px;
+    box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+  }
+  .sidebar.show-as-sheet {
+    display: flex;
+    animation: sheetIn 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .sidebar.show-as-sheet::before {
+    content: ''; display: block;
+    width: 36px; height: 4px;
+    background: var(--ink-faint); opacity: 0.4;
+    border-radius: 2px;
+    margin: 2px auto 8px;
+  }
+
+  .sheet-backdrop {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.55); backdrop-filter: blur(2px);
+    z-index: 840;
+  }
+  .sheet-backdrop.show { display: block; animation: fadeIn 0.18s; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes sheetIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+  .bottom-tabs {
+    display: flex;
+    position: fixed; left: 0; right: 0; bottom: 0;
+    background: var(--bg-elev);
+    border-top: 1px solid var(--line);
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+    z-index: 800;
+    justify-content: space-around;
+  }
+  .bottom-tabs .tab {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 8px 12px; flex: 1;
+    color: var(--ink-faint);
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em;
+    transition: color 0.14s, transform 0.08s;
+    border-radius: 6px;
+  }
+  .bottom-tabs .tab .icon { font-size: 18px; line-height: 1; font-family: 'Instrument Serif', serif; font-style: italic; }
+  .bottom-tabs .tab.active { color: var(--accent); }
+  .bottom-tabs .tab:active { transform: scale(0.94); background: var(--paper); }
+
+  .fab {
+    display: flex; align-items: center; justify-content: center;
+    position: fixed; right: 18px;
+    bottom: calc(76px + env(safe-area-inset-bottom));
+    width: 56px; height: 56px;
+    background: var(--accent); color: var(--bg);
+    border-radius: 50%;
+    font-size: 30px; font-weight: 300; line-height: 1;
+    box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 40%, transparent), 0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent);
+    z-index: 850;
+    transition: transform 0.1s, box-shadow 0.18s;
+  }
+  .fab:active { transform: scale(0.93); }
+
+  dialog {
+    margin: 0 !important;
+    width: 100% !important; height: 100% !important;
+    max-width: 100% !important; max-height: 100% !important;
+    align-items: flex-end !important;
+    background: transparent;
+  }
+  .modal {
+    width: 100% !important;
+    max-height: 92vh !important;
+    border-radius: 16px 16px 0 0 !important;
+    margin-bottom: 0; margin-top: auto;
+    padding-bottom: env(safe-area-inset-bottom);
+    animation: sheetIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+  }
+  .modal::before {
+    content: ''; display: block;
+    width: 36px; height: 4px;
+    background: var(--ink-faint); opacity: 0.4;
+    border-radius: 2px;
+    margin: 8px auto 0;
+  }
+  .modal header { padding: 14px 20px 12px; }
+  .modal header h2 { font-size: 22px; }
+  .modal-body { padding: 16px 20px; }
+  .modal footer { padding: 12px 20px 20px; }
+  .prompt-modal { width: 92%; max-width: 460px; margin: auto; border-radius: 12px; padding: 22px; animation: modalIn 0.2s; }
+
+  .claude-panel {
+    width: calc(100vw - 24px);
+    right: 12px; left: 12px;
+    bottom: calc(86px + env(safe-area-inset-bottom));
+  }
+  .toast { bottom: calc(80px + env(safe-area-inset-bottom)); }
+}
+
+/* iOS standalone safe-area handling — kicks in only when launched from home screen */
+@supports (padding: max(0px)) {
+  body { padding-top: env(safe-area-inset-top); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+  @media (display-mode: standalone), (-webkit-mobile-web-app-capable: yes) {
+    body { background: var(--bg); }
+    .topbar { padding-top: max(28px, calc(env(safe-area-inset-top) + 16px)); }
+    .content { padding-bottom: max(60px, calc(env(safe-area-inset-bottom) + 32px)); }
+    .claude-panel { bottom: max(24px, calc(env(safe-area-inset-bottom) + 16px)); }
+    .toast { bottom: max(24px, calc(env(safe-area-inset-bottom) + 16px)); }
+  }
+}
+
+::selection { background: var(--accent-soft); color: var(--ink); }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--paper-hi); border-radius: 0; }
+::-webkit-scrollbar-thumb:hover { background: var(--line); }
+
+/* ═══ SLOT:APP-CSS — the app's own component styles go below this line ═══ */
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <h1 id="brand-name">Shell</h1>
+      <span class="tagline" id="brand-tagline"></span>
+    </div>
+    <div class="actions">
+      <!-- SLOT:TOPBAR-ACTIONS — app buttons (search, +entry, …) go here -->
+      <button class="sync-pip" id="sync-pip" title="cloud sync — click for settings"><span class="dot"></span><span id="sync-pip-label">offline</span></button>
+    </div>
+  </header>
+
+  <aside class="sidebar">
+    <!-- SLOT:NAV — app nav sections (collections, views, filters) go here -->
+    <section class="tools">
+      <h3>Tools</h3>
+      <button class="ghost-btn" id="settings-btn">⚙ settings</button>
+      <button class="ghost-btn" id="export-btn">↓ export json</button>
+      <button class="ghost-btn" id="import-btn">↑ import json</button>
+    </section>
+  </aside>
+
+  <main class="content">
+    <!-- SLOT:APP-UI — the app's main view replaces everything inside <main> -->
+    <div class="content-header">
+      <h2 id="current-view">Shell</h2>
+      <div class="view-meta" id="view-meta">template</div>
+    </div>
+    <div id="app-root">
+      <div class="empty-state">
+        <div class="ornament">❦</div>
+        <h3>this is the shell</h3>
+        <p>Fill <strong>SLOT:APP-UI</strong> with your app. Settings, theme, gist sync, and Claude plumbing already work.</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<dialog id="settings-modal">
+  <div class="modal wide">
+    <header><div><h2>Settings</h2><p>House rules, Claude integration, cloud sync.</p></div><button type="button" class="close" data-close="settings">×</button></header>
+    <div class="modal-body">
+      <div class="settings-section">
+        <h3>Theme</h3>
+        <div class="desc">Two flavors. Both bright, both dark. Pick whichever fits your mood.</div>
+        <div class="theme-toggle">
+          <button type="button" data-theme-pick="macchiato">
+            <span class="swatches"><span class="sw" style="background:#24273a"></span><span class="sw" style="background:#f5a97f"></span><span class="sw" style="background:#c6a0f6"></span></span>
+            <span class="label">Macchiato</span>
+            <span class="sub">warm slate / peach</span>
+          </button>
+          <button type="button" data-theme-pick="tokyo">
+            <span class="swatches"><span class="sw" style="background:#1a1b26"></span><span class="sw" style="background:#bb9af7"></span><span class="sw" style="background:#7dcfff"></span></span>
+            <span class="label">Tokyo</span>
+            <span class="sub">deep navy / lavender</span>
+          </button>
+        </div>
+      </div>
+      <div class="settings-section">
+        <h3>House rules for Claude</h3>
+        <div class="desc">Pre-written guidance Claude sees whenever the app talks to it.</div>
+        <textarea id="claude-rules"></textarea>
+      </div>
+      <div class="settings-section">
+        <h3>Claude</h3>
+        <div class="desc">Paste your Anthropic API key — it stays in this browser's localStorage and is <strong>never synced</strong>. Get one at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com/settings/keys</a>.</div>
+        <div class="form-grid">
+          <label class="span-2">Anthropic API key<input type="password" id="claude-api-key" placeholder="sk-ant-..." autocomplete="off"></label>
+          <label>Model
+            <!-- Options are BUILT from CLAUDE_MODELS, never hand-written here — see populateClaudeModelSelect(). -->
+            <select id="claude-model"></select>
+          </label>
+          <label>Billing
+            <select id="claude-mode">
+              <option value="auto">Auto — Max plan, key as backup</option>
+              <option value="sub">Max plan only</option>
+              <option value="api">API key only</option>
+            </select>
+          </label>
+          <label>&nbsp;
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              <button class="btn-primary" id="claude-save-btn" type="button">Save</button>
+              <button class="btn-danger" id="claude-disable-btn" type="button">Forget key</button>
+            </div>
+          </label>
+        </div>
+        <div class="sync-status" id="claude-status">disabled</div>
+      </div>
+      <div class="settings-section">
+        <h3>Cloud sync (GitHub Gist)</h3>
+        <div class="desc">Your data lives in a private gist on your GitHub account. Last-write-wins between devices. Each app gets its OWN gist.</div>
+        <p style="margin:6px 0 12px;font-size:12px;color:var(--ink-dim);line-height:1.6">
+          <strong style="color:var(--ink)">Step 1.</strong> <a href="https://github.com/settings/tokens/new?scopes=gist&description=App%20sync" target="_blank" rel="noopener">Open GitHub token page (pre-configured)</a>. Click <em>Generate token</em>, copy the <code style="color:var(--gold)">ghp_…</code> string.<br>
+          <strong style="color:var(--ink)">Step 2.</strong> Paste below. Leave Gist ID blank on first device — click "Enable & sync" to create.<br>
+          <strong style="color:var(--ink)">Step 3.</strong> On other devices, paste the same token + the gist ID shown after step 2.
+        </p>
+        <div id="sync-config-blurb"></div>
+        <div class="form-grid">
+          <label class="span-2">GitHub personal access token<input type="password" id="sync-pat" placeholder="ghp_..." autocomplete="off"></label>
+          <label>Gist ID <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint)">— blank to create new</span><input type="text" id="sync-gist-id" placeholder="optional" autocomplete="off"></label>
+          <label>&nbsp;
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn-primary" id="sync-enable-btn" type="button">Enable & sync</button>
+              <button class="btn-secondary" id="sync-now-btn" type="button">Sync now</button>
+              <button class="btn-danger" id="sync-disable-btn" type="button">Forget credentials</button>
+            </div>
+          </label>
+        </div>
+        <div class="sync-status" id="sync-status">disabled</div>
+      </div>
+    </div>
+    <footer><span style="color:var(--ink-faint);font-size:11px">changes save automatically</span><button class="submit" data-close="settings">done</button></footer>
+  </div>
+</dialog>
+
+<dialog id="prompt-modal">
+  <div class="prompt-modal">
+    <h2 id="prompt-title"></h2>
+    <p id="prompt-message"></p>
+    <input type="text" id="prompt-input" autocomplete="off">
+    <div class="actions">
+      <button type="button" class="btn-secondary" data-close="prompt">cancel</button>
+      <button type="button" class="btn-primary" id="prompt-ok">save</button>
+    </div>
+  </div>
+</dialog>
+
+<aside class="claude-panel hidden" id="claude-panel">
+  <header>
+    <span class="badge">✦ claude</span>
+    <span class="panel-title" id="claude-panel-title"></span>
+    <button class="panel-close" id="claude-panel-close">×</button>
+  </header>
+  <div class="panel-body" id="claude-panel-body"></div>
+  <div class="panel-foot" id="claude-panel-foot"></div>
+</aside>
+
+<input type="file" id="import-file" accept=".json,application/json" hidden>
+
+<!-- Mobile UI: bottom tab bar + FAB + sheet backdrop (CSS hides these on desktop).
+     SLOT:MOBILE-TABS — add app tabs; 'menu' opens the sidebar as a sheet. -->
+<div class="sheet-backdrop" id="sheet-backdrop"></div>
+<button class="fab" id="fab-primary" aria-label="Primary action" title="Primary action">＋</button>
+<nav class="bottom-tabs" id="bottom-tabs">
+  <button class="tab active" data-tab="home"><span class="icon" id="tab-home-icon">S</span><span>Home</span></button>
+  <button class="tab" data-tab="menu"><span class="icon">▽</span><span>Menu</span></button>
+  <button class="tab" data-tab="settings"><span class="icon">⚙</span><span>Settings</span></button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+/* ═══ SLOT:APP-LOGIC — everything below is shell plumbing (extracted from Bitácora) plus
+   clearly-marked app hooks. A new app implements the app* functions and builds its UI. ═══ */
+
+/* ── LA CAJA NEGRA — estate flight-recorder emitter (plumbing; no slot — ports verbatim).
+   losLog/losWarn/losErr(evt,data) batch-POST to the Mac helper's /log ring; off-Mac (phone
+   PWA) the fetch fails silently. src derives from APP.shortName, so a ported app reports as
+   itself with zero edits. Never throws. See leandro-os-prototype/HANDOFF.md § LA CAJA NEGRA. ── */
+(() => {
+  const SRC = (window.APP && APP.shortName ? APP.shortName : 'app').toLowerCase();
+  const SINK = 'http://127.0.0.1:17654/log';
+  let buf = [], timer = null, lastKey = null, lastE = null;
+  const flush = () => { timer = null; if (!buf.length) return; const b = buf; buf = []; lastKey = lastE = null;
+    try { fetch(SINK, { method: 'POST', body: JSON.stringify({ src: SRC, entries: b }), keepalive: true }).catch(() => {}); } catch (e) {} };
+  const push = (lvl, evt, data) => { try {
+    const e = { ts: Date.now(), lvl, evt: String(evt).slice(0, 80) }; let ds = '';
+    if (data != null) { try { ds = JSON.stringify(data) || ''; e.data = ds.length > 600 ? ds.slice(0, 600) + '…' : data; } catch (_) { e.data = String(data).slice(0, 600); } }
+    const key = lvl + '|' + e.evt + '|' + ds;
+    if (key === lastKey && lastE) { lastE.n = (lastE.n || 1) + 1; return; }   // repeat-suppress: a hot error → 1 line + a count
+    if (buf.length >= 200) return;
+    buf.push(e); lastKey = key; lastE = e;
+    if (!timer) timer = setTimeout(flush, 8000);
+  } catch (_) {} };
+  window.addEventListener('error', ev => push('error', 'js.error', { msg: String(ev.message || '').slice(0, 200), at: String(ev.filename || '').split('/').pop() + ':' + (ev.lineno || 0) }));
+  window.addEventListener('unhandledrejection', ev => { const r = ev && ev.reason; push('error', 'js.rejection', { msg: String((r && (r.message || r)) || '').slice(0, 200) }); });
+  window.addEventListener('pagehide', () => flush());
+  window.losLog = (e, d) => push('info', e, d); window.losWarn = (e, d) => push('warn', e, d); window.losErr = (e, d) => push('error', e, d);
+})();
+
+const STORAGE_KEY = APP.STORAGE_KEY;
+const GIST_FILENAME = APP.GIST_FILENAME;
+const DEFAULT_CLAUDE_RULES = 'Be concise and direct. No filler.';   // SLOT: replace with the app's house rules
+
+document.getElementById('brand-name').textContent = APP.name;
+document.getElementById('brand-tagline').textContent = APP.tagline;
+document.getElementById('tab-home-icon').textContent = APP.iconLetter;
+
+/* ── app hooks (SLOT:APP-LOGIC) — override these for your app ── */
+function appDefaultState() { return {}; }                 // app-owned top-level state fields
+function appMigrate(s) { return s; }                      // upgrade old app fields in place
+function looksLikeMyState(s) {                            // validator: is this remote JSON OUR app's state?
+  return !!(s && typeof s === 'object' && s.settings);    // SLOT: tighten per app (e.g. Array.isArray(s.sessions))
+}
+function appBuildClaudeSystem() {                         // system prompt = house rules + app context
+  return state.settings.claudeRules || DEFAULT_CLAUDE_RULES;
+}
+function appPrimaryAction() { toast('wire appPrimaryAction() to your main flow.'); }   // FAB / main CTA
+function appRender() {}                                   // re-render the app UI (called by renderAll)
+function appInit() {}                                     // one-time wiring after boot
+
+/* ── state skeleton ── */
+// The ONE list of model ids this app may send. The <select> is built from it and resolveClaudeModel()
+// refuses everything outside it, so the dropdown and the stored value cannot drift apart — which is
+// exactly how a dated id survived in one fork's dropdown months after its migration table had moved
+// on, invisible because the status readout printed `split('-')[1]` ("haiku") for both spellings.
+// Order = dropdown order; CLAUDE_MODELS[0] is this app's default. Pinned ids only, never a bare
+// alias: an alias follows whatever the CLI calls current, so the model changes with no diff, no log
+// line and no failing test.
+const CLAUDE_MODELS = [
+  { id: 'claude-haiku-4-5', tier: 'haiku 4.5', label: 'Haiku — fast & cheap' },
+  { id: 'claude-sonnet-5',  tier: 'sonnet 5',  label: 'Sonnet — balanced' },
+  { id: 'claude-opus-5',    tier: 'opus 5',    label: 'Opus — best, slowest' },
+];
+const CLAUDE_MODEL_DEFAULT = CLAUDE_MODELS[0].id;
+// Legacy → current model ids. Declared beside migrate() (its only consumer) so it can't be read
+// before this line runs. Add a row whenever the option list moves; never rewrite history in place.
+const CLAUDE_MODEL_MIGRATIONS = {
+  'claude-haiku-4-5-20251001': 'claude-haiku-4-5',
+  'claude-sonnet-4-6': 'claude-sonnet-5',
+  'claude-opus-4-6': 'claude-opus-5',
+  'claude-opus-4-8': 'claude-opus-5',
+  'sonnet': 'claude-sonnet-5', 'opus': 'claude-opus-5', 'haiku': 'claude-haiku-4-5',
+};
+// Migrate what we recognize, then REFUSE what's left. The table alone can't be the whole guard:
+// it only knows ids that existed when it was written, so any other string — a bare alias from an
+// ancient gist, a typo, a model a newer build introduced — would ride through as a legal string
+// straight into the request body. Anything not in CLAUDE_MODELS falls back to this app's default.
+// Trade-off, stated on purpose: a newer id synced from a device running a newer build gets reset
+// here. That's deliberate — this build has no dropdown entry for it and couldn't honor it anyway.
+function resolveClaudeModel(id) {
+  const m = CLAUDE_MODEL_MIGRATIONS[id] || id;
+  return CLAUDE_MODELS.some(x => x.id === m) ? m : CLAUDE_MODEL_DEFAULT;
+}
+// The readout that hid the drift: `split('-')[1]` prints "haiku" for BOTH claude-haiku-4-5 and
+// claude-haiku-4-5-20251001, so a fork could sit on the wrong spelling for months and look right.
+// Print the tier from the list, and an unrecognized id verbatim so it reads as wrong on sight.
+function claudeTier(id) { return (CLAUDE_MODELS.find(m => m.id === id) || {}).tier || id; }
+function migrate(s) {
+  s.settings = s.settings || {};
+  s.settings.claudeRules = s.settings.claudeRules ?? DEFAULT_CLAUDE_RULES;
+  s.settings.sync = s.settings.sync || { enabled: false, githubPat: null, gistId: null, lastSyncedAt: null };
+  s.settings.claude = s.settings.claude || { enabled: false, apiKey: null, model: CLAUDE_MODEL_DEFAULT };
+  // Billing path, added after `claude` shipped — a restored pre-mode snapshot arrives with
+  // mode === undefined, so merge over the default rather than trusting the saved object wholesale.
+  s.settings.claude.mode = s.settings.claude.mode || 'auto';   // 'auto' | 'sub' | 'api'
+  // A model id stored before the option list moved is still a legal STRING — merging restores it
+  // untouched and it flows straight to the API/CLI, silently exempt from the current set. Sweep the
+  // stored row too, not just the defaults.
+  s.settings.claude.model = resolveClaudeModel(s.settings.claude.model);
+  s.settings.theme = s.settings.theme || 'macchiato';
+  s.lastModified = s.lastModified || Date.now();
+  return appMigrate(s);
+}
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return migrate(JSON.parse(raw));
+  } catch (e) { console.warn('load failed', e); }
+  return migrate({ ...appDefaultState() });
+}
+
+let state = load();
+
+let suppressSync = false;
+function save({ markModified = true, push = true } = {}) {
+  if (markModified) state.lastModified = Date.now();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  if (push && !suppressSync && isSyncEnabled()) scheduleSyncPush();
+}
+
+/* ── helpers ── */
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const today = () => new Date().toISOString().slice(0, 10);
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+let toastTimer = null;
+function toast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.toggle('err', !!isError);
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* askPrompt — promise-based replacement for window.prompt, styled */
+const promptModal = document.getElementById('prompt-modal');
+let promptResolve = null;
+function askPrompt(title, message, defaultValue = '') {
+  return new Promise(resolve => {
+    promptResolve = resolve;
+    document.getElementById('prompt-title').textContent = title;
+    document.getElementById('prompt-message').textContent = message;
+    const input = document.getElementById('prompt-input');
+    input.value = defaultValue;
+    promptModal.showModal();
+    setTimeout(() => input.select(), 30);
+  });
+}
+document.getElementById('prompt-ok').addEventListener('click', () => {
+  const v = document.getElementById('prompt-input').value.trim();
+  if (promptResolve) promptResolve(v || null);
+  promptModal.close();
+});
+
+function renderAll() { appRender(); }
+
+/* ── settings sheet ── */
+const settingsModal = document.getElementById('settings-modal');
+// Two hand-kept copies of the same list is how a dated id outlived its own migration row, so the
+// markup ships an empty <select> and the options come from CLAUDE_MODELS. new Option() sets the
+// label as text, so an "&" in a label needs no escaping.
+function populateClaudeModelSelect() {
+  const sel = document.getElementById('claude-model');
+  if (sel) sel.replaceChildren(...CLAUDE_MODELS.map(m => new Option(m.label, m.id)));
+}
+function openSettings() {
+  document.getElementById('claude-rules').value = state.settings.claudeRules || DEFAULT_CLAUDE_RULES;
+  document.getElementById('claude-api-key').value = state.settings.claude.apiKey || '';
+  populateClaudeModelSelect();
+  document.getElementById('claude-model').value = resolveClaudeModel(state.settings.claude.model);
+  document.getElementById('claude-mode').value = claudeMode();
+  document.getElementById('sync-pat').value = state.settings.sync.githubPat || '';
+  document.getElementById('sync-gist-id').value = state.settings.sync.gistId || '';
+  renderClaudeStatus(); renderSyncStatus();
+  settingsModal.showModal();
+}
+document.getElementById('settings-btn').addEventListener('click', openSettings);
+document.getElementById('sync-pip').addEventListener('click', openSettings);
+
+document.getElementById('claude-rules').addEventListener('input', e => { state.settings.claudeRules = e.target.value; save(); });
+document.getElementById('claude-model').addEventListener('change', e => { state.settings.claude.model = e.target.value; save(); });
+// Device-local on purpose: the helper only exists on the Mac, so this must NOT ride the sync payload.
+document.getElementById('claude-mode').addEventListener('change', e => { state.settings.claude.mode = e.target.value; save(); renderClaudeStatus(); });
+document.getElementById('claude-save-btn').addEventListener('click', () => {
+  const key = document.getElementById('claude-api-key').value.trim();
+  if (!key) { toast('paste a key first.', true); return; }
+  state.settings.claude.apiKey = key;
+  state.settings.claude.enabled = true;
+  state.settings.claude.model = document.getElementById('claude-model').value;
+  save(); renderClaudeStatus(); toast('claude enabled.');
+});
+document.getElementById('claude-disable-btn').addEventListener('click', () => {
+  if (!confirm('Forget your API key?')) return;
+  // `mode` rides along: forgetting the key must not silently reset the billing choice.
+  state.settings.claude = { enabled: false, apiKey: null, model: state.settings.claude.model, mode: state.settings.claude.mode };
+  save(); document.getElementById('claude-api-key').value = ''; renderClaudeStatus(); toast('key cleared.');
+});
+
+function renderClaudeStatus() {
+  const el = document.getElementById('claude-status');
+  if (!el) return;
+  const mode = claudeMode();
+  if (!isClaudeEnabled()) {
+    el.textContent = mode === 'sub'
+      ? 'disabled · Max-plan-only, but the helper is not reachable from here'
+      : 'disabled · paste a key to enable';
+    el.className = 'sync-status'; return;
+  }
+  // What the setting says will happen, plus what actually served the last call — the second is
+  // the part that was missing, since 'auto' can swap paths without saying so.
+  const plan = mode === 'sub' ? 'Max plan only'
+             : mode === 'api' ? 'API key only'
+             : (losReachable() ? 'auto · Max plan, key as backup' : 'auto · key (helper unreachable here)');
+  const via = CLAUDE_VIA === 'sub' ? ' · last call: Max plan'
+            : CLAUDE_VIA === 'api' ? ' · last call: API key' : '';
+  el.textContent = `enabled · ${claudeTier(state.settings.claude.model)} · ${plan}${via}`;
+  el.className = 'sync-status ok';
+}
+
+/* ── gist sync engine (Bitácora's, genericized: GIST_FILENAME + looksLikeMyState guard) ── */
+function renderSyncStatus() {
+  const el = document.getElementById('sync-status');
+  const blurb = document.getElementById('sync-config-blurb');
+  if (!isSyncEnabled()) { el.textContent = 'disabled · paste a token below to enable'; el.className = 'sync-status'; blurb.innerHTML = ''; return; }
+  const last = state.settings.sync.lastSyncedAt ? new Date(state.settings.sync.lastSyncedAt).toLocaleString() : 'never';
+  el.textContent = `enabled · last sync ${last}`;
+  el.className = 'sync-status ok';
+  blurb.innerHTML = `<div style="font-size:11px;color:var(--ink-dim);margin:6px 0 12px">Gist ID: <code style="color:var(--gold)">${escapeHtml(state.settings.sync.gistId || '—')}</code></div>`;
+}
+
+function isSyncEnabled() { return !!(state.settings.sync.enabled && state.settings.sync.githubPat && state.settings.sync.gistId); }
+
+// CRITICAL: never push credentials to the gist. Strip them before any write.
+function cleanStateForSync() {
+  return { ...state, settings: { ...state.settings,
+    sync:   { lastModified: state.lastModified },
+    claude: { model: state.settings.claude.model }
+  } };
+}
+async function gistFetch(method, path, body = null) {
+  const res = await fetch(`https://api.github.com${path}`, {
+    method,
+    headers: { 'Authorization': `Bearer ${state.settings.sync.githubPat}`, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) { const txt = await res.text(); throw new Error(`${res.status} — ${txt.slice(0, 120)}`); }
+  return res.json();
+}
+let syncPushTimer = null;
+function scheduleSyncPush() { if (!isSyncEnabled()) return; clearTimeout(syncPushTimer); syncPushTimer = setTimeout(syncPush, 1500); }
+async function syncPull(force = false) {
+  if (!isSyncEnabled()) return;
+  try {
+    setSyncPipState('syncing');
+    const gist = await gistFetch('GET', `/gists/${state.settings.sync.gistId}`);
+    const file = gist.files?.[GIST_FILENAME];
+    if (!file) { setSyncPipState('on'); return; }
+    const remoteState = JSON.parse(file.content);
+    if (!looksLikeMyState(remoteState)) { toast(`gist file ${GIST_FILENAME} doesn't look like this app's state — not adopting it.`, true); setSyncPipState('error'); return; }
+    const remoteModified = remoteState.lastModified || 0;
+    const localModified = state.lastModified || 0;
+    if (force || remoteModified > localModified) {
+      const preservedSync = state.settings.sync;
+      const preservedClaude = state.settings.claude;
+      state = migrate(remoteState);
+      state.settings.sync = preservedSync;
+      state.settings.claude = preservedClaude;
+      state.settings.sync.lastSyncedAt = Date.now();
+      suppressSync = true; save({ markModified: false, push: false }); suppressSync = false;
+      renderAll();
+      toast('synced from cloud.');
+    } else {
+      state.settings.sync.lastSyncedAt = Date.now();
+      save({ markModified: false, push: false });
+    }
+    setSyncPipState('on');
+  } catch (e) { console.error('pull', e); losErr('sync.pull.fail', { err: String(e.message || e).slice(0, 160) }); toast('pull failed: ' + e.message, true); setSyncPipState('error'); }
+}
+async function syncPush() {
+  if (!isSyncEnabled()) return;
+  try {
+    setSyncPipState('syncing');
+    const content = JSON.stringify(cleanStateForSync(), null, 2);
+    await gistFetch('PATCH', `/gists/${state.settings.sync.gistId}`, { files: { [GIST_FILENAME]: { content } } });
+    state.settings.sync.lastSyncedAt = Date.now();
+    suppressSync = true; save({ markModified: false, push: false }); suppressSync = false;
+    setSyncPipState('on');
+  } catch (e) { console.error('push', e); losErr('sync.push.fail', { err: String(e.message || e).slice(0, 160) }); toast('push failed: ' + e.message, true); setSyncPipState('error'); }
+}
+function setSyncPipState(s) {
+  const pip = document.getElementById('sync-pip');
+  pip.classList.remove('on', 'syncing', 'error');
+  if (s) pip.classList.add(s);
+  document.getElementById('sync-pip-label').textContent = s === 'syncing' ? 'syncing…' : s === 'on' ? 'synced' : s === 'error' ? 'sync error' : 'offline';
+}
+function renderSyncPip() { if (!isSyncEnabled()) setSyncPipState(null); else if (!document.getElementById('sync-pip').classList.contains('syncing')) setSyncPipState('on'); }
+
+document.getElementById('sync-enable-btn').addEventListener('click', async () => {
+  const pat = document.getElementById('sync-pat').value.trim();
+  const gistId = document.getElementById('sync-gist-id').value.trim();
+  if (!pat) { toast('paste a token first.', true); return; }
+  state.settings.sync.githubPat = pat;
+  state.settings.sync.gistId = gistId || null;
+  state.settings.sync.enabled = true;
+  save({ push: false });
+  if (!gistId) {
+    try {
+      setSyncPipState('syncing');
+      const created = await gistFetch('POST', '/gists', { description: APP.gistDescription, public: false, files: { [GIST_FILENAME]: { content: JSON.stringify(cleanStateForSync(), null, 2) } } });
+      state.settings.sync.gistId = created.id;
+      state.settings.sync.lastSyncedAt = Date.now();
+      save({ push: false });
+      toast('cloud sync ready.');
+      renderSyncStatus(); setSyncPipState('on');
+    } catch (e) {
+      state.settings.sync.enabled = false;
+      save({ push: false });
+      toast('failed: ' + e.message, true);
+      setSyncPipState('error');
+    }
+  } else {
+    await syncPull(true);
+    await syncPush();  // immediately overwrite gist with clean content (scrubs any prior leaked credentials)
+    renderSyncStatus();
+  }
+  renderSyncPip();
+});
+document.getElementById('sync-now-btn').addEventListener('click', async () => {
+  if (!isSyncEnabled()) { toast('enable sync first.', true); return; }
+  await syncPull(); await syncPush(); renderSyncStatus();
+});
+document.getElementById('sync-disable-btn').addEventListener('click', () => {
+  if (!confirm('Forget token and gist ID?')) return;
+  state.settings.sync = { enabled: false, githubPat: null, gistId: null, lastSyncedAt: null };
+  save({ push: false });
+  document.getElementById('sync-pat').value = '';
+  document.getElementById('sync-gist-id').value = '';
+  renderSyncStatus(); renderSyncPip();
+  toast('credentials cleared.');
+});
+
+/* ── Max-plan (subscription) path ─────────────────────────────────────────────
+   Routes a call through the local LeandroOS helper (~/.leandro-os/los-music-helper.py, a launchd
+   agent), which shells the logged-in Claude Code CLI with ANTHROPIC_API_KEY stripped from its env
+   — so it bills the Max plan's usage window instead of API credits. The helper grants this origin
+   a SCOPED token good only for /claude/*, never /project/*. Reachable from file:// and from the
+   deployed Pages origin (both already on the helper's allowlist); from the phone, where 127.0.0.1
+   is the phone itself, the 2.5s pair times out and we fall back to the key.
+   Every app forked from this shell inherits the path, so keep it in sync with theirs. */
+const LOS_HELPER_URL = 'http://127.0.0.1:17654';
+function losReachable() {
+  return location.protocol === 'file:' || location.origin === 'https://leandrogn10-ctrl.github.io';
+}
+let losToken = null, losTokenPromise = null;
+function losPair() {
+  if (losToken !== null) return Promise.resolve(losToken);
+  if (losTokenPromise) return losTokenPromise;
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 2500);   // fail fast — a missing helper must not stall the app
+  losTokenPromise = fetch(LOS_HELPER_URL + '/pair', { cache: 'no-store', signal: ac.signal })
+    .then(r => r.json()).then(d => { losToken = (d && d.token) || ''; return losToken; })
+    .catch(e => { losTokenPromise = null; throw e; })
+    .finally(() => clearTimeout(timer));
+  return losTokenPromise;
+}
+/* Deliberately NO alias mapping: the CLI's --model takes a full model id as well as an alias, and a
+   bare alias resolves to whatever the CLI currently calls 'sonnet' — the model swaps under you with
+   no diff, no log line, and no failing test. Send the exact id. Legacy stored ids are normalized once
+   in migrate() (CLAUDE_MODEL_MIGRATIONS), not per call. */
+async function callClaudeSub({ system, userMessage, model, maxTokens }) {
+  const tok = await losPair();
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 90000);   // matches the helper's own CLAUDE_TIMEOUT
+  let res;
+  try {
+    res = await fetch(LOS_HELPER_URL + '/claude', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-LOS-Token': tok || '' },
+      body: JSON.stringify({ system: system || '', prompt: userMessage, model: model || '', max_tokens: maxTokens }),
+      signal: ac.signal,
+    });
+  } finally { clearTimeout(timer); }
+  if (!res.ok || !res.body) throw new Error('helper HTTP ' + res.status);
+  const reader = res.body.getReader(), dec = new TextDecoder();
+  let buf = '', text = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let idx;
+    while ((idx = buf.indexOf('\n\n')) >= 0) {
+      const line = buf.slice(0, idx).trim(); buf = buf.slice(idx + 2);
+      if (line.indexOf('data:') !== 0) continue;
+      const payload = line.slice(5).trim(); if (!payload) continue;
+      let ev; try { ev = JSON.parse(payload); } catch { continue; }
+      if (ev.t != null) text += ev.t;
+      else if (ev.error) throw new Error(ev.error);
+      else if (ev.done) return text;
+    }
+  }
+  return text;
+}
+/* Which billing path a call may take, given the setting and where we're running. */
+function claudeMode() { return state.settings.claude.mode || 'auto'; }
+function canUseSub() { return claudeMode() !== 'api' && losReachable(); }
+function canUseApi()  { return claudeMode() !== 'sub' && !!state.settings.claude.apiKey; }
+// Last path that actually served, for the Setup readout. Session-only on purpose — a persisted
+// value would still claim "Max plan" after a reload onto an origin that can't reach the helper.
+let CLAUDE_VIA = null;
+function noteVia(v) { CLAUDE_VIA = v; try { renderClaudeStatus(); } catch (e) {} }
+
+/* ── Claude plumbing (Bitácora's; system prompt comes from the appBuildClaudeSystem slot) ── */
+function isClaudeEnabled() { return !!(state.settings.claude.enabled && (canUseApi() || canUseSub())); }
+async function callClaude({ system, userMessage, maxTokens = 350 }) {
+  if (canUseSub()) {
+    try {
+      const t = await callClaudeSub({ system: system ?? appBuildClaudeSystem(), userMessage, model: state.settings.claude.model, maxTokens });
+      noteVia('sub');
+      return t;
+    } catch (e) {
+      // 'sub' is a hard commitment — surface it rather than silently spending API credits.
+      if (claudeMode() === 'sub') { noteVia(null); throw new Error('Max-plan helper unreachable (' + e.message + ') — is los-music-helper running?'); }
+      console.warn('[claude] Max-plan path unavailable, falling back to the API key:', e.message);
+    }
+  }
+  if (!state.settings.claude.apiKey) throw new Error('no API key, and the Max-plan helper is unreachable');
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': state.settings.claude.apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+    body: JSON.stringify({ model: state.settings.claude.model, max_tokens: maxTokens, system: system ?? appBuildClaudeSystem(), messages: [{ role: 'user', content: userMessage }] }),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    let msg = `${res.status}`;
+    try { const j = JSON.parse(txt); msg = j.error?.message || msg; } catch {}
+    throw new Error(msg);
+  }
+  const data = await res.json();
+  noteVia('api');
+  // Adaptive thinking (on by default for sonnet-5 / opus-5) puts a `thinking` block first, so [0] is not the
+  // answer — join every text block. No text at all is a failure, never a placeholder that reads as a reply.
+  const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+  if (!text.trim()) throw new Error(`no text in the reply (stop_reason: ${data.stop_reason || 'unknown'})`);
+  return text;
+}
+function showClaudePanel({ title, status, text }) {
+  const panel = document.getElementById('claude-panel');
+  panel.classList.remove('hidden', 'error');
+  if (status === 'error') panel.classList.add('error');
+  document.getElementById('claude-panel-title').textContent = title;
+  const body = document.getElementById('claude-panel-body');
+  body.className = 'panel-body' + (status === 'thinking' ? ' thinking' : '');
+  body.textContent = text;
+  document.getElementById('claude-panel-foot').innerHTML =
+    `<span>${claudeTier(state.settings.claude.model)}</span><span>${status === 'thinking' ? '•' : new Date().toLocaleTimeString()}</span>`;
+}
+document.getElementById('claude-panel-close').addEventListener('click', () => { document.getElementById('claude-panel').classList.add('hidden'); });
+
+/* ── export / import (validated by looksLikeMyState; import = replace, with confirm) ── */
+document.getElementById('export-btn').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `${APP.STORAGE_KEY.split('.')[0]}-${today()}.json`; a.click();
+  URL.revokeObjectURL(url);
+  toast('exported.');
+});
+document.getElementById('import-btn').addEventListener('click', () => document.getElementById('import-file').click());
+document.getElementById('import-file').addEventListener('change', async e => {
+  const file = e.target.files[0]; if (!file) return;
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    if (!looksLikeMyState(parsed)) throw new Error(`not a ${APP.name} file`);
+    if (!confirm(`Replace your current ${APP.name} data with this file?`)) return;
+    const preservedSync = state.settings.sync;
+    const preservedClaude = state.settings.claude;
+    state = migrate(parsed);
+    state.settings.sync = preservedSync;
+    state.settings.claude = preservedClaude;
+    save();
+    renderAll();
+    toast('imported.');
+  } catch (err) { toast('import failed: ' + err.message, true); }
+  e.target.value = '';
+});
+
+/* ── modal helpers: backdrop click + Escape ── */
+[settingsModal, promptModal].forEach(d => {
+  d.addEventListener('click', e => {
+    if (e.target === d) {
+      if (d === promptModal) { if (promptResolve) promptResolve(null); }
+      d.close();
+    }
+  });
+});
+document.querySelectorAll('[data-close]').forEach(b => {
+  b.addEventListener('click', () => {
+    const which = b.dataset.close;
+    if (which === 'settings') settingsModal.close();
+    if (which === 'prompt') { if (promptResolve) promptResolve(null); promptModal.close(); }
+  });
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (settingsModal.open) settingsModal.close();
+    if (promptModal.open) { if (promptResolve) promptResolve(null); promptModal.close(); }
+    const sb = document.querySelector('.sidebar'); if (sb?.classList.contains('show-as-sheet')) { sb.classList.remove('show-as-sheet'); document.getElementById('sheet-backdrop')?.classList.remove('show'); }
+  }
+});
+
+/* ── theme toggle ── */
+function applyTheme(theme) {
+  const t = APP.themeColors[theme] ? theme : 'macchiato';
+  document.documentElement.setAttribute('data-theme', t);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', APP.themeColors[t]);
+  document.querySelectorAll('[data-theme-pick]').forEach(b => b.classList.toggle('active', b.dataset.themePick === t));
+}
+document.querySelectorAll('[data-theme-pick]').forEach(b => {
+  b.addEventListener('click', () => {
+    const t = b.dataset.themePick;
+    state.settings.theme = t;
+    save();
+    applyTheme(t);
+  });
+});
+
+/* ── mobile: tab bar + FAB + sheet backdrop ── */
+(function setupMobileUI() {
+  const tabsEl = document.getElementById('bottom-tabs');
+  const backdrop = document.getElementById('sheet-backdrop');
+  const sidebar = document.querySelector('.sidebar');
+  const fab = document.getElementById('fab-primary');
+
+  function setActiveTab(name) {
+    tabsEl.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  }
+  function hideAllSheets() {
+    sidebar.classList.remove('show-as-sheet');
+    if (settingsModal.open) settingsModal.close();
+    backdrop.classList.remove('show');
+    setActiveTab('home');
+  }
+
+  tabsEl.addEventListener('click', e => {
+    const tab = e.target.closest('.tab'); if (!tab) return;
+    const name = tab.dataset.tab;
+    sidebar.classList.remove('show-as-sheet');
+    if (settingsModal.open) settingsModal.close();
+    backdrop.classList.remove('show');
+    if (name === 'home')     { setActiveTab('home'); return; }
+    if (name === 'menu')     { setActiveTab('menu'); sidebar.classList.add('show-as-sheet'); backdrop.classList.add('show'); return; }
+    if (name === 'settings') { setActiveTab('settings'); openSettings(); return; }
+  });
+
+  backdrop.addEventListener('click', hideAllSheets);
+  fab.addEventListener('click', () => appPrimaryAction());
+  settingsModal.addEventListener('close', () => { if (window.matchMedia('(max-width: 880px)').matches) setActiveTab('home'); });
+})();
+
+/* ── boot ── */
+applyTheme(state.settings.theme);
+appInit();
+renderAll();
+if (isSyncEnabled()) { setSyncPipState('on'); syncPull(); }
+
+// Service worker — offline support
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(e => console.warn('SW registration failed', e));
+  });
+}
+</script>
+</body>
+</html>
