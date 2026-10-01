@@ -1,0 +1,1102 @@
+{
+ "settings": {
+  "hall": {
+   "name": "The Local",
+   "walkMin": 10,
+   "swipesPerWeek": 12,
+   "breakfastSwipe": true,
+   "days": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  "outDays": [
+   0
+  ],
+  "cookWindows": {
+   "0": [],
+   "1": [],
+   "2": [],
+   "3": [
+    "13:00-17:30"
+   ],
+   "4": [
+    "13:00-17:30"
+   ],
+   "5": [
+    "11:00-21:00"
+   ],
+   "6": [
+    "11:00-21:00"
+   ]
+  },
+  "trainDays": [
+   1,
+   2,
+   4,
+   5
+  ],
+  "fridge": {
+   "bf": "yogur-bowl",
+   "meal": "atun-huevo-bowl"
+  },
+  "feed": "leche (2 tazas) + yogur griego + mantequilla de maní",
+  "gear": {
+   "pot": true,
+   "pan": true,
+   "oven": true,
+   "microwave": true,
+   "riceCooker": false,
+   "blender": false,
+   "thermometer": false,
+   "sheetPan": true
+  },
+  "pantry": [
+   "sal",
+   "pimienta",
+   "aceite",
+   "aceite de oliva",
+   "ajo",
+   "sillao",
+   "vinagre",
+   "comino",
+   "orégano",
+   "azúcar"
+  ],
+  "weekly": [
+   "leche",
+   "yogur griego",
+   "mantequilla de maní"
+  ],
+  "claudeRules": "x",
+  "sync": {
+   "enabled": false,
+   "githubPat": null,
+   "gistId": null,
+   "lastSyncedAt": null
+  },
+  "claude": {
+   "enabled": false,
+   "apiKey": null,
+   "model": "claude-haiku-4-5",
+   "mode": "auto"
+  },
+  "theme": "macchiato"
+ },
+ "ladder": {
+  "rung": 1,
+  "since": null,
+  "passed": []
+ },
+ "recipes": [
+  {
+   "id": "yogur-bowl",
+   "name": "Bowl de yogur griego",
+   "rung": 1,
+   "cuisine": "US",
+   "assembly": true,
+   "staple": false,
+   "gear": [],
+   "minutes": {
+    "active": 3,
+    "total": 3
+   },
+   "servings": 1,
+   "doubles": false,
+   "fridgeDays": 0,
+   "proteinG": 22,
+   "ingredients": [
+    {
+     "q": 200,
+     "u": "g",
+     "n": "yogur griego"
+    },
+    {
+     "q": 40,
+     "u": "g",
+     "n": "granola"
+    },
+    {
+     "q": 80,
+     "u": "g",
+     "n": "frutos rojos"
+    }
+   ],
+   "steps": [
+    "Yogur en el bowl, granola encima, fruta encima. Ya.",
+    "Un scoop de whey revuelto en el yogur lo sube a ~40 g."
+   ]
+  },
+  {
+   "id": "avena-nocturna",
+   "name": "Avena nocturna (3 frascos)",
+   "rung": 1,
+   "cuisine": "US",
+   "assembly": true,
+   "staple": false,
+   "gear": [],
+   "minutes": {
+    "active": 8,
+    "total": 8
+   },
+   "servings": 3,
+   "doubles": false,
+   "fridgeDays": 3,
+   "proteinG": 30,
+   "ingredients": [
+    {
+     "q": 150,
+     "u": "g",
+     "n": "avena"
+    },
+    {
+     "q": 300,
+     "u": "g",
+     "n": "yogur griego"
+    },
+    {
+     "q": 300,
+     "u": "ml",
+     "n": "leche"
+    },
+    {
+     "q": 3,
+     "u": "cda",
+     "n": "chía"
+    },
+    {
+     "q": 1,
+     "u": "",
+     "n": "plátano"
+    }
+   ],
+   "steps": [
+    "Sábado: tres frascos. En cada uno 50 g de avena, 100 g de yogur, 100 ml de leche, 1 cda de chía.",
+    "Tapa, nevera. El del martes es el día 3: el último.",
+    "Plátano en rodajas al servir."
+   ]
+  },
+  {
+   "id": "atun-huevo-bowl",
+   "name": "Bowl de atún y huevo",
+   "rung": 1,
+   "cuisine": "JP",
+   "assembly": true,
+   "staple": false,
+   "gear": [
+    "microwave",
+    "pan"
+   ],
+   "minutes": {
+    "active": 6,
+    "total": 8
+   },
+   "servings": 1,
+   "doubles": false,
+   "fridgeDays": 0,
+   "proteinG": 35,
+   "ingredients": [
+    {
+     "q": 1,
+     "u": "bolsa",
+     "n": "arroz listo (Ready Rice)"
+    },
+    {
+     "q": 1,
+     "u": "lata",
+     "n": "atún"
+    },
+    {
+     "q": 1,
+     "u": "",
+     "n": "huevo"
+    },
+    {
+     "q": 1,
+     "u": "cda",
+     "n": "sillao"
+    },
+    {
+     "q": 1,
+     "u": "cdta",
+     "n": "aceite de sésamo"
+    },
+    {
+     "q": 1,
+     "u": "",
+     "n": "cebollita china"
+    }
+   ],
+   "steps": [
+    "Arroz 90 s en el microondas.",
+    "Huevo frito en la sartén, 2 min por lado, o 60 s en una taza en el microondas.",
+    "Atún escurrido sobre el arroz, huevo encima, sillao + sésamo, cebollita picada con tijera."
+   ]
+  },
+  {
+   "id": "revuelto-3",
+   "name": "Revuelto de 3 huevos con tostada",
+   "rung": 1,
+   "cuisine": "US",
+   "assembly": true,
+   "staple": false,
+   "gear": [
+    "pan"
+   ],
+   "minutes": {
+    "active": 8,
+    "total": 10
+   },
+   "servings": 1,
+   "doubles": false,
+   "fridgeDays": 0,
+   "proteinG": 35,
+   "ingredients": [
+    {
+     "q": 3,
+     "u": "",
+     "n": "huevos"
+    },
+    {
+     "q": 2,
+     "u": "rebanadas",
+     "n": "pan integral"
+    },
+    {
+     "q": 150,
+     "u": "g",
+     "n": "yogur griego"
+    },
+    {
+     "q": 1,
+     "u": "cda",
+     "n": "mantequilla"
+    }
+   ],
+   "steps": [
+    "Sartén a fuego BAJO con la mantequilla. Huevos batidos con una pizca de sal.",
+    "Mueve despacio con una espátula hasta que cuajen pero brillen. Fuera del fuego antes de que se sequen.",
+    "Tostada, y el yogur al lado: ahí está la proteína que falta."
+   ]
+  },
+  {
+   "id": "salsa-criolla",
+   "name": "Salsa criolla",
+   "rung": 1,
+   "cuisine": "PE",
+   "assembly": false,
+   "staple": false,
+   "gear": [],
+   "minutes": {
+    "active": 8,
+    "total": 15
+   },
+   "servings": 4,
+   "doubles": true,
+   "fridgeDays": 2,
+   "proteinG": 0,
+   "ingredients": [
+    {
+     "q": 1,
+     "u": "",
+     "n": "cebolla roja"
+    },
+    {
+     "q": 2,
+     "u": "",
+     "n": "limones"
+    },
+    {
+     "q": 1,
+     "u": "puñado",
+     "n": "culantro"
+    },
+    {
+     "q": 1,
+     "u": "",
+     "n": "ají amarillo fresco (opcional)"
+    }
+   ],
+   "steps": [
+    "Cebolla en pluma FINA: la primera cosa peruana, y enseña el cuchillo en la verdura más barata.",
+    "Enjuaga la cebolla en agua con sal 5 min, escurre.",
+    "Limón, sal, culantro picado. Reposa 10 min. Va encima de cualquier bowl de la semana."
+   ]
+  },
+  {
+   "id": "pollo-rostizado-bowl",
+   "name": "Pollo rostizado con arroz",
+   "rung": 1,
+   "cuisine": "PE",
+   "assembly": true,
+   "staple": true,
+   "gear": [
+    "microwave"
+   ],
+   "minutes": {
+    "active": 8,
+    "total": 12
+   },
+   "servings": 4,
+   "doubles": true,
+   "fridgeDays": 3,
+   "proteinG": 40,
+   "ingredients": [
+    {
+     "q": 1,
+     "u": "",
+     "n": "pollo rostizado (Safeway, deli)"
+    },
+    {
+     "q": 4,
+     "u": "bolsas",
+     "n": "arroz listo (Ready Rice)"
+    },
+    {
+     "q": 2,
+     "u": "bolsas",
+     "n": "verdura congelada"
+    },
+    {
+     "q": 2,
+     "u": "",
+     "n": "limones"
+    },
+    {
+     "q": 1,
+     "u": "",
+     "n": "ají o hot sauce"
+    }
+   ],
+   "steps": [
+    "El peldaño 1 no cocina: ARMA. Deshuesa el pollo con las manos mientras está tibio; cuatro porciones.",
+    "Cada porción a su táper: pollo + una bolsa de arroz (90 s) + verdura (3 min al microondas) + limón.",
+    "Nevera, tres días. Sábado se hace la olla grande: dos pollos si la semana lo pide.",
+    "Salsa criolla encima si la hiciste."
+   ]
+  },
+  {
+   "id": "arroz-graneado",
+   "name": "Arroz graneado",
+   "rung": 2,
+   "cuisine": "PE",
+   "assembly": false,
+   "staple": false,
+   "gear": [
+    "pot"
+   ],
+   "minutes": {
+    "active": 5,
+    "total": 25
+   },
+   "servings": 4,
+   "doubles": true,
+   "fridgeDays": 2,
+   "proteinG": 4,
+   "ingredients": [
+    {
+     "q": 2,
+     "u": "tazas",
+     "n": "arroz"
+    },
+    {
+     "q": 2,
+     "u": "dientes",
+     "n": "ajo"
+    },
+    {
+     "q": 1,
+     "u": "cda",
+     "n": "aceite"
+    }
+   ],
+   "steps": [
+    "Lava el arroz hasta que el agua salga casi clara.",
+    "Olla con el aceite, el ajo picado 30 s, el arroz 1 min revolviendo.",
+    "Agua 1:1.25, sal. Hierve destapado hasta que el agua baje al nivel del arroz.",
+    "Tapa, fuego mínimo 15 min. Apaga, 5 min sin destapar, suelta con un tenedor.",
+    "Enfría RÁPIDO lo que sobre y a la nevera: el arroz es la sobra que más muerde."
+   ]
+  },
+  {
+   "id": "bowl-coreano",
+   "name": "Bowl coreano de carne molida",
+   "rung": 2,
+   "cuisine": "KR",
+   "assembly": false,
+   "staple": true,
+   "gear": [
+    "pan"
+   ],
+   "minutes": {
+    "active": 15,
+    "total": 20
+   },
+   "servings": 3,
+   "doubles": true,
+   "fridgeDays": 3,
+   "proteinG": 30,
+   "ingredients": [
+    {
+     "q": 450,
+     "u": "g",
+     "n": "carne molida 85%"
+    },
+    {
+     "q": 3,
+     "u": "cda",
+     "n": "sillao"
+    },
+    {
+     "q": 1,
+     "u": "cda",
+     "n": "azúcar morena"
+    },
+    {
+     "q": 3,
+     "u": "dientes",
+     "n": "ajo"
+    },
+    {
+     "q": 1,
+     "u": "cdta",
+     "n": "jengibre rallado"
+    },
+    {
+     "q": 1,
+     "u": "cda",
+     "n": "gochujang"
+    },
+    {
+     "q": 1,
+     "u": "cdta",
+     "n": "aceite de sésamo"
+    },
+    {
+     "q": 3,
+     "u": "bolsas",
+     "n": "arroz listo (Ready Rice)"
+    },
+    {
+     "q": 2,
+     "u": "",
+     "n": "cebollita china"
+    }
+   ],
+   "steps": [
+    "Sartén caliente, la carne suelta hasta que dore; escurre la grasa si hay mucha.",
+    "Sillao, azúcar, ajo, jengibre, gochujang: 2 min.",
+    "Fuera del fuego el aceite de sésamo. Sobre arroz, cebollita encima. Dobla sin miedo: la salsa escala."
+   ]
+  },
+  {
+   "id": "oyakodon",
+   "name": "Oyakodon",
+   "rung": 2,
+   "cuisine": "JP",
+   "assembly": false,
+   "staple": false,
+   "gear": [
+    "pan"
+   ],
+   "minutes": {
+    "active": 12,
+    "total": 15
+   },
+   "servings": 1,
+   "doubles": true,
+   "fridgeDays": 2,
+   "proteinG": 45,
+   "ingredients": [
+    {
+     "q": 1,
+     "u": "",
+     "n": "muslo de pollo deshuesado"
+    },
+    {
+     "q": 0.5,
+     "u": "",
+     "n": "cebolla"
+    },
+    {
+     "q": 2,
+     "u": "",
+     "n": "huevos"
+    },
+    {
+     "q": 100,
+     "u": "ml",
+     "n": "caldo (dashi o de pollo)"
+    },
+    {
+     "q": 1,
+     "u": "cda",
+     "n": "sillao"
+    },
+    {
+     "q": 1,
+     "u": "cda",
+     "n": "mirin"
+    },
+    {
+     "q": 1,
+     "u": "bolsa",
+     "n": "arroz listo (Ready Rice)"
+    }
+   ],
+   "steps": [
+    "Cebolla en pluma con el caldo, sillao y mirin: hierve 3 min en la sartén.",
+    "Pollo en trozos, 5 min tapado.",
+    "Huevos batidos por encima, tapa 1 min: cuajados por fuera, cremosos por dentro. Sobre arroz. Máximo dos por sartén."
+   ]
+  },
+  {
+   "id": "pollo-bandeja",
+   "name": "Pollo mediterráneo a la bandeja",
+   "rung": 2,
+   "cuisine": "MED",
+   "assembly": false,
+   "staple": false,
+   "gear": [
+    "oven",
+    "sheetPan"
+   ],
+   "minutes": {
+    "active": 10,
+    "total": 40
+   },
+   "servings": 4,
+   "doubles": false,
+   "fridgeDays": 3,
+   "proteinG": 40,
+   "ingredients": [
+    {
+     "q": 4,
+     "u": "",
+     "n": "muslos de pollo"
+    },
+    {
+     "q": 500,
+     "u": "g",
+     "n": "papas"
+    },
+    {
+     "q": 2,
+     "u": "",
+     "n": "pimientos"
+    },
+    {
+     "q": 200,
+     "u": "g",
+     "n": "tomates cherry"
+    },
+    {
+     "q": 100,
+     "u": "g",
+     "n": "queso feta"
+    },
+    {
+     "q": 1,
+     "u": "",
+     "n": "limón"
+    },
+    {
+     "q": 1,
+     "u": "cda",
+     "n": "orégano"
+    }
+   ],
+   "steps": [
+    "Horno a 425°F. Muslos, papas en cubos y pimientos en la bandeja con aceite, limón, orégano, sal.",
+    "20 min. Tomates y feta encima, 10 min más.",
+    "Una bandeja rinde 4; dos bandejas necesitan dos rejillas. Miércoles y jueves: al horno a las 4:45 o se come antes de las 5:30."
+   ]
+  },
+  {
+   "id": "arroz-con-pollo",
+   "name": "Arroz con pollo",
+   "rung": 3,
+   "cuisine": "PE",
+   "assembly": false,
+   "staple": true,
+   "gear": [
+    "pot",
+    "blender"
+   ],
+   "minutes": {
+    "active": 25,
+    "total": 60
+   },
+   "servings": 6,
+   "doubles": false,
+   "fridgeDays": 3,
+   "proteinG": 35,
+   "ingredients": [
+    {
+     "q": 6,
+     "u": "",
+     "n": "muslos de pollo"
+    },
+    {
+     "q": 3,
+     "u": "tazas",
+     "n": "arroz"
+    },
+    {
+     "q": 1,
+     "u": "atado",
+     "n": "culantro"
+    },
+    {
+     "q": 1,
+     "u": "",
+     "n": "cebolla roja"
+    },
+    {
+     "q": 2,
+     "u": "cda",
+     "n": "pasta de ají amarillo"
+    },
+    {
+     "q": 4,
+     "u": "dientes",
+     "n": "ajo"
+    },
+    {
+     "q": 1,
+     "u": "taza",
+     "n": "arvejas congeladas"
+    },
+    {
+     "q": 1,
+     "u": "",
+     "n": "pimiento rojo"
+    },
+    {
+     "q": 1,
+     "u": "botella",
+     "n": "cerveza negra"
+    },
+    {
+     "q": 1,
+     "u": "cubo",
+     "n": "caldo de pollo"
+    }
+   ],
+   "steps": [
+    "Dora los muslos por los dos lados en la olla; sácalos.",
+    "Sofrito: cebolla, ajo, ají amarillo 5 min. Culantro licuado con media taza de agua, adentro, 2 min.",
+    "Arroz, cerveza, caldo hasta cubrir dos dedos. Pollo encima. Hierve, tapa, mínimo 35 min.",
+    "Arvejas y pimiento los últimos 5. Reposa 10. Seis porciones: la olla del sábado."
+   ]
+  },
+  {
+   "id": "chili",
+   "name": "Chili de una olla",
+   "rung": 3,
+   "cuisine": "US",
+   "assembly": false,
+   "staple": false,
+   "gear": [
+    "pot"
+   ],
+   "minutes": {
+    "active": 15,
+    "total": 55
+   },
+   "servings": 6,
+   "doubles": true,
+   "fridgeDays": 4,
+   "proteinG": 35,
+   "ingredients": [
+    {
+     "q": 900,
+     "u": "g",
+     "n": "carne molida 85%"
+    },
+    {
+     "q": 1,
+     "u": "",
+     "n": "cebolla"
+    },
+    {
+     "q": 4,
+     "u": "dientes",
+     "n": "ajo"
+    },
+    {
+     "q": 2,
+     "u": "cda",
+     "n": "chili powder"
+    },
+    {
+     "q": 1,
+     "u": "cda",
+     "n": "comino"
+    },
+    {
+     "q": 1,
+     "u": "lata",
+     "n": "tomate triturado"
+    },
+    {
+     "q": 2,
+     "u": "latas",
+     "n": "frijoles"
+    }
+   ],
+   "steps": [
+    "Dora la carne en la olla; cebolla y ajo 5 min.",
+    "Especias 1 min, tomate y frijoles, 30–45 min a fuego bajo.",
+    "Se congela 3 meses. La olla más fácil de doblar del libro."
+   ]
+  },
+  {
+   "id": "tallarin-saltado",
+   "name": "Tallarín saltado de pollo",
+   "rung": 3,
+   "cuisine": "PE",
+   "assembly": false,
+   "staple": false,
+   "gear": [
+    "pot",
+    "pan"
+   ],
+   "minutes": {
+    "active": 25,
+    "total": 30
+   },
+   "servings": 2,
+   "doubles": "two-rounds",
+   "fridgeDays": 2,
+   "proteinG": 45,
+   "ingredients": [
+    {
+     "q": 250,
+     "u": "g",
+     "n": "espagueti"
+    },
+    {
+     "q": 400,
+     "u": "g",
+     "n": "pechuga de pollo"
+    },
+    {
+     "q": 1,
+     "u": "",
+     "n": "cebolla roja"
+    },
+    {
+     "q": 2,
+     "u": "",
+     "n": "tomates"
+    },
+    {
+     "q": 1,
+     "u": "",
+     "n": "pimiento"
+    },
+    {
+     "q": 3,
+     "u": "cda",
+     "n": "sillao"
+    },
+    {
+     "q": 1,
+     "u": "cda",
+     "n": "salsa de ostión"
+    }
+   ],
+   "steps": [
+    "Pasta hirviendo mientras cortas.",
+    "Sartén MUY caliente: pollo en tiras 2 min, fuera.",
+    "Cebolla, tomate y pimiento 2 min rápido; sillao y ostión; pollo de vuelta, pasta adentro, 1 min.",
+    "Dos porciones por sartén como mucho; para cuatro, dos rondas."
+   ]
+  },
+  {
+   "id": "lomo-saltado",
+   "name": "Lomo saltado",
+   "rung": 4,
+   "cuisine": "PE",
+   "assembly": false,
+   "staple": true,
+   "gear": [
+    "pan",
+    "oven"
+   ],
+   "minutes": {
+    "active": 25,
+    "total": 30
+   },
+   "servings": 2,
+   "doubles": "two-rounds",
+   "fridgeDays": 2,
+   "proteinG": 40,
+   "ingredients": [
+    {
+     "q": 400,
+     "u": "g",
+     "n": "lomo o bistec"
+    },
+    {
+     "q": 1,
+     "u": "",
+     "n": "cebolla roja"
+    },
+    {
+     "q": 2,
+     "u": "",
+     "n": "tomates"
+    },
+    {
+     "q": 1,
+     "u": "cda",
+     "n": "pasta de ají amarillo"
+    },
+    {
+     "q": 3,
+     "u": "cda",
+     "n": "sillao"
+    },
+    {
+     "q": 1,
+     "u": "cda",
+     "n": "vinagre"
+    },
+    {
+     "q": 1,
+     "u": "bolsa",
+     "n": "papas fritas congeladas"
+    },
+    {
+     "q": 2,
+     "u": "bolsas",
+     "n": "arroz listo (Ready Rice)"
+    },
+    {
+     "q": 1,
+     "u": "puñado",
+     "n": "culantro"
+    }
+   ],
+   "steps": [
+    "MI lomo: papas fritas de bolsa, al horno, 20 min.",
+    "Sartén hasta que humee. Carne en tiras, en DOS tandas, 1–2 min cada una: fuera.",
+    "Cebolla en gajos gruesos, tomate en gajos, ají: 1 min a fuego máximo.",
+    "Carne de vuelta, sillao y vinagre por el borde, 30 s. Papas y culantro adentro. Con arroz.",
+    "Las sobras: solo la carne se recalienta; las papas no."
+   ]
+  },
+  {
+   "id": "aji-de-gallina",
+   "name": "Ají de gallina",
+   "rung": 5,
+   "cuisine": "PE",
+   "assembly": false,
+   "staple": true,
+   "gear": [
+    "pot",
+    "blender"
+   ],
+   "minutes": {
+    "active": 30,
+    "total": 45
+   },
+   "servings": 4,
+   "doubles": true,
+   "fridgeDays": 3,
+   "proteinG": 40,
+   "ingredients": [
+    {
+     "q": 1,
+     "u": "",
+     "n": "pollo rostizado (Safeway, deli)"
+    },
+    {
+     "q": 4,
+     "u": "rebanadas",
+     "n": "pan de molde"
+    },
+    {
+     "q": 1,
+     "u": "lata",
+     "n": "leche evaporada"
+    },
+    {
+     "q": 50,
+     "u": "g",
+     "n": "nueces"
+    },
+    {
+     "q": 50,
+     "u": "g",
+     "n": "parmesano"
+    },
+    {
+     "q": 3,
+     "u": "cda",
+     "n": "pasta de ají amarillo"
+    },
+    {
+     "q": 1,
+     "u": "",
+     "n": "cebolla"
+    },
+    {
+     "q": 3,
+     "u": "dientes",
+     "n": "ajo"
+    },
+    {
+     "q": 4,
+     "u": "",
+     "n": "papas"
+    },
+    {
+     "q": 2,
+     "u": "",
+     "n": "huevos duros"
+    }
+   ],
+   "steps": [
+    "Pan remojado en la leche evaporada; licúa con las nueces.",
+    "Sofrito de cebolla, ajo y ají amarillo, 6 min.",
+    "La crema adentro, el pollo deshilachado, el parmesano; 10 min a fuego bajo hasta que espese.",
+    "Sobre papa sancochada y arroz; huevo duro encima."
+   ]
+  }
+ ],
+ "plan": {
+  "via": "fallback",
+  "days": {
+   "2026-09-29": {
+    "train": true,
+    "bf": {
+     "kind": "swipe"
+    },
+    "lunch": {
+     "kind": "swipe"
+    },
+    "dinner": {
+     "kind": "home",
+     "recipe": "atun-huevo-bowl"
+    }
+   },
+   "2026-09-30": {
+    "train": false,
+    "bf": {
+     "kind": "swipe"
+    },
+    "lunch": {
+     "kind": "swipe"
+    },
+    "cook": {
+     "recipe": "pollo-rostizado-bowl",
+     "at": "13:00",
+     "servings": 2,
+     "batch": "b260930d"
+    },
+    "dinner": {
+     "kind": "cook"
+    }
+   },
+   "2026-10-01": {
+    "train": true,
+    "bf": {
+     "kind": "swipe"
+    },
+    "lunch": {
+     "kind": "swipe"
+    },
+    "dinner": {
+     "kind": "leftover",
+     "of": "b260930d"
+    }
+   },
+   "2026-10-02": {
+    "train": true,
+    "bf": {
+     "kind": "swipe"
+    },
+    "lunch": {
+     "kind": "swipe"
+    },
+    "cook": {
+     "recipe": "pollo-rostizado-bowl",
+     "at": "11:00",
+     "servings": 2,
+     "batch": "b261002d"
+    },
+    "dinner": {
+     "kind": "cook"
+    }
+   },
+   "2026-10-03": {
+    "train": false,
+    "bf": {
+     "kind": "home",
+     "recipe": "yogur-bowl"
+    },
+    "lunch": {
+     "kind": "leftover",
+     "of": "b261002d"
+    },
+    "cook": {
+     "recipe": "pollo-rostizado-bowl",
+     "at": "11:00",
+     "servings": 4,
+     "batch": "b261003d"
+    },
+    "dinner": {
+     "kind": "cook"
+    }
+   },
+   "2026-10-04": {
+    "train": false,
+    "bf": {
+     "kind": "home",
+     "recipe": "yogur-bowl"
+    },
+    "lunch": {
+     "kind": "out"
+    },
+    "dinner": {
+     "kind": "leftover",
+     "of": "b261003d"
+    }
+   },
+   "2026-10-05": {
+    "train": true,
+    "bf": {
+     "kind": "swipe"
+    },
+    "lunch": {
+     "kind": "swipe"
+    },
+    "dinner": {
+     "kind": "leftover",
+     "of": "b261003d"
+    }
+   }
+  }
+ },
+ "log": {
+  "2026-09-29:dinner": {
+   "s": "ate",
+   "ts": 1790697600000
+  }
+ },
+ "groceries": {
+  "week": "2026-09-27",
+  "checked": {
+   "pollo rostizado (Safeway, deli)": true,
+   "leche": true
+  }
+ },
+ "schema": 1,
+ "lastModified": 1790000000000
+}

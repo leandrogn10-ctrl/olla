@@ -1,6 +1,7 @@
 // App-shell service worker — offline-first for the app shell, pass-through for APIs.
 // SLOT: rename CACHE_NAME per app (e.g. 'cuaderno-v1') and bump the suffix to force-refresh clients.
-const CACHE_NAME = 'olla-v2';   // bump on every index.html ship, same commit — an installed copy keeps serving the old shell otherwise
+const CACHE_NAME = 'olla-v3';   // bump on every index.html ship, same commit — an installed copy keeps serving the old shell otherwise
+const CACHE_PREFIX = 'olla-';   // every sibling PWA shares the leandrogn10-ctrl.github.io origin (one CacheStorage): delete ONLY our own old caches
 const APP_SHELL = ['./', './index.html'];
 
 self.addEventListener('install', e => {
@@ -13,7 +14,7 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+      Promise.all(keys.filter(k => k.startsWith(CACHE_PREFIX) && k !== CACHE_NAME).map(k => caches.delete(k)))   // v1 deleted La Forja's caches on every activate
     ).then(() => self.clients.claim())
   );
 });

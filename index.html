@@ -722,25 +722,53 @@ document.getElementById('brand-name').textContent = APP.name;
 document.getElementById('brand-tagline').textContent = APP.tagline;
 document.getElementById('tab-home-icon').textContent = APP.iconLetter;
 
-/* ═══ OLLA-ENGINE-BEGIN ═══ pure, no DOM, no clock of its own: every function takes `today` (YYYY-MM-DD).
-   test-olla.js extracts this block by its two markers and runs it in node, so nothing in here may touch
-   `document`, `state`, `localStorage` or `Date.now()`. The UI below is the only caller in the browser.
-   Kinds: swipe (a meal-plan exchange at the hall) · cook (tonight's pot, made in a cook window) ·
-   leftover (a serving of a live pot) · home (a fridge default, no cooking, a rung-1 assembly recipe) ·
-   out (eating out / ordering). Dinner is NEVER a swipe: the hall's last station closes at 6pm. */
+/* ═══ OLLA-ENGINE-BEGIN ═══ pure, no DOM, no clock of its own (v2 — LA-OLLA-V2-SPEC.md §2 is the contract).
+   Every function that needs time takes `today` ('YYYY-MM-DD', local) and, where the hour matters, `now` (integer
+   minutes since local midnight) and/or `at` (ms epoch — an ORDERING stamp only, never read as "now"). test-olla.js
+   extracts this block by its two markers and runs it in node, so nothing in here may touch `document`, `state`,
+   `localStorage`, `Date.now()` or an argument-less `new Date()`.
+   PLAN = INTENT, LOG = REALITY. `plan.days` is what the rule (or his hand) intended; `log`, `cooks`, `extra` and
+   `likes` are what happened. Nothing here ever writes a past `plan.days[d]`. The pot is derived from reality first,
+   intent second, and holds LESS when unsure: an unconfirmed cook is 0 portions (a phantom portion is a missed
+   dinner; a forgotten one is a nice surprise).
+   Kinds: swipe (a meal-plan exchange at the hall) · cook (the day's pot, eaten fresh at dinner) · leftover (a portion
+   of a live batch) · home (a fridge default, no cooking) · out. Dinner is NEVER a swipe: the hall closes at 6pm. */
 const OLLA = (function () {
-  const SLOTS = ['bf', 'lunch', 'dinner'];
+  'use strict';
+  const SLOTS = ['bf', 'lunch', 'dinner', 'post'];
+  const MEALS = ['bf', 'lunch', 'dinner'];
   const KINDS = ['swipe', 'leftover', 'cook', 'home', 'out'];
+  const SECTIONS = ['Frutas y verduras', 'Panadería', 'Deli', 'Carnes y pescado', 'Lácteos y huevos', 'Congelados', 'Arroz, pasta y legumbres', 'Latas y salsas', 'Internacional', 'Especias y aceites', 'Otros'];
+  const NO_SECTION = 'sin sección';
+  const EAT_DEFAULT = { bf: '08:45', lunch: '12:30', dinner: '19:00', post: '22:45' };
+  const LOG_S = { ate: 1, other: 1, out: 1, skipped: 1, void: 1 };
+  const COOK_S = { made: 1, notmade: 1, tossed: 1, void: 1 };
+  const EXTRA_SRC = { bought: 1, other: 1, cooked: 1 };
+  const EARLY = 90;   // a meal may be logged from 90 min before its eat time (the «eat» window), never further ahead
+
+  /* ── time (unchanged from v1: local, noon-anchored so a setDate walk can't be shifted a day by DST) ── */
   const p2 = n => (n < 10 ? '0' : '') + n;
   function ymd(d) { return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()); }
-  function parse(s) { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s)); if (!m) return null; return new Date(+m[1], +m[2] - 1, +m[3], 12); }   // noon anchor: a setDate walk can't be shifted a day by DST
+  function parse(s) { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s)); if (!m) return null; return new Date(+m[1], +m[2] - 1, +m[3], 12); }
   function addDays(s, n) { const d = parse(s); d.setDate(d.getDate() + n); return ymd(d); }
   function dow(s) { return parse(s).getDay(); }
   function diffDays(a, b) { return Math.round((parse(b) - parse(a)) / 86400000); }
   function weekStart(s) { return addDays(s, -dow(s)); }                 // Sunday — the swipe allotment runs Sun–Sat
   function isoWeek(s) { const d = parse(s); const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const dn = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - dn); const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1)); return t.getUTCFullYear() + '-W' + p2(Math.ceil(((t - y0) / 86400000 + 1) / 7)); }
-  function hm(str) { const m = /^(\d{1,2}):(\d{2})$/.exec(String(str).trim()); return m ? (+m[1]) * 60 + (+m[2]) : null; }
-  function fmtHM(min) { return p2(Math.floor(min / 60)) + ':' + p2(min % 60); }
+  function hm(str) { if (typeof str === 'number') return isFinite(str) ? Math.round(str) : null; const m = /^(\d{1,2}):(\d{2})$/.exec(String(str == null ? '' : str).trim()); return m ? (+m[1]) * 60 + (+m[2]) : null; }
+  function fmtHM(min) { min = Math.max(0, Math.round(min)); return p2(Math.floor(min / 60) % 24) + ':' + p2(min % 60); }
+  const numNow = now => (typeof now === 'number' && isFinite(now) ? now : 0);   // no `now` = the start of the day: nothing of today has happened yet
+  const isAt = at => typeof at === 'number' && isFinite(at) && at > 0;
+  const clone = o => (o == null ? o : JSON.parse(JSON.stringify(o)));
+  const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+  const ceil5 = m => Math.ceil(m / 5) * 5;
+  const int = (x, dflt) => { const v = Math.round(+x); return isFinite(v) ? v : (dflt || 0); };
+  const cmpStr = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+  const trunc = (s, n) => { s = String(s == null ? '' : s); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
+
+  /* ── settings, days and slots ── */
+  const S_ = state => (state && state.settings) || {};
+  const ladderRung = state => Math.max(1, +((state && state.ladder && state.ladder.rung) || 1));
   function windowsFor(settings, date) {
     const arr = ((settings && settings.cookWindows) || {})[String(dow(date))] || [];
     return arr.map(w => { const parts = String(w).split('-'); const s = hm(parts[0] || ''), e = hm(parts[1] || ''); return { s, e, str: String(w).trim() }; })
@@ -749,375 +777,1453 @@ const OLLA = (function () {
   function hallDay(settings, date) { return ((settings.hall && settings.hall.days) || []).indexOf(dow(date)) >= 0; }
   function outDay(settings, date) { return (settings.outDays || []).indexOf(dow(date)) >= 0; }
   function trainDay(settings, date) { return (settings.trainDays || []).indexOf(dow(date)) >= 0; }
-  function recipeById(state, id) { return (state.recipes || []).find(r => r.id === id) || null; }
-  /* ONE staple per rung is the law; a rung with none borrows the nearest LOWER rung's (a rung-3 week with
-     no rung-3 staple still eats), never a higher one (a rung-5 dish scheduled in week 2 is a skipped meal). */
-  function staple(state, rung) {
-    const st = (state.recipes || []).filter(r => r.staple && r.rung <= rung).sort((a, b) => b.rung - a.rung);
-    return st[0] || null;
+  function planDay(state, date) { return ((state && state.plan && state.plan.days) || {})[date] || null; }
+  function isTrain(state, date) { const d = planDay(state, date); return d && typeof d.train === 'boolean' ? d.train : trainDay(S_(state), date); }
+  function slotsFor(state, date) { return isTrain(state, date) ? SLOTS.slice() : MEALS.slice(); }
+  function eatAt(state, date, slot) { const e = S_(state).eatAt || {}; const v = hm(e[slot]); return v != null ? v : hm(EAT_DEFAULT[slot] || '19:00'); }
+  /* a slot is BEHIND us once its eat time is strictly before `now` — at 19:00 sharp tonight's dinner is still in the pot */
+  function slotPast(state, date, slot, today, now) { return date < today || (date === today && eatAt(state, date, slot) < numNow(now)); }
+  function fridgeFor(settings, slot) { const f = settings.fridge || {}; return (slot === 'bf' ? f.bf : slot === 'post' ? f.post : f.meal) || null; }
+  function homeRow(settings, slot) { return { kind: 'home', recipe: fridgeFor(settings, slot) }; }
+  /* the rule's row for a slot, or null when the slot eats from the pot (the planner decides) */
+  function ruleRow(settings, date, slot) {
+    const hall = hallDay(settings, date);
+    if (slot === 'bf') return (hall && settings.hall && settings.hall.breakfastSwipe) ? { kind: 'swipe' } : homeRow(settings, 'bf');
+    if (slot === 'lunch') return hall ? { kind: 'swipe' } : outDay(settings, date) ? { kind: 'out' } : null;
+    if (slot === 'post') return homeRow(settings, 'post');
+    return null;
   }
-  function maxServings(rec) { return (rec.servings || 2) * (rec.doubles === true ? 2 : 1); }
+  function tripMinutes(settings) {
+    const st = settings.store || {}, inStore = int(st.inStoreMin, 30);
+    if (st.mode === 'delivery') return inStore;
+    const walk = st.walkMin != null ? int(st.walkMin, 10) : int((settings.hall || {}).walkMin, 10);
+    return 2 * walk + inStore;
+  }
+
+  /* ── the book ── */
+  function ingTable() { try { return (typeof INGREDIENTS !== 'undefined' && INGREDIENTS) || {}; } catch (e) { return {}; } }   // OLLA-SEED's table, read at CALL time
+  function ingredient(id) {
+    const t = ingTable()[id];
+    if (t) return Object.assign({ id }, t);
+    return { id: id || null, n: String(id || '?'), section: NO_SECTION, unit: '', buy: 'unit', indivisible: false, buyWithin: 5, pantry: false, unknown: true };   // visible «sin sección», never a quiet default
+  }
+  function recipeById(state, id) { return (state && state.recipes || []).find(r => r.id === id) || null; }
+  function maxServings(rec) { return (rec.servings || 2) * ((rec.doubles === true || rec.doubles === 'two-rounds') ? 2 : 1); }
   function gearOk(settings, rec) { const g = (settings && settings.gear) || {}; return (rec.gear || []).every(k => g[k] !== false); }   // unknown gear reads as owned; only an explicit `false` refuses
-  function eligible(state, rec) { return !!rec && rec.rung <= ((state.ladder && state.ladder.rung) || 1) + 1 && gearOk(state.settings, rec); }
+  function eligible(state, rec) { return !!rec && (rec.rung || 1) <= ladderRung(state) + 1 && gearOk(S_(state), rec); }
+  function verbFor(rec) { return rec && rec.assembly ? 'armar' : 'cocinar'; }
+  function batchable(rec) { return !!rec && rec.role === 'main' && (rec.fridgeDays || 0) >= 1 && maxServings(rec) >= 2; }
+  function totalOf(rec) { return Math.max(1, int(rec && rec.minutes && rec.minutes.total, 30) || 30); }
+  function likeOf(state, id) { const l = (state.likes || {})[id]; return (l && l.v) || null; }
+  function pantrySet(state) { const o = {}; (S_(state).pantry || []).forEach(x => { o[String(x)] = 1; }); return o; }
 
-  /* The pot: every batch a cook row made, minus every row that ate from it. Derived from the plan, never stored. */
-  function potFrom(state, plan, upto) {
-    const days = (plan && plan.days) || {}, batches = {};
+  /* ── reality: append-only arrays, the effective entry is the latest LIVE one ──
+     `void` retracts: with `ref` it kills the entry whose `at` it names (merge-safe across devices whose clocks
+     disagree); without `ref`, the latest live entry before it. Never delete an entry. */
+  function liveEntries(arr) {
+    if (!Array.isArray(arr)) return [];
+    const xs = arr.map((e, i) => ({ e, i, dead: false })).filter(x => x.e && typeof x.e === 'object' && typeof x.e.s === 'string');
+    xs.sort((a, b) => (+a.e.at || 0) - (+b.e.at || 0) || a.i - b.i);
+    xs.forEach(v => { if (v.e.s === 'void' && v.e.ref != null) xs.forEach(x => { if (x.e.s !== 'void' && +x.e.at === +v.e.ref) x.dead = true; }); });
+    xs.forEach((v, k) => { if (v.e.s !== 'void' || v.e.ref != null) return; for (let j = k - 1; j >= 0; j--) { if (xs[j].e.s !== 'void' && !xs[j].dead) { xs[j].dead = true; break; } } });
+    return xs.filter(x => x.e.s !== 'void' && !x.dead).map(x => x.e);
+  }
+  function effLog(state, date, slot) { const l = liveEntries(((state && state.log) || {})[date + ':' + slot]); return l.length ? l[l.length - 1] : null; }
+  function effCook(state, batch) { const l = liveEntries(((state && state.cooks) || {})[batch]).filter(e => e.s === 'made' || e.s === 'notmade' || e.s === 'tossed'); return l.length ? l[l.length - 1] : null; }
+  function frozeOf(state, batch) { return liveEntries(((state && state.cooks) || {})[batch]).filter(e => e.s === 'froze'); }
+  function lastMade(state, batch) { const l = liveEntries(((state && state.cooks) || {})[batch]).filter(e => e.s === 'made'); return l.length ? l[l.length - 1] : null; }
+  const batchIdFor = date => 'b' + String(date).replace(/-/g, '').slice(2) + 'd';
+  function plannedBatchOf(day, slot) {
+    const r = day && day[slot]; if (!r) return null;
+    if (r.kind === 'leftover') return r.of || null;
+    if (r.kind === 'cook' && slot === 'dinner') return (day.cook && day.cook.batch) || null;
+    return null;
+  }
+  function cookDateOf(state, batch) { const days = (state.plan && state.plan.days) || {}; const d = Object.keys(days).sort().find(k => days[k] && days[k].cook && days[k].cook.batch === batch); return d || null; }
+  /* an extra lives as long as the reality entry that created it lives (void the «otra cosa, sobró 2» and its batch goes) */
+  function extraAlive(state, id, x) {
+    if (x.src === 'frozen' && x.from) return frozeOf(state, x.from).some(e => e.id === id);
+    if (x.log) return liveEntries((state.log || {})[x.log]).some(e => e.batch === id);
+    return true;
+  }
+  function cookPast(state, date, cook, today, now) {
+    if (date < today) return true;
+    if (date > today) return false;
+    const at = hm(cook.at); return at != null && at + totalOf(recipeById(state, cook.recipe)) <= numNow(now);
+  }
+
+  /* reality(state, today, now) → { batches, byId }. Batch: {id, date, name, recipe, servings, left, leftNow, fridgeDays,
+     expires (the LAST good day), src, state, eaters ['date:slot'], frozen, …}. `left` = servings − every eater (past and
+     planned): what the planner may still commit. `leftNow` = servings − eaters already behind us: what is in the fridge. */
+  function reality(state, today, now) {
+    const N = numNow(now), days = (state.plan && state.plan.days) || {}, extra = state.extra || {};
+    const batches = [], byId = {};
+    const add = b => { b.expires = addDays(b.date, b.fridgeDays); b.eaters = []; b.eatenNow = 0; batches.push(b); byId[b.id] = b; };
     Object.keys(days).sort().forEach(d => {
-      const day = days[d];
-      if (day.cook && day.cook.batch) {
-        const rec = recipeById(state, day.cook.recipe) || {};
-        batches[day.cook.batch] = { id: day.cook.batch, date: d, recipe: day.cook.recipe, name: rec.name || day.cook.recipe,
-          servings: day.cook.servings || 0, left: day.cook.servings || 0, fridgeDays: rec.fridgeDays || 3, eaters: [] };
-      }
+      const c = days[d] && days[d].cook; if (!c || !c.batch || byId[c.batch]) return;
+      const eff = effCook(state, c.batch), made = lastMade(state, c.batch);
+      let st, src = 'plan', rid = c.recipe, servings = +c.servings || 0;
+      if (eff && eff.s === 'made') { st = 'made'; src = 'made'; rid = eff.recipe || c.recipe; if (eff.yield != null) servings = +eff.yield; }
+      else if (eff && eff.s === 'tossed') { st = 'tossed'; src = 'made'; if (made) { rid = made.recipe || rid; if (made.yield != null) servings = +made.yield; } }
+      else if (eff && eff.s === 'notmade') { st = 'notmade'; servings = 0; }
+      else if (cookPast(state, d, c, today, N)) { st = 'unconfirmed'; servings = 0; }     // silence about a past cook: NOT in the pot
+      else st = 'planned';
+      const rec = recipeById(state, rid) || recipeById(state, c.recipe) || {};
+      add({ id: c.batch, date: d, name: rec.name || rid || 'olla', recipe: rid || null, servings, planned: +c.servings || 0,
+            fridgeDays: rec.fridgeDays || 3, src, state: st, frozen: false, at: hm(c.at), total: totalOf(rec) });
     });
+    Object.keys(extra).sort().forEach(id => {
+      const x = extra[id]; if (!x || byId[id] || !x.date || !extraAlive(state, id, x)) return;
+      const rec = x.recipe ? recipeById(state, x.recipe) : null, eff = effCook(state, id);
+      add({ id, date: x.date, name: x.name || (rec && rec.name) || 'comida', recipe: x.recipe || null, servings: +x.servings || 0, planned: +x.servings || 0,
+            fridgeDays: x.fridgeDays != null ? +x.fridgeDays : (x.src === 'frozen' ? 90 : (rec && rec.fridgeDays) || 3),
+            src: x.src || 'other', state: eff && eff.s === 'tossed' ? 'tossed' : 'made', frozen: x.src === 'frozen', from: x.from || null, at: null, total: 0 });
+    });
+    batches.forEach(b => { b.frozenOut = frozeOf(state, b.id).reduce((n, e) => n + Math.max(0, +e.n || 0), 0); });
+    const log = state.log || {};
     Object.keys(days).sort().forEach(d => {
-      if (upto && d > upto) return;
-      const day = days[d];
-      SLOTS.forEach(sl => { const r = day[sl]; if (!r) return;
-        const bid = r.kind === 'cook' ? (day.cook && day.cook.batch) : r.kind === 'leftover' ? r.of : null;
-        if (bid && batches[bid]) { batches[bid].left--; batches[bid].eaters.push(d + ':' + sl); } });   // left goes NEGATIVE on an overdrawn pot — the gate reads it; a floor at zero hid a fourth eater on a three-serving pot
-    });
-    return Object.values(batches).sort((a, b) => a.date < b.date ? -1 : 1);
-  }
-  function alive(b, date) { return b.left > 0 && diffDays(b.date, date) >= 0 && diffDays(b.date, date) <= b.fridgeDays; }
-  function liveBatches(state, plan, date) { return potFrom(state, plan).filter(b => alive(b, date)); }
-  /* What is PHYSICALLY in the pot on `date`, per the plan: every batch cooked on or before it, minus the meals already
-     behind it. liveBatches answers the planner (uncommitted servings); this answers him («¿qué hay?»). Without the ate
-     tap, a past slot is assumed eaten and today's are still in the pot. */
-  function potNow(state, plan, date) {
-    return potFrom(state, plan).filter(b => b.date <= date).map(b => {
-      const ahead = b.eaters.filter(k => k.slice(0, 10) >= date).length;   // eaters not yet behind us
-      const left = b.left + ahead;                                         // b.left already subtracted every eater
-      return Object.assign({}, b, { left, expires: addDays(b.date, b.fridgeDays) });
-    }).filter(b => b.left > 0 && diffDays(b.date, date) <= b.fridgeDays);
-  }
-
-  /* How many servings a cook on `date` should make: tonight, plus every pot-eating slot until the next day that
-     can cook, capped by the recipe's fridge life. Clamped to [2, maxServings]: every cook is a double. */
-  function coverAhead(settings, rec, date) {
-    let n = 1;
-    for (let k = 1; k <= (rec.fridgeDays || 3); k++) {
-      const e = addDays(date, k);
-      if (!hallDay(settings, e) && !outDay(settings, e)) n++;   // a lunch at home eats the pot
-      if (windowsFor(settings, e).length) break;                // that day cooks for itself
-      n++;                                                      // its dinner eats the pot
-    }
-    return Math.max(2, Math.min(maxServings(rec), n));
-  }
-  const batchId = (date, slot) => 'b' + date.replace(/-/g, '').slice(2) + (slot ? slot[0] : 'd');
-
-  /* THE FALLBACK WEEK — the default planner; the coach (later) is additive. Rows he set by hand (`hand:true`)
-     are kept; past days are kept verbatim; everything else from `today` for `span` days is rebuilt. */
-  function buildWeek(state, today, span) {
-    span = span || 7;
-    const S = state.settings, old = (state.plan && state.plan.days) || {}, days = {};
-    const rung = (state.ladder && state.ladder.rung) || 1;
-    Object.keys(old).forEach(d => { if (d < today && diffDays(d, today) <= 21) days[d] = old[d]; });   // the past is a record; prune past three weeks
-    const plan = { via: 'fallback', days };
-    const keep = (d, sl) => (old[d] && old[d][sl] && old[d][sl].hand) ? old[d][sl] : null;
-    for (let i = 0; i < span; i++) {
-      const d = addDays(today, i), day = { train: trainDay(S, d) };
-      const oldDay = old[d] || {};
-      if (oldDay.cook && oldDay.cook.hand) day.cook = oldDay.cook;
-      const hall = hallDay(S, d), wins = windowsFor(S, d);
-      const takeLeftover = () => { const b = liveBatches(state, plan, d)[0]; return b ? { kind: 'leftover', of: b.id } : null; };
-      const home = sl => ({ kind: 'home', recipe: (S.fridge || {})[sl === 'bf' ? 'bf' : 'meal'] || null });
-      days[d] = day;                                             // in place so liveBatches sees today's own rows as it fills
-      // breakfast
-      day.bf = keep(d, 'bf') || ((hall && S.hall.breakfastSwipe) ? { kind: 'swipe' } : home('bf'));
-      // lunch
-      day.lunch = keep(d, 'lunch') || (hall ? { kind: 'swipe' } : outDay(S, d) ? { kind: 'out' } : (takeLeftover() || home('lunch')));
-      // dinner — never a swipe
-      let din = keep(d, 'dinner');
-      if (!din) {
-        din = takeLeftover();
-        if (!din && (day.cook || wins.length)) {
-          if (!day.cook) { const rec = staple(state, rung);
-            if (rec) day.cook = { recipe: rec.id, at: fmtHM(wins[0].s), servings: coverAhead(S, rec, d), batch: batchId(d) }; }
-          if (day.cook) din = { kind: 'cook' };
+      const day = days[d] || {};
+      SLOTS.forEach(sl => {
+        const key = d + ':' + sl, e = (function () { const l = liveEntries(log[key]); return l.length ? l[l.length - 1] : null; })();
+        if (e) {                                                   // the log wins: only an `ate` consumes; skipped/other/out leave the portion in the pot
+          if (e.s !== 'ate') return;
+          const b = byId[e.of || plannedBatchOf(day, sl)];
+          if (b && (b.state === 'made' || b.state === 'tossed' || b.state === 'planned')) { b.eaters.push(key); b.eatenNow++; }
+          return;
         }
-        if (!din) din = home('dinner');
-      } else if (din.kind === 'cook' && !day.cook) {            // a hand cook whose cook row was lost: rebuild it
-        const rec = staple(state, rung); if (rec && wins.length) day.cook = { recipe: rec.id, at: fmtHM(wins[0].s), servings: coverAhead(S, rec, d), batch: batchId(d) };
-      }
-      day.dinner = din;
+        const b = byId[plannedBatchOf(day, sl)]; if (!b) return;
+        if (b.state !== 'made' && b.state !== 'planned' && b.state !== 'tossed') return;   // a planned eater never consumes a batch that doesn't exist
+        b.eaters.push(key);
+        if (slotPast(state, d, sl, today, N)) b.eatenNow++;          // silence on a past slot: eaten as planned
+      });
+    });
+    batches.forEach(b => {
+      const base = b.servings - b.frozenOut;
+      b.left = b.state === 'tossed' ? 0 : base - b.eaters.length;   // may go negative only in a hand-forced state (the gate reports it)
+      b.leftNow = b.state === 'tossed' ? 0 : base - b.eatenNow;
+    });
+    batches.sort((a, b) => cmpStr(a.date, b.date) || cmpStr(a.id, b.id));
+    return { batches, byId };
+  }
+  const realB = b => b.state === 'made';
+  /* What is PHYSICALLY in the pot right now: real batches only (made, bought, other, cooked), not the freezer. */
+  function potNow(state, today, now) {
+    return reality(state, today, now).batches
+      .filter(b => realB(b) && !b.frozen && b.date <= today && today <= b.expires && b.leftNow > 0)
+      .map(b => Object.assign({}, b, { left: b.leftNow, daysLeft: diffDays(today, b.expires) }))
+      .sort((a, b) => cmpStr(a.expires, b.expires) || cmpStr(a.id, b.id));
+  }
+  function freezer(state, today, now) {
+    return reality(state, today, now).batches.filter(b => realB(b) && b.frozen && b.date <= today && today <= b.expires && b.leftNow > 0)
+      .map(b => Object.assign({}, b, { left: b.leftNow, daysLeft: diffDays(today, b.expires) }))
+      .sort((a, b) => cmpStr(a.expires, b.expires) || cmpStr(a.id, b.id));
+  }
+  /* A batch past its last good day with portions left is NOT dropped silently: listed up to 3 days after, until tossed. */
+  function expired(state, today, now) {
+    return reality(state, today, now).batches
+      .filter(b => realB(b) && b.expires < today && diffDays(b.expires, today) <= 3 && b.leftNow > 0)
+      .map(b => Object.assign({}, b, { left: b.leftNow }));
+  }
+  function cookState(state, date, today, now) {
+    const day = planDay(state, date), c = day && day.cook; if (!c || !c.batch) return 'none';
+    const eff = effCook(state, c.batch);
+    if (eff) return eff.s === 'notmade' ? 'notmade' : 'made';     // tossed implies it was made
+    if (date < today) return 'unconfirmed';
+    if (date > today) return 'planned';
+    const at = hm(c.at), N = numNow(now); if (at == null) return 'planned';
+    const tot = totalOf(recipeById(state, c.recipe));
+    if (N >= at + tot) return 'unconfirmed';
+    if (N >= at) return 'cooking';
+    if (N >= at - 15) return 'due';
+    return 'planned';
+  }
+  /* Only today's and yesterday's cooks are asked about; older unconfirmed ones are dropped silently — never a guilt list. */
+  function questions(state, today, now) {
+    const out = [];
+    [addDays(today, -1), today].forEach(d => {
+      if (cookState(state, d, today, now) !== 'unconfirmed') return;
+      const c = planDay(state, d).cook, rec = recipeById(state, c.recipe);
+      out.push({ type: 'cook', date: d, batch: c.batch, recipe: c.recipe, name: rec ? rec.name : c.recipe, verb: verbFor(rec), servings: +c.servings || 0 });
+    });
+    return out;
+  }
+
+  /* ── the cook's hour ── */
+  function leadFor(state, rec) {   // a same-day purchase that IS part of the recipe (the deli chicken): the trip goes first, inside the window
+    const pantry = pantrySet(state);
+    return (rec.ingredients || []).some(g => g.id && !g.opt && !pantry[g.id] && ingredient(g.id).buyWithin === 0) ? tripMinutes(S_(state)) : 0;
+  }
+  /* settings.cookAt[dow] clamped into the window, else the window start; today, never before `now`. Valid only when
+     at + total ≤ the window's END (v1 checked the start alone). */
+  function cookSlot(state, date, rec, today, now) {
+    if (!rec) return null;
+    const S = S_(state), tot = totalOf(rec), lead = leadFor(state, rec), pref = hm((S.cookAt || {})[String(dow(date))]);
+    for (const w of windowsFor(S, date)) {
+      let s = pref != null ? clamp(pref, w.s, w.e) : w.s;
+      s = Math.max(s, w.s + lead);
+      if (date === today) s = Math.max(s, ceil5(numNow(now)) + lead);
+      if (s + tot <= w.e) return { at: s, end: s + tot, win: [w.s, w.e], lead };
     }
-    trimSwipes(state, plan, today);
+    return null;
+  }
+
+  /* ── rotation ── */
+  function cookHistory(state, before) {   // recipe → the last date it was planned or made, strictly before `before`
+    const h = {}, days = (state.plan && state.plan.days) || {};
+    const put = (id, d) => { if (id && d < before && (!h[id] || h[id] < d)) h[id] = d; };
+    Object.keys(days).forEach(d => { const c = days[d] && days[d].cook; if (!c) return; const e = effCook(state, c.batch); if (e && e.s === 'notmade') return; put((e && e.s === 'made' && e.recipe) || c.recipe, d); });
+    Object.keys(state.extra || {}).forEach(id => { const x = state.extra[id]; if (x && x.recipe && x.src === 'cooked') put(x.recipe, x.date); });
+    return h;
+  }
+  function lastRecipeBefore(state, before) {
+    const days = (state.plan && state.plan.days) || {}; let best = null, bd = '';
+    Object.keys(days).forEach(d => { const c = days[d] && days[d].cook; if (!c || d >= before || d < bd) return; const e = effCook(state, c.batch); if (e && e.s === 'notmade') return; bd = d; best = (e && e.s === 'made' && e.recipe) || c.recipe; });
+    return best;
+  }
+  function madeAtRung(state, rung) {
+    const days = (state.plan && state.plan.days) || {}; let n = 0;
+    Object.keys(days).forEach(d => { const c = days[d] && days[d].cook; if (!c) return; const e = effCook(state, c.batch); if (!e || e.s === 'notmade') return; const r = recipeById(state, e.recipe || c.recipe); if (r && r.rung === rung) n++; });
+    return n;
+  }
+  const capacity = r => maxServings(r) * Math.min(3, r.fridgeDays || 0);   // how well a dish carries the days after it
+  /* pickRecipe — candidates: batchable mains, rung ≤ ladder, gear, not `never`, fitting the day (window: at + total ≤ end;
+     a batch bigger than the recipe needs `doubles !== false`). THE ROTATION SET is the rung's 3 best mains by a STABLE
+     order (liked first, `meh` last, the staple, then how well it batches, then id) — so a 4th main enters only when
+     one of the 3 is marked meh/never. Within the set: least-recently planned-or-made first, then liked, then id. Never
+     the same recipe on two consecutive cook days while anything else fits. One rung+1 dish per 7 days once ≥4 cooks
+     were made at the rung. opts: {now, need | needFor(rec), history, prev}. */
+  function pickRecipe(state, date, today, opts) {
+    opts = opts || {};
+    const S = S_(state), rung = ladderRung(state), N = numNow(opts.now);
+    const hist = opts.history || cookHistory(state, date);
+    const prev = opts.prev !== undefined ? opts.prev : lastRecipeBefore(state, date);
+    const needOf = r => (typeof opts.needFor === 'function' ? opts.needFor(r) : (opts.need || 2));
+    const rank = r => ({ again: 0, meh: 2 })[likeOf(state, r.id)] ?? 1;
+    const setOrder = (a, b) => rank(a) - rank(b) || (b.staple ? 1 : 0) - (a.staple ? 1 : 0) || capacity(b) - capacity(a) || cmpStr(a.id, b.id);
+    const pool = (state.recipes || []).filter(r => batchable(r) && gearOk(S, r) && likeOf(state, r.id) !== 'never');
+    const atRung = pool.filter(r => (r.rung || 1) === rung).sort(setOrder);
+    const below = pool.filter(r => (r.rung || 1) < rung).sort((a, b) => (b.rung || 1) - (a.rung || 1) || setOrder(a, b));
+    let set = atRung.slice(0, 3); if (set.length < 3) set = set.concat(below.slice(0, 3 - set.length));
+    const up = pool.filter(r => (r.rung || 1) === rung + 1).sort(setOrder)[0];
+    const upRecent = Object.keys(hist).some(id => { const r = recipeById(state, id); return r && r.rung === rung + 1 && diffDays(hist[id], date) < 7; });
+    if (up && madeAtRung(state, rung) >= 4 && !upRecent) set = set.concat([up]);
+    const rest = atRung.concat(below).filter(r => set.indexOf(r) < 0);
+    const fits = r => { const need = needOf(r); if (!(need > 0)) return false; if (need > (r.servings || 1) && r.doubles === false) return false; return !!cookSlot(state, date, r, today, N); };
+    const recency = (a, b) => cmpStr(hist[a.id] || '', hist[b.id] || '') || rank(a) - rank(b) || cmpStr(a.id, b.id);
+    const choose = (list, repeat) => {
+      const c = list.filter(r => fits(r) && (repeat || r.id !== prev));
+      const big = c.filter(r => maxServings(r) >= needOf(r));       // a dish that can feed the whole stretch beats one that can't
+      return (big.length ? big : c).sort(recency)[0] || null;
+    };
+    return choose(set) || choose(rest) || choose(set.concat(rest), true);
+  }
+
+  /* ── THE PLANNER — the fallback week is CODE; the coach (later) is additive. ──
+     Past days are copied verbatim (the plan prunes at 21 days; log/cooks/extra/likes are never pruned here). Today's
+     slots that are behind `now` or logged are kept; the rest of today and the next six days are re-derived. Hand rows
+     keep their kind. COOKS ARE SEATED FIRST, BY COVERAGE: a day that can cook cooks when the pot (real + already
+     seated) cannot feed every pot-eating slot from that day through the day before the next day that can cook;
+     servings = exactly those eaters, clamped to [2, maxServings]. Then leftovers, earliest-expiring first; a slot no
+     batch can feed falls to `home`. A freed portion never displaces a cook the days ahead depend on (the v1 cascade:
+     Saturday-lunch-out cancelled Saturday's pot). */
+  function buildWeek(state, today, now, span) {
+    span = span || 7;
+    const S = S_(state), N = numNow(now), old = (state.plan && state.plan.days) || {}, days = {};
+    Object.keys(old).forEach(d => { if (d < today && diffDays(d, today) <= 21) days[d] = clone(old[d]); });
+    const H = []; for (let i = 0; i < span; i++) H.push(addDays(today, i));
+    const fr = {};
+    H.forEach(d => {
+      const o = old[d] || {}, train = trainDay(S, d), f = { d, train, rows: {}, pot: {}, keep: {}, cook: null, cookKeep: false };
+      (train ? SLOTS : MEALS).forEach(sl => {
+        const r = o[sl];
+        if (d === today && r && (effLog(state, d, sl) || slotPast(state, d, sl, today, N))) { f.rows[sl] = clone(r); f.keep[sl] = true; return; }
+        if (r && r.hand) { f.rows[sl] = clone(r); if (r.kind === 'leftover') f.pot[sl] = 'hand'; else if (r.kind === 'cook' && sl === 'dinner') f.pot[sl] = 'cook'; return; }
+        const rule = ruleRow(S, d, sl);
+        if (rule) f.rows[sl] = rule; else f.pot[sl] = 'rule';
+      });
+      if (o.cook) {
+        const started = d === today && (effCook(state, o.cook.batch) || (hm(o.cook.at) != null && N >= hm(o.cook.at)) || (f.keep.dinner && f.rows.dinner && f.rows.dinner.kind === 'cook'));
+        if (started) { f.cook = clone(o.cook); f.cookKeep = true; }
+        else if (o.cook.hand) f.cook = clone(o.cook);
+      }
+      fr[d] = f;
+    });
+    // 1. the real pot, as of today/now: the past and today's kept rows only (the old plan's FUTURE rows are being re-derived)
+    const prov = Object.assign({}, days), tf = fr[today], td = { train: tf.train };
+    Object.keys(tf.keep).forEach(sl => { td[sl] = tf.rows[sl]; }); if (tf.cookKeep) td.cook = tf.cook;
+    prov[today] = td;
+    const R0 = reality(Object.assign({}, state, { plan: { via: 'fallback', days: prov } }), today, N);
+    const pot = R0.batches.filter(b => !b.frozen && b.left > 0 && b.expires >= today && (realB(b) || (b.state === 'planned' && b.date === today)))
+      .map(b => ({ id: b.id, date: b.date, expires: b.expires, left: b.left, real: realB(b), end: realB(b) || b.at == null ? null : b.at + b.total }));
+    const hist = cookHistory(state, today);
+    let prev = lastRecipeBefore(state, today);
+    const alive = (b, e) => e.d >= b.date && e.d <= b.expires && !(e.d === b.date && b.end != null && b.end > e.t);
+    const byExpiry = (a, b) => cmpStr(a.expires, b.expires) || (b.real ? 1 : 0) - (a.real ? 1 : 0) || cmpStr(a.date, b.date) || cmpStr(a.id, b.id);
+    const prio = e => (e.ofHand ? 0 : e.kind === 'hand' ? 1 : 2);
+    function feed(E, commit) {
+      const left = {}; pot.forEach(b => { left[b.id] = b.left; });
+      const got = new Map(), unfed = [];
+      E.slice().sort((a, b) => prio(a) - prio(b) || cmpStr(a.d, b.d) || a.t - b.t).forEach(e => {
+        let c = null;
+        if (e.ofHand) { const b = pot.find(x => x.id === e.of); if (b && left[b.id] > 0 && alive(b, e)) c = b; }
+        else c = pot.filter(b => left[b.id] > 0 && alive(b, e)).sort(byExpiry)[0] || null;
+        if (c) { left[c.id]--; got.set(e, c.id); } else unfed.push(e);
+      });
+      if (commit) pot.forEach(b => { b.left = left[b.id]; });
+      return { got, unfed };
+    }
+    const capable = d => windowsFor(S, d).length > 0;
+    function nextCapable(d) { for (let k = 1; k <= 14; k++) { const e = addDays(d, k); if (capable(e)) return e; } return addDays(d, 7); }
+    function eatersIn(from, to, onlyHorizon) {   // pot-eating slots in [from, to), in time order; past the horizon the rule stands in
+      const E = [];
+      for (let d = from; d < to; d = addDays(d, 1)) {
+        const f = fr[d];
+        if (f) { (f.train ? SLOTS : MEALS).forEach(sl => { const k = f.pot[sl]; if (!k) return; if (k === 'cook' && d !== from) return; const r = f.rows[sl] || {}; E.push({ d, sl, t: eatAt(state, d, sl), kind: k, of: r.of || null, ofHand: !!(k === 'hand' && r.ofHand && r.of) }); }); }
+        else if (!onlyHorizon) MEALS.forEach(sl => { if (sl === 'bf' || ruleRow(S, d, sl)) return; E.push({ d, sl, t: eatAt(state, d, sl), kind: 'rule', of: null, ofHand: false }); });
+      }
+      return E;
+    }
+    const isOwn = (e, d) => e.d === d && e.sl === 'dinner' && (e.kind === 'rule' || e.kind === 'cook');
+    function seatCook(d, f) {
+      const E = eatersIn(d, nextCapable(d), false), own = E.find(e => isOwn(e, d)) || null;
+      const handCook = f.cook && f.cook.hand ? f.cook : null;
+      if (!handCook && !feed(E, false).unfed.length) return null;                 // the pot covers the stretch: no cook
+      const un = feed(E.filter(e => e !== own), false).unfed.filter(e => e.kind !== 'cook');
+      const needFor = r => (own ? 1 : 0) + un.filter(e => e.d <= addDays(d, r.fridgeDays || 3)).length;
+      let rec = handCook && handCook.recipe ? recipeById(state, handCook.recipe) : null;
+      if (!rec) rec = pickRecipe(state, d, today, { now: N, history: hist, prev, needFor });
+      if (!rec) return null;
+      const slot = cookSlot(state, d, rec, today, N);
+      if (!slot) { if (handCook) f.cook = Object.assign({}, handCook, { recipe: rec.id, batch: handCook.batch || batchIdFor(d) }); return null; }   // a hand cook that no longer fits stays — the gate flags it
+      const need = needFor(rec);
+      if (!handCook && need <= 0) return null;
+      const servings = clamp(need, 2, maxServings(rec)), batch = batchIdFor(d);
+      f.cook = { recipe: rec.id, at: fmtHM(slot.at), servings, batch }; if (handCook) f.cook.hand = true;
+      hist[rec.id] = d; prev = rec.id;
+      const b = { id: batch, date: d, expires: addDays(d, rec.fridgeDays || 3), left: servings, real: false, end: slot.end };
+      pot.push(b);
+      return b;
+    }
+    function commit(from, to, cookB) {
+      const E = eatersIn(from, to, true), own = cookB ? (E.find(e => isOwn(e, from)) || null) : null;
+      if (own) { if (!cookB.pending) cookB.left--; const r = fr[from].rows.dinner || {}; fr[from].rows.dinner = r.hand ? { kind: 'cook', hand: true } : { kind: 'cook' }; }
+      const rest = E.filter(e => e !== own && e.kind !== 'cook');
+      const { got } = feed(rest, true);
+      rest.forEach(e => {
+        const f = fr[e.d], r = f.rows[e.sl] || {}, bid = got.get(e);
+        if (bid) f.rows[e.sl] = Object.assign(e.kind === 'hand' ? { hand: true } : {}, { kind: 'leftover', of: bid }, e.ofHand ? { ofHand: true } : {});
+        else if (e.kind === 'hand') f.rows[e.sl] = Object.assign({}, r, { of: r.ofHand ? r.of : null });   // can't be satisfied: it stays, the gate flags no-batch
+        else f.rows[e.sl] = homeRow(S, e.sl);
+      });
+    }
+    // 2. walk the stretches: a stretch starts today and at every later day that can cook
+    const starts = H.filter((d, i) => i === 0 || capable(d));
+    starts.forEach((s, k) => {
+      const end = k + 1 < starts.length ? starts[k + 1] : addDays(H[H.length - 1], 1), f = fr[s];
+      let cookB = null;
+      if (f.cookKeep) {
+        // today's cook already started: its dinner stays THE COOK even while unconfirmed (it reads «¿se hizo …?» and feeds
+        // nothing else until he answers) — re-seating tonight on the fridge would make the answer, given tomorrow, a phantom
+        const b = pot.find(x => x.id === f.cook.batch), rb = R0.byId[f.cook.batch];
+        cookB = b || (rb && rb.state === 'unconfirmed' ? { id: rb.id, left: 0, pending: true } : null);
+        const e = effCook(state, f.cook.batch); const rid = (e && e.s === 'made' && e.recipe) || f.cook.recipe;
+        if (!(e && e.s === 'notmade')) { hist[rid] = s; prev = rid; }
+      } else if (capable(s)) cookB = seatCook(s, f);
+      commit(s, end, cookB);
+    });
+    H.forEach(d => { const f = fr[d], day = { train: f.train }; (f.train ? SLOTS : MEALS).forEach(sl => { day[sl] = f.rows[sl]; }); if (f.cook) day.cook = f.cook; days[d] = day; });
+    const plan = { via: 'fallback', days };
+    trimSwipes(state, plan, today, N);
     return plan;
   }
-  /* The allotment is Sun–Sat; a week over budget loses its LATEST non-hand swipes to `home`. */
-  function trimSwipes(state, plan, today) {
-    const S = state.settings, budget = (S.hall && S.hall.swipesPerWeek) || 0, byWeek = {};
-    Object.keys(plan.days).sort().forEach(d => { if (d < today) return;
-      SLOTS.forEach(sl => { const r = plan.days[d][sl]; if (r && r.kind === 'swipe') (byWeek[weekStart(d)] = byWeek[weekStart(d)] || []).push({ d, sl, r }); }); });
+  /* The allotment is Sun–Sat; a week over budget loses its LATEST non-hand swipes to `home` (v1 rule kept). */
+  function trimSwipes(state, plan, today, now) {
+    const S = S_(state), budget = (S.hall && S.hall.swipesPerWeek) || 0, byWeek = {}, spent = {};
+    Object.keys(plan.days).sort().forEach(d => {
+      MEALS.forEach(sl => { const r = plan.days[d][sl]; if (!r || r.kind !== 'swipe') return; const w = weekStart(d);
+        if (slotPast(state, d, sl, today, now)) spent[w] = (spent[w] || 0) + 1; else (byWeek[w] = byWeek[w] || []).push({ d, sl, r }); });
+    });
     Object.keys(byWeek).forEach(w => {
-      // swipes already spent this week on past days count against the same allotment
-      let spent = 0; Object.keys(plan.days).forEach(d => { if (weekStart(d) === w && d < today) SLOTS.forEach(sl => { const r = plan.days[d][sl]; if (r && r.kind === 'swipe') spent++; }); });
-      const list = byWeek[w]; let over = spent + list.length - budget;
-      for (let i = list.length - 1; i >= 0 && over > 0; i--) { if (list[i].r.hand) continue; plan.days[list[i].d][list[i].sl] = { kind: 'home', recipe: (S.fridge || {})[list[i].sl === 'bf' ? 'bf' : 'meal'] || null, trimmed: true }; over--; }
+      const list = byWeek[w]; let over = (spent[w] || 0) + list.length - budget;
+      for (let i = list.length - 1; i >= 0 && over > 0; i--) { if (list[i].r.hand) continue; plan.days[list[i].d][list[i].sl] = Object.assign(homeRow(S, list[i].sl), { trimmed: true }); over--; }
     });
   }
-  function swipesUsed(plan, weekStartYmd) { let n = 0; Object.keys(plan.days || {}).forEach(d => { if (weekStart(d) !== weekStartYmd) return; SLOTS.forEach(sl => { const r = plan.days[d][sl]; if (r && r.kind === 'swipe') n++; }); }); return n; }
+  function swipesUsed(plan, weekStartYmd) { let n = 0; Object.keys((plan && plan.days) || {}).forEach(d => { if (weekStart(d) !== weekStartYmd) return; MEALS.forEach(sl => { const r = plan.days[d][sl]; if (r && r.kind === 'swipe') n++; }); }); return n; }
 
-  /* THE GATE — refuses, never warns. Runs on every plan the coach will ever propose and on every hand edit. */
-  function validateWeek(state, plan, today) {
-    const S = state.settings, out = [], rung = (state.ladder && state.ladder.rung) || 1, days = (plan && plan.days) || {};
+  /* THE GATE — refuses, never warns. Runs on every hand edit (and on whatever a coach ever proposes). The past is a record. */
+  function validateWeek(state, plan, today, now) {
+    const S = S_(state), N = numNow(now), out = [], rung = ladderRung(state), days = (plan && plan.days) || {};
+    const st = Object.assign({}, state, { plan }), R = reality(st, today, N);
     const push = (date, slot, code, msg) => out.push({ date, slot, code, msg });
-    const pot = potFrom(state, plan);
     Object.keys(days).sort().forEach(d => {
-      if (d < today) return;                                   // the past is a record, not a proposal
-      const day = days[d], wins = windowsFor(S, d);
+      if (d < today) return;
+      const day = days[d] || {};
       if (day.cook) {
-        const rec = recipeById(state, day.cook.recipe);
+        const rec = recipeById(st, day.cook.recipe), started = d === today && (effCook(st, day.cook.batch) || (hm(day.cook.at) != null && N >= hm(day.cook.at)));
         if (!rec) push(d, 'cook', 'unknown-recipe', 'receta desconocida: ' + day.cook.recipe);
         else {
           if (rec.rung > rung + 1) push(d, 'cook', 'rung', rec.name + ' es del peldaño ' + rec.rung + '; vas en el ' + rung);
           if (!gearOk(S, rec)) push(d, 'cook', 'gear', rec.name + ' necesita ' + (rec.gear || []).filter(k => (S.gear || {})[k] === false).join(', '));
           if (day.cook.servings > maxServings(rec)) push(d, 'cook', 'servings', rec.name + ' rinde ' + maxServings(rec) + ' como mucho');
         }
-        const at = hm(day.cook.at);
-        if (at == null || !wins.some(w => at >= w.s && at + 1 <= w.e)) push(d, 'cook', 'no-window', 'no hay ventana para cocinar el ' + d + (day.cook.at ? ' a las ' + day.cook.at : ''));
+        if (!started) {
+          const at = hm(day.cook.at), tot = totalOf(rec);
+          if (at == null || !windowsFor(S, d).some(w => at >= w.s && at + tot <= w.e)) push(d, 'cook', 'no-window', 'no cabe cocinar el ' + d + (day.cook.at ? ' a las ' + day.cook.at : '') + ' (' + tot + ' min)');
+        }
       }
-      SLOTS.forEach(sl => { const r = day[sl]; if (!r) { push(d, sl, 'missing', 'sin fila'); return; }
+      slotsFor(st, d).forEach(sl => {
+        if (slotPast(st, d, sl, today, N)) return;
+        const r = day[sl]; if (!r) { push(d, sl, 'missing', 'sin fila'); return; }
         if (KINDS.indexOf(r.kind) < 0) push(d, sl, 'kind', 'tipo desconocido: ' + r.kind);
-        if (r.kind === 'swipe' && (!hallDay(S, d) || sl === 'dinner')) push(d, sl, 'hall', 'el comedor no sirve ' + sl + ' el ' + d);
-        if (r.kind === 'cook' && !day.cook) push(d, sl, 'no-cook', 'cena «cook» sin olla ese día');
-        if (r.kind === 'leftover') { const b = pot.find(x => x.id === r.of); if (!b) push(d, sl, 'no-batch', 'sobra sin olla: ' + r.of); else if (diffDays(b.date, d) > b.fridgeDays || diffDays(b.date, d) < 0) push(d, sl, 'stale', b.name + ' del ' + b.date + ' ya no aguanta el ' + d); }
-        if (r.kind === 'home' && r.recipe && !recipeById(state, r.recipe)) push(d, sl, 'unknown-recipe', 'receta desconocida: ' + r.recipe); });
+        if (r.kind === 'swipe' && (!hallDay(S, d) || sl === 'dinner' || sl === 'post')) push(d, sl, 'hall', 'el comedor no sirve ' + sl + ' el ' + d);
+        if (r.kind === 'cook' && (sl !== 'dinner' || !day.cook)) push(d, sl, 'no-cook', 'cena «cook» sin olla ese día');
+        if (r.kind === 'leftover') {
+          const b = r.of && R.byId[r.of];
+          if (!b || b.state === 'notmade' || b.state === 'unconfirmed' || b.state === 'tossed') push(d, sl, 'no-batch', 'sobra sin olla' + (b ? ': ' + b.name + ' no está en la olla' : ''));
+          else if (d > b.expires || d < b.date) push(d, sl, 'stale', b.name + ' del ' + b.date + ' ya no aguanta el ' + d);
+        }
+        if (r.kind === 'home' && r.recipe && !recipeById(st, r.recipe)) push(d, sl, 'unknown-recipe', 'receta desconocida: ' + r.recipe);
+      });
     });
-    pot.forEach(b => { if (b.left < 0) push(b.date, 'cook', 'overdrawn', b.name + ': más comidas que porciones'); });
-    const weeks = {}; Object.keys(days).forEach(d => { weeks[weekStart(d)] = 1; });
-    Object.keys(weeks).forEach(w => { const n = swipesUsed(plan, w); if (n > ((S.hall && S.hall.swipesPerWeek) || 0)) push(w, 'week', 'swipes', n + ' swipes en la semana del ' + w + '; hay ' + S.hall.swipesPerWeek); });
+    R.batches.forEach(b => { if (b.left < 0 && b.eaters.some(k => k.slice(0, 10) >= today)) push(b.date, 'cook', 'overdrawn', b.name + ': más comidas que porciones'); });
+    const weeks = {}; Object.keys(days).forEach(d => { if (d >= today) weeks[weekStart(d)] = 1; });
+    Object.keys(weeks).forEach(w => { const n = swipesUsed(plan, w); if (n > ((S.hall && S.hall.swipesPerWeek) || 0)) push(w, 'week', 'swipes', n + ' swipes en la semana del ' + w + '; hay ' + ((S.hall && S.hall.swipesPerWeek) || 0)); });
     return out;
   }
 
-  /* A hand edit: set one slot's kind. Refused when the gate would refuse it — the row never goes in wrong. */
-  function setKind(state, date, slot, kind, today) {
+  /* ── hand edits: tried on a CLONE, applied ONCE (v1 applied every tap twice: nextKind applied it, then the tap did) ── */
+  function editable(state, date, slot, today, now) {
+    if (!parse(date)) return { ok: false, why: 'fecha inválida' };
     if (date < today) return { ok: false, why: 'ese día ya pasó' };
-    if (SLOTS.indexOf(slot) < 0 || KINDS.indexOf(kind) < 0) return { ok: false, why: 'fila o tipo inválido' };
-    const S = state.settings, plan = state.plan, day = plan.days[date]; if (!day) return { ok: false, why: 'ese día no está en el plan' };
-    const wins = windowsFor(S, date);
-    let row;
-    if (kind === 'swipe') { if (slot === 'dinner') return { ok: false, why: 'el comedor cierra antes de la cena' }; if (!hallDay(S, date)) return { ok: false, why: 'el comedor no abre ese día' }; row = { kind: 'swipe' }; }
-    else if (kind === 'leftover') { const b = liveBatches(state, plan, date).filter(x => !(day[slot] && day[slot].kind === 'leftover' && day[slot].of === x.id))[0] || liveBatches(state, plan, date)[0]; if (!b) return { ok: false, why: 'la olla está vacía ese día' }; row = { kind: 'leftover', of: b.id }; }
-    else if (kind === 'cook') { if (slot !== 'dinner') return { ok: false, why: 'se cocina para la cena' }; if (!wins.length) return { ok: false, why: 'no hay ventana para cocinar ese día (Ajustes → La cocina)' };
-      const rec = day.cook ? recipeById(state, day.cook.recipe) : staple(state, (state.ladder || {}).rung || 1); if (!rec) return { ok: false, why: 'no hay receta base para tu peldaño' };
-      if (!day.cook) day.cook = { recipe: rec.id, at: fmtHM(wins[0].s), servings: coverAhead(S, rec, date), batch: batchId(date) };
-      day.cook.hand = true; row = { kind: 'cook' }; }
-    else if (kind === 'home') row = { kind: 'home', recipe: (S.fridge || {})[slot === 'bf' ? 'bf' : 'meal'] || null };
-    else row = { kind: 'out' };
-    row.hand = true;
-    day[slot] = row;
-    if (slot === 'dinner' && kind !== 'cook' && day.cook && day.cook.hand) delete day.cook;   // a hand cook is undone by moving the dinner off it
-    state.plan = buildWeek(state, today);                       // consumption changed: every non-hand row downstream is re-derived
-    const bad = validateWeek(state, state.plan, today).filter(x => x.date === date && (x.slot === slot || x.slot === 'cook'));
-    return bad.length ? { ok: false, why: bad[0].msg } : { ok: true };
+    if (SLOTS.indexOf(slot) < 0) return { ok: false, why: 'fila inválida' };
+    if (slot === 'post' && !trainDay(S_(state), date)) return { ok: false, why: 'esa noche no hay pesas' };
+    if (slotPast(state, date, slot, today, now) || effLog(state, date, slot)) return { ok: false, why: 'esa comida ya pasó — regístrala' };
+    return { ok: true };
   }
-  function nextKind(state, date, slot, today) {           // the tap cycle: the next kind the gate would accept
-    const cur = ((state.plan.days[date] || {})[slot] || {}).kind || 'home';
+  function tryPlan(state, mutate, date, slot, today, now) {
+    const s2 = clone(state); s2.plan = s2.plan || { via: 'fallback', days: {} }; s2.plan.days = s2.plan.days || {};
+    const day = (s2.plan.days[date] = s2.plan.days[date] || {});
+    const pre = mutate(s2, day); if (pre && pre.ok === false) return pre;
+    s2.plan = buildWeek(s2, today, now);
+    const bad = validateWeek(s2, s2.plan, today, now).filter(x => x.date === date && (x.slot === slot || x.slot === 'cook'));
+    if (bad.length) return { ok: false, why: bad[0].msg };
+    return { ok: true, plan: s2.plan };
+  }
+  function setKind(state, date, slot, kind, today, now) {
+    const chk = editable(state, date, slot, today, now); if (!chk.ok) return chk;
+    if (KINDS.indexOf(kind) < 0) return { ok: false, why: 'tipo inválido' };
+    const S = S_(state);
+    if (kind === 'swipe') { if (slot === 'dinner' || slot === 'post') return { ok: false, why: 'el comedor cierra antes de la cena' }; if (!hallDay(S, date)) return { ok: false, why: 'el comedor no abre ese día' }; }
+    if (kind === 'cook') { if (slot !== 'dinner') return { ok: false, why: 'se cocina para la cena' }; if (!windowsFor(S, date).length) return { ok: false, why: 'no hay ventana para cocinar ese día (Ajustes → La cocina)' }; }
+    const t = tryPlan(state, (s2, day) => {
+      if (kind === 'cook') { day.cook = Object.assign({}, day.cook || {}, { hand: true }); day.dinner = { kind: 'cook', hand: true }; return; }
+      day[slot] = kind === 'home' ? Object.assign(homeRow(S, slot), { hand: true }) : kind === 'leftover' ? { kind: 'leftover', hand: true } : { kind, hand: true };
+      if (slot === 'dinner' && day.cook && day.cook.hand) delete day.cook;   // a hand cook is undone by moving the dinner off it
+    }, date, slot, today, now);
+    if (!t.ok) return t;
+    const got = (t.plan.days[date] || {})[slot];
+    if (!got || got.kind !== kind) return { ok: false, why: kind === 'leftover' ? 'la olla está vacía ese día' : kind === 'cook' ? 'no cabe cocinar ese día' : 'no se pudo' };
+    state.plan = t.plan;
+    return { ok: true };
+  }
+  function nextKind(state, date, slot, today, now) {           // PURE: the next kind the gate would accept, tried on clones
+    const cur = ((planDay(state, date) || {})[slot] || {}).kind || 'home';
     const i = KINDS.indexOf(cur);
-    for (let k = 1; k <= KINDS.length; k++) { const cand = KINDS[(i + k) % KINDS.length];
-      const snap = JSON.stringify(state.plan); const r = setKind(state, date, slot, cand, today);
-      if (r.ok) return cand;
-      state.plan = JSON.parse(snap); }
+    for (let k = 1; k < KINDS.length; k++) { const cand = KINDS[(i + k) % KINDS.length]; if (setKind(clone(state), date, slot, cand, today, now).ok) return cand; }
     return cur;
   }
-  function setCookRecipe(state, date, recipeId, today) {
-    const day = state.plan.days[date], rec = recipeById(state, recipeId);
-    if (!day || !day.cook) return { ok: false, why: 'ese día no cocina' };
-    if (!rec) return { ok: false, why: 'receta desconocida' };
+  function setCookRecipe(state, date, recipeId, today, now) {
+    if (!parse(date) || date < today) return { ok: false, why: 'ese día ya pasó' };
+    const rec = recipeById(state, recipeId); if (!rec) return { ok: false, why: 'receta desconocida' };
+    if (rec.role !== 'main') return { ok: false, why: rec.name + ' no es un plato de fondo' };
     if (!eligible(state, rec)) return { ok: false, why: rec.name + ' está más arriba en la escalera, o falta un aparato' };
-    day.cook.recipe = rec.id; day.cook.servings = coverAhead(state.settings, rec, date); day.cook.hand = true;
-    state.plan = buildWeek(state, today);
+    const cs = cookState(state, date, today, now);
+    if (cs === 'cooking' || cs === 'made' || cs === 'notmade' || cs === 'unconfirmed') return { ok: false, why: 'esa olla ya empezó — corrígela al confirmarla' };
+    if (!cookSlot(state, date, rec, today, now)) return { ok: false, why: rec.name + ' no cabe en la ventana de ese día (' + totalOf(rec) + ' min)' };
+    const day0 = planDay(state, date) || {};
+    if (day0.dinner && day0.dinner.hand && day0.dinner.kind !== 'cook' && effLog(state, date, 'dinner')) return { ok: false, why: 'esa cena ya pasó' };
+    const t = tryPlan(state, (s2, day) => { day.cook = { recipe: rec.id, hand: true, batch: batchIdFor(date) }; }, date, 'dinner', today, now);
+    if (!t.ok) return t;
+    state.plan = t.plan;
+    return { ok: true };
+  }
+  function backToRule(state, date, slot, today, now) {
+    if (slot !== 'cook') { const chk = editable(state, date, slot, today, now); if (!chk.ok) return chk; }
+    else if (!parse(date) || date < today) return { ok: false, why: 'ese día ya pasó' };
+    const day = planDay(state, date); if (!day) return { ok: false, why: 'ese día no está en el plan' };
+    const cs = cookState(state, date, today, now);
+    if ((slot === 'cook' || (slot === 'dinner' && day.dinner && day.dinner.kind === 'cook')) && (cs === 'cooking' || cs === 'made' || cs === 'notmade' || cs === 'unconfirmed')) return { ok: false, why: 'esa olla ya empezó' };
+    const s2 = clone(state), d2 = s2.plan.days[date];
+    if (slot === 'cook' || (slot === 'dinner' && d2.dinner && d2.dinner.kind === 'cook')) { if (d2.cook) delete d2.cook.hand; if (d2.cook && !d2.cook.recipe) delete d2.cook; if (d2.dinner) delete d2.dinner.hand; }
+    if (slot !== 'cook' && d2[slot]) delete d2[slot].hand;
+    state.plan = buildWeek(s2, today, now);
     return { ok: true };
   }
 
-  /* THE LIST — derived from plan × recipes, minus the pantry, plus the weekly staples. `checked` is the only hand state. */
-  function groceries(state, today) {
-    const S = state.settings, days = (state.plan && state.plan.days) || {}, agg = {};
-    const add = (n, q, u, why) => { const k = (n + '|' + (u || '')).toLowerCase(); const it = agg[k] || (agg[k] = { n, q: 0, u: u || '', for: [] }); it.q += q || 0; if (why && it.for.indexOf(why) < 0) it.for.push(why); };
-    const pantry = (S.pantry || []).map(x => String(x).toLowerCase().trim());
-    Object.keys(days).sort().forEach(d => { if (d < today || diffDays(today, d) > 6) return; const day = days[d];
-      if (day.cook) { const rec = recipeById(state, day.cook.recipe); if (rec) { const f = (day.cook.servings || rec.servings) / (rec.servings || 1); (rec.ingredients || []).forEach(g => add(g.n, +(g.q * f).toFixed(2), g.u, rec.name)); } }
-      SLOTS.forEach(sl => { const r = day[sl]; if (r && r.kind === 'home' && r.recipe) { const rec = recipeById(state, r.recipe); if (rec) (rec.ingredients || []).forEach(g => add(g.n, +(g.q / (rec.servings || 1)).toFixed(2), g.u, rec.name)); } }); });
-    (S.weekly || []).forEach(n => { const has = Object.values(agg).some(it => it.n.toLowerCase() === String(n).toLowerCase()); if (has) Object.values(agg).forEach(it => { if (it.n.toLowerCase() === String(n).toLowerCase() && it.for.indexOf('siempre') < 0) it.for.push('siempre'); }); else add(n, 0, '', 'siempre'); });   // a staple already on the list is one line, not two
-    return Object.values(agg).filter(it => pantry.indexOf(it.n.toLowerCase()) < 0).sort((a, b) => a.n.localeCompare(b.n));
+  /* ── THE REGISTER — append-only, never touches the plan, refuses the future ── */
+  function extraId(state, prefix, date, at) {
+    const base = prefix + String(date).replace(/-/g, '').slice(2) + Math.floor(+at).toString(36).slice(-4), ex = state.extra || {};
+    let id = base, k = 0; while (ex[id]) id = base + 'abcdefghijklmnopqrstuvwxyz'[k++ % 26] + (k > 26 ? k : '');
+    return id;
   }
-
-  /* THE REGISTER — append-only, never touches the plan, refuses the future. */
-  function logMeal(state, date, slot, s, today) {
+  function logMeal(state, date, slot, entry, today, now, at) {
     if (SLOTS.indexOf(slot) < 0) return { ok: false, why: 'fila inválida' };
-    if (s !== 'ate' && s !== 'skipped') return { ok: false, why: 'ate o skipped' };
-    if (!parse(date) || date > today) return { ok: false, why: 'esa comida todavía no pasó' };
-    state.log = state.log || {}; state.log[date + ':' + slot] = { s, ts: parse(today).getTime() };
+    if (!parse(date)) return { ok: false, why: 'fecha inválida' };
+    if (!isAt(at)) return { ok: false, why: 'falta la hora del registro (at)' };
+    entry = entry || {}; const s = entry.s;
+    if (!LOG_S[s]) return { ok: false, why: 'estado inválido' };
+    if (date > today || (date === today && eatAt(state, date, slot) - EARLY > numNow(now))) return { ok: false, why: 'esa comida todavía no pasó' };
+    const key = date + ':' + slot, e = { s, at: +at }, res = { ok: true };
+    state.log = state.log || {};
+    if (s === 'void') { const cur = effLog(state, date, slot); if (!cur) return { ok: false, why: 'no hay nada que deshacer' }; e.ref = cur.at; }
+    else if (s === 'ate') {
+      const day = planDay(state, date), bid = entry.of || plannedBatchOf(day, slot);
+      if (bid) {
+        const b = reality(state, today, now).byId[bid];
+        if (!b) return { ok: false, why: 'esa olla no existe' };
+        if (b.state === 'notmade') return { ok: false, why: b.name + ' no se hizo — usa «otra cosa»' };
+        if (b.state === 'unconfirmed') { state.cooks = state.cooks || {}; (state.cooks[bid] = Array.isArray(state.cooks[bid]) ? state.cooks[bid] : []).push({ s: 'made', at: +at, implied: true }); }   // eating a portion proves the pot exists
+        e.of = bid; if (b.recipe) e.recipe = b.recipe; res.batch = bid;
+      } else { const r = day && day[slot]; if (r && r.kind === 'home' && r.recipe) e.recipe = r.recipe; }
+    } else if (s === 'other' || s === 'out') {
+      if (entry.what) e.what = String(entry.what).slice(0, 80);
+      const left = s === 'other' ? Math.max(0, Math.floor(+entry.left || 0)) : 0;
+      if (left > 0) {                                            // «compré, rinde N»: a REAL batch the planner uses like a cook
+        const rec = entry.recipe ? recipeById(state, entry.recipe) : null, id = extraId(state, 'u', date, at);
+        state.extra = state.extra || {};
+        state.extra[id] = { date, name: e.what || (rec && rec.name) || 'otra cosa', recipe: rec ? rec.id : null, servings: left,
+          fridgeDays: entry.fridgeDays != null ? Math.max(0, Math.floor(+entry.fridgeDays)) : ((rec && rec.fridgeDays) || 3),
+          src: EXTRA_SRC[entry.src] ? entry.src : 'other', from: null, at: +at, log: key };
+        e.left = left; e.batch = id; res.batch = id;
+      }
+    }
+    (state.log[key] = Array.isArray(state.log[key]) ? state.log[key] : []).push(e);
+    return res;
+  }
+  function logCook(state, batch, entry, today, now, at) {
+    if (!isAt(at)) return { ok: false, why: 'falta la hora del registro (at)' };
+    entry = entry || {}; const s = entry.s;
+    if (!COOK_S[s]) return { ok: false, why: 'estado inválido' };
+    const d = cookDateOf(state, batch), ex = (state.extra || {})[batch];
+    if (!d && !ex) return { ok: false, why: 'esa olla no existe' };
+    if ((d || ex.date) > today) return { ok: false, why: 'esa olla todavía no toca' };
+    if ((s === 'made' || s === 'notmade') && !d) return { ok: false, why: 'eso no fue una olla del plan' };
+    const e = { s, at: +at };
+    if (s === 'made') {
+      if (entry.recipe) { if (!recipeById(state, entry.recipe)) return { ok: false, why: 'receta desconocida' }; e.recipe = entry.recipe; }
+      if (entry.yield != null) { const y = Math.floor(+entry.yield); if (!(y >= 0 && y <= 40)) return { ok: false, why: 'porciones inválidas' }; e.yield = y; }
+    }
+    if (s === 'void') { const cur = effCook(state, batch); if (!cur) return { ok: false, why: 'no hay nada que deshacer' }; e.ref = cur.at; }
+    state.cooks = state.cooks || {};
+    (state.cooks[batch] = Array.isArray(state.cooks[batch]) ? state.cooks[batch] : []).push(e);
     return { ok: true };
   }
-  /* seated vs eaten, per slot, for one Sun–Sat week — the read path that makes the register not landfill */
-  function weekRegister(state, weekStartYmd, today) {
-    const days = (state.plan && state.plan.days) || {}, log = state.log || {}, out = { bf: { seated: 0, ate: 0, skipped: 0 }, lunch: { seated: 0, ate: 0, skipped: 0 }, dinner: { seated: 0, ate: 0, skipped: 0 } };
-    for (let i = 0; i < 7; i++) { const d = addDays(weekStartYmd, i); if (d > today || !days[d]) continue;
-      SLOTS.forEach(sl => { if (!days[d][sl]) return; out[sl].seated++; const e = log[d + ':' + sl]; if (e && e.s === 'ate') out[sl].ate++; if (e && e.s === 'skipped') out[sl].skipped++; }); }
+  /* Frozen portions are RESCUE-only: the planner never seats them; he eats one via rescue or a hand log {ate, of}. */
+  function freeze(state, batch, n, today, now, at) {
+    n = Math.floor(+n);
+    if (!(n >= 1)) return { ok: false, why: 'cuántas porciones' };
+    if (!isAt(at)) return { ok: false, why: 'falta la hora del registro (at)' };
+    const b = reality(state, today, now).byId[batch];
+    if (!b || !realB(b) || b.frozen) return { ok: false, why: 'no hay porciones reales que congelar' };
+    if (b.expires < today) return { ok: false, why: 'ya pasó su fecha — no se congela' };
+    if (b.leftNow < n) return { ok: false, why: 'quedan ' + Math.max(0, b.leftNow) };
+    const rec = b.recipe ? recipeById(state, b.recipe) : null;
+    if (rec && rec.freezesMonths === 0) return { ok: false, why: rec.name + ' no se congela bien' };
+    const id = extraId(state, 'f', today, at);
+    state.cooks = state.cooks || {}; state.extra = state.extra || {};
+    (state.cooks[batch] = Array.isArray(state.cooks[batch]) ? state.cooks[batch] : []).push({ s: 'froze', n, at: +at, id });
+    state.extra[id] = { date: today, name: b.name, recipe: b.recipe || null, servings: n, fridgeDays: 90, src: 'frozen', from: batch, at: +at };
+    return { ok: true, id };
+  }
+  function like(state, recipeId, v, at) {
+    state.likes = state.likes || {};
+    state.likes[recipeId] = { v: (v === 'again' || v === 'meh' || v === 'never') ? v : null, at: +at || 0 };
+    return { ok: true };
+  }
+
+  /* ── quantities ── */
+  const UNIT_ES = { taza: ['taza', 'tazas'], cda: ['cda', 'cdas'], cdta: ['cdta', 'cdtas'], diente: ['diente', 'dientes'], lata: ['lata', 'latas'], bolsa: ['bolsa', 'bolsas'], atado: ['atado', 'atados'], rebanada: ['rebanada', 'rebanadas'], hoja: ['hoja', 'hojas'], paquete: ['paquete', 'paquetes'] };
+  const COUNT = u => !u || u === 'u';
+  function roundQ(q, u) {
+    if (!(q > 0)) return 0;
+    if (u === 'g' || u === 'ml') return q >= 100 ? Math.round(q / 5) * 5 : Math.max(1, Math.round(q));
+    if (u === 'taza' || u === 'cda' || u === 'cdta') return Math.max(0.25, Math.round(q * 4) / 4);
+    return Math.max(0.5, Math.round(q * 2) / 2);
+  }
+  function fmtNum(q) {
+    const w = Math.floor(q + 1e-9), f = Math.round((q - w) * 100) / 100;
+    const fr = { 0.25: '¼', 0.5: '½', 0.75: '¾' }[f];
+    if (!f) return String(w);
+    if (fr) return (w ? String(w) : '') + fr;
+    return (Math.round(q * 10) / 10).toString().replace('.', ',');
+  }
+  function fmtQty(q, u) {
+    if (u === 'g') return q >= 1000 ? fmtNum(Math.round(q / 100) / 10) + ' kg' : fmtNum(q) + ' g';
+    if (u === 'ml') return q >= 1000 ? fmtNum(Math.round(q / 100) / 10) + ' l' : fmtNum(q) + ' ml';
+    if (COUNT(u)) return fmtNum(q);
+    const w = UNIT_ES[u]; return fmtNum(q) + ' ' + (w ? (q > 1 ? w[1] : w[0]) : u);
+  }
+  const nameFor = (info, q, u) => (COUNT(u) && q > 1 ? (info.pl || info.n) : info.n);
+  const phrase = (q, u, n) => (COUNT(u) ? fmtNum(q) + ' ' + n : fmtQty(q, u) + ' de ' + n);
+  function ingInfo(g) { return g.id ? ingredient(g.id) : { id: null, n: g.n || '?', section: NO_SECTION, unit: g.u || '', indivisible: false, buyWithin: 5, unknown: true }; }
+  /* the recipe's ingredients at `servings` (indivisible → ceil, per cook; a v1 recipe {n,q,u} still reads) */
+  function scaleIngredients(state, recipe, servings) {
+    const rec = typeof recipe === 'string' ? recipeById(state, recipe) : recipe; if (!rec) return [];
+    const base = rec.servings || 1, f = (+servings || base) / base;
+    return (rec.ingredients || []).map((g, i) => {
+      const info = ingInfo(g), u = g.u != null ? g.u : (info.unit || '');
+      let q = (+g.q || 0) * f; q = info.indivisible ? Math.ceil(q - 1e-9) : roundQ(q, u);
+      const n = nameFor(info, q, u);
+      return { id: g.id || null, i, n, q, u, section: info.section || NO_SECTION, display: fmtQty(q, u), text: phrase(q, u, n), opt: !!g.opt, note: info.note || null };
+    });
+  }
+  function stepTimer(step) {
+    if (step && typeof step === 'object' && typeof step.min === 'number') return step.min > 0 ? step.min : null;
+    const t = typeof step === 'string' ? step : (step && step.t) || '';
+    let m = /(\d+)\s*[–-]\s*\d+\s*(?:min|minutos)\b/i.exec(t); if (m) return +m[1];
+    m = /(\d+(?:[.,]\d+)?)\s*(?:min|minutos|minuto)\b/i.exec(t); if (m) return +m[1].replace(',', '.');
+    m = /(\d+(?:[.,]\d+)?)\s*(?:h|horas?)\b/i.exec(t); if (m) return Math.round(+m[1].replace(',', '.') * 60);
+    m = /(\d+)\s*(?:s|segundos?)\b/i.exec(t); if (m) return Math.round(+m[1] / 6) / 10;
+    return null;
+  }
+  function batchRef(state, batch) {   // id or object → {id, date, recipe}, without needing `today`
+    if (batch && typeof batch === 'object') return { id: batch.id, date: batch.date, recipe: batch.recipe };
+    const d = cookDateOf(state, batch);
+    if (d) { const c = planDay(state, d).cook, e = effCook(state, batch); return { id: batch, date: d, recipe: (e && e.s === 'made' && e.recipe) || c.recipe }; }
+    const x = (state.extra || {})[batch]; return x ? { id: batch, date: x.date, recipe: x.recipe || null } : null;
+  }
+  function eatDates(state, id) {
+    const days = (state.plan && state.plan.days) || {}, set = {};
+    Object.keys(days).forEach(d => SLOTS.forEach(sl => { const e = effLog(state, d, sl); if (e ? (e.s === 'ate' && e.of === id) : plannedBatchOf(days[d], sl) === id) set[d] = 1; }));
+    return Object.keys(set).sort();
+  }
+  /* rotates the recipe's remates across the days the batch is eaten: the same pot, a different plate */
+  function remateFor(state, batch, date) {
+    const b = batchRef(state, batch); if (!b) return null;
+    const rec = recipeById(state, b.recipe), rem = rec && rec.remates; if (!rem || !rem.length) return null;
+    const ds = eatDates(state, b.id); let i = ds.indexOf(date); if (i < 0) i = Math.max(0, diffDays(b.date, date));
+    return rem[i % rem.length];
+  }
+
+  /* ── SHOPPING — trips with buy-by dates ──
+     A perishable is bought within its `buyWithin` days of its cook (deli rotisserie: the cook day; raw meat ≤2; fish 1;
+     produce 5; dairy 7; pantry 60). Trips are the fewest dates that put every item inside its window (interval
+     stabbing); each item rides the LATEST trip it can (the freshest), shelf-stable ones the FIRST. A trip prefers the
+     SAME DAY as a cook when 2×walk + inStoreMin fits inside that cook's window before its start (the deli chicken's
+     recipe makes room for it), else the day before at lunch+60. Pantry ids never appear; the weekly staples and the
+     fridge defaults ride the first trip, once a week. Checks are per item@trip. */
+  function shopping(state, today, now) {
+    const S = S_(state), N = numNow(now), st = S.store || {}, open = hm(st.open) ?? 360, close = hm(st.close) ?? 1320;
+    const inStore = int(st.inStoreMin, 30), trip = tripMinutes(S), walk = trip - inStore;
+    const pantry = pantrySet(state), checked = (state.groceries && state.groceries.checked) || {};
+    const tomorrow = addDays(today, 1), H = []; for (let i = 0; i < 7; i++) H.push(addDays(today, i));
+    const todayOpen = ceil5(N) + walk + inStore <= close;
+    const needs = [];
+    H.forEach(d => {
+      const day = planDay(state, d); if (!day || !day.cook) return;
+      const cs = cookState(state, d, today, now); if (cs !== 'planned' && cs !== 'due') return;   // started, made, not made: nothing left to buy
+      const c = day.cook, rec = recipeById(state, c.recipe); if (!rec) return;
+      const at = hm(c.at), w = windowsFor(S, d).find(x => at != null && at >= x.s && at <= x.e);
+      const sameAt = at != null ? at - trip : null;
+      const same = sameAt != null && w && sameAt >= w.s && sameAt >= open && (d !== today || sameAt >= ceil5(N));
+      scaleIngredients(state, rec, c.servings).forEach(it => {
+        if (!it.id || it.opt || pantry[it.id] || !(it.q > 0)) return;
+        const info = ingredient(it.id), bw = info.buyWithin != null ? info.buyWithin : 5;
+        let hi = same ? d : addDays(d, -1), lo = addDays(d, -bw);
+        if (lo < today) lo = today; if (lo === today && !todayOpen && hi > today) lo = tomorrow;
+        let late = false; if (hi < lo) { hi = lo = d; late = true; }
+        needs.push({ id: it.id, q: it.q, u: it.u, need: d, cookAt: at, for: rec.name, lo, hi, late, stable: !!info.pantry || bw >= 30 });
+      });
+    });
+    const points = [];
+    needs.slice().sort((a, b) => cmpStr(a.hi, b.hi) || cmpStr(a.id, b.id)).forEach(x => { if (!points.some(p => p >= x.lo && p <= x.hi)) points.push(x.hi); });
+    points.sort();
+    needs.forEach(x => { const ps = points.filter(p => p >= x.lo && p <= x.hi); x.trip = x.stable ? ps[0] : ps[ps.length - 1]; });
+    // the ride-alongs: weekly staples + the fridge defaults' ingredients, once a week, on the first trip
+    const wk = weekStart(today), boughtThisWeek = id => Object.keys(checked).some(k => { const i = k.lastIndexOf('@'); return k.slice(0, i) === id && weekStart(k.slice(i + 1)) === wk && checked[k] && checked[k].v; });
+    const ride = {};
+    H.forEach(d => { const day = planDay(state, d); if (!day) return; slotsFor(state, d).forEach(sl => { const r = day[sl]; if (!r || r.kind !== 'home' || !r.recipe) return; const rec = recipeById(state, r.recipe); if (!rec) return;
+      scaleIngredients(state, rec, 1).forEach(it => { if (!it.id || it.opt || pantry[it.id]) return; const x = ride[it.id] || (ride[it.id] = { id: it.id, q: 0, u: it.u, need: d, for: [] }); if (x.u === it.u) x.q += it.q; if (x.for.indexOf(rec.name) < 0) x.for.push(rec.name); }); }); });
+    (S.weekly || []).forEach(id => { const info = ingredient(id); if (!ride[id]) ride[id] = { id, q: 0, u: info.unit || '', need: today, for: [] }; if (ride[id].for.indexOf('cada semana') < 0) ride[id].for.push('cada semana'); });
+    const rideIds = Object.keys(ride).filter(id => !pantry[id] && !boughtThisWeek(id)).sort();
+    if (!points.length && rideIds.length) points.push(todayOpen ? today : tomorrow);
+    const trips = points.map(T => {
+      const same = needs.filter(x => x.trip === T && x.need === T && x.cookAt != null);
+      let at = same.length ? Math.min.apply(null, same.map(x => x.cookAt - trip)) : clamp(eatAt(state, T, 'lunch') + 60, open, close - inStore - walk);
+      if (T === today) at = Math.max(at, ceil5(N));
+      at = Math.max(at, open);
+      const items = {}, add = (id, q, u, by, f) => {
+        const info = ingredient(id), it = items[id] || (items[id] = { id, q: 0, u, section: info.section || NO_SECTION, buyBy: by, for: [], info });
+        if (it.u === u) it.q += q; if (by < it.buyBy) it.buyBy = by; (Array.isArray(f) ? f : [f]).forEach(n => { if (n && it.for.indexOf(n) < 0) it.for.push(n); });
+      };
+      needs.filter(x => x.trip === T).forEach(x => add(x.id, x.q, x.u, x.need, x.for));
+      if (T === points[0]) rideIds.forEach(id => { const r = ride[id]; add(id, r.q, r.u, r.need, r.for); });
+      const list = Object.keys(items).map(id => {
+        const it = items[id], q = it.info.indivisible ? Math.ceil(it.q - 1e-9) : roundQ(it.q, it.u), key = id + '@' + T, n = nameFor(it.info, q, it.u);
+        return { key, id, n, q, u: it.u, section: it.section, display: q > 0 ? fmtQty(q, it.u) : '', text: q > 0 ? phrase(q, it.u, n) : n, buyBy: it.buyBy, for: it.for, checked: !!(checked[key] && checked[key].v), note: it.info.note || null };
+      }).sort((a, b) => (SECTIONS.indexOf(a.section) < 0 ? 99 : SECTIONS.indexOf(a.section)) - (SECTIONS.indexOf(b.section) < 0 ? 99 : SECTIONS.indexOf(b.section)) || a.n.localeCompare(b.n, 'es'));
+      const by = list.reduce((m, it) => (it.buyBy < m ? it.buyBy : m), T);
+      return { date: T, at: fmtHM(at), by: by < T ? T : by, items: list, left: list.filter(it => !it.checked).length, min: inStore, late: needs.some(x => x.trip === T && x.late) };
+    });
+    return { trips, next: trips.find(t => t.left > 0) || null };
+  }
+  function check(state, key, v, at) {
+    state.groceries = state.groceries || {}; state.groceries.checked = state.groceries.checked || {};
+    state.groceries.checked[key] = { v: !!v, at: +at || 0 };
+    return { ok: true };
+  }
+  function listText(state, trip) {
+    if (!trip || !trip.items) return '';
+    const S = S_(state), st = S.store || {}, p = parse(trip.date);
+    const DW = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+    const lines = [(st.name || 'Safeway') + ' · ' + DW[p.getDay()] + ' ' + p.getDate() + '/' + (p.getMonth() + 1)];
+    const todo = trip.items.filter(it => !it.checked), list = todo.length ? todo : trip.items;
+    let sec = null;
+    list.forEach(it => { if (it.section !== sec) { sec = it.section; lines.push('', sec); } lines.push('- ' + it.text); });
+    if (!todo.length) lines.push('', '(todo comprado)');
+    return lines.join('\n');
+  }
+
+  /* ── what to do now ── */
+  function foodFor(state, R, date, slot, now) {
+    const day = planDay(state, date), r = day && day[slot]; if (!r) return { exists: false };
+    if (r.kind === 'leftover') { const b = R.byId[r.of]; return { exists: !!(b && realB(b) && b.leftNow > 0 && date <= b.expires), batch: r.of, recipe: b ? b.recipe : null }; }
+    if (r.kind === 'cook') { const b = day.cook && R.byId[day.cook.batch]; return { exists: !!(b && realB(b) && b.leftNow > 0), batch: day.cook && day.cook.batch, recipe: day.cook && day.cook.recipe }; }
+    return { exists: true, recipe: r.recipe || null };
+  }
+  function rescue(state, today, now) {
+    const S = S_(state), N = numNow(now), out = [];
+    potNow(state, today, now).forEach(b => out.push({ kind: 'pot', batch: b }));
+    freezer(state, today, now).forEach(b => out.push({ kind: 'freezer', batch: b }));
+    out.push({ kind: 'home', recipe: fridgeFor(S, 'dinner') });   // never an empty list: the fridge default is always there
+    const st = S.store || {}, open = hm(st.open) ?? 360, close = hm(st.close) ?? 1320;
+    if (N >= open && N <= close - 30) out.push({ kind: 'store', until: fmtHM(close), pick: 'pollo rostizado' });
+    (S.orders || []).forEach(o => { const w = typeof o === 'string' ? o : (o && (o.what || o.name)); if (w) out.push({ kind: 'order', what: w }); });
     return out;
   }
-  /* A rung is PASSED by code: ≥6 POT meals (cook or leftover rows — the fridge defaults never count) eaten at the current
-     rung, spanning ≥10 days. Never asserted. Not "two ISO weeks": a Wed→Tue week straddles two of those by itself. */
-  function rungCheck(state, today) {
-    const rung = (state.ladder && state.ladder.rung) || 1, days = (state.plan && state.plan.days) || {}, log = state.log || {};
-    let n = 0; const weeks = {}; let first = null, last = null;
-    Object.keys(days).forEach(d => { if (d > today) return; const day = days[d];
-      SLOTS.forEach(sl => { const r = day[sl]; if (!r) return; const e = log[d + ':' + sl]; if (!e || e.s !== 'ate') return;
-        const rid = r.kind === 'cook' ? (day.cook && day.cook.recipe) : r.kind === 'leftover' ? (function () { const b = potFrom(state, state.plan).find(x => x.id === r.of); return b && b.recipe; })() : null;
-        const rec = rid && recipeById(state, rid); if (rec && rec.rung === rung) { n++; weeks[isoWeek(d)] = 1; if (!first || d < first) first = d; if (!last || d > last) last = d; } }); });
+  function nextAction(state, today, now) {
+    const N = numNow(now), day = planDay(state, today), R = reality(state, today, N);
+    const q = questions(state, today, N);
+    if (q.length) return Object.assign({ kind: 'confirm-cook' }, q[q.length - 1]);
+    if (day && day.cook) {
+      const cs = cookState(state, today, today, N), at = hm(day.cook.at), rec = recipeById(state, day.cook.recipe);
+      if ((cs === 'due' || cs === 'cooking') && at != null && N >= at - 15 && N <= at + totalOf(rec)) return { kind: 'cook-now', date: today, batch: day.cook.batch, recipe: day.cook.recipe, at: day.cook.at, verb: verbFor(rec), servings: day.cook.servings };
+    }
+    if (day) {
+      const cand = slotsFor(state, today).filter(sl => day[sl] && !effLog(state, today, sl) && Math.abs(N - eatAt(state, today, sl)) <= 90)
+        .sort((a, b) => Math.abs(N - eatAt(state, today, a)) - Math.abs(N - eatAt(state, today, b)) || eatAt(state, today, b) - eatAt(state, today, a));
+      for (const sl of cand) { const f = foodFor(state, R, today, sl, N); if (f.exists) return { kind: 'eat', date: today, slot: sl, batch: f.batch || null, recipe: f.recipe || null, at: fmtHM(eatAt(state, today, sl)) }; break; }
+      if (day.dinner && !effLog(state, today, 'dinner')) {
+        const dAt = eatAt(state, today, 'dinner'), f = foodFor(state, R, today, 'dinner', N);
+        const cooking = day.dinner.kind === 'cook' && ['planned', 'due', 'cooking'].indexOf(cookState(state, today, today, N)) >= 0;
+        if (N >= dAt + 60 || (!f.exists && !cooking && N >= dAt - 90)) return { kind: 'rescue', date: today, slot: 'dinner', options: rescue(state, today, N) };
+      }
+    }
+    const sh = shopping(state, today, N), tomorrow = addDays(today, 1);
+    if (day && day.cook && cookState(state, today, today, N) === 'planned') {   // precedence keeps cook-soon above shop; the trip that must come FIRST rides along
+      const first = sh.trips.find(t => t.date === today && t.left > 0) || null;
+      return { kind: 'cook-soon', date: today, batch: day.cook.batch, recipe: day.cook.recipe, at: day.cook.at, verb: verbFor(recipeById(state, day.cook.recipe)), trip: first };
+    }
+    const tt = sh.trips.find(t => t.date === today && t.left > 0);
+    if (tt) return { kind: 'shop', date: today, at: tt.at, trip: tt };
+    const mt = sh.trips.find(t => t.date === tomorrow && t.left > 0);
+    if (mt && N >= 18 * 60) return { kind: 'shop', date: tomorrow, at: mt.at, trip: mt };
+    if (N >= 22 * 60) return { kind: 'tomorrow', date: tomorrow };
+    return { kind: 'idle', date: today };
+  }
+
+  /* seated vs what happened, per slot, for one Sun–Sat week — only slots whose eat time has passed. Silence = as planned,
+     except a pot meal whose batch never became real (`unknown`). Names the slot that failed; never a score. */
+  function weekRegister(state, weekStartYmd, today, now) {
+    const out = {}; SLOTS.forEach(sl => { out[sl] = { seated: 0, ate: 0, other: 0, out: 0, skipped: 0, unknown: 0 }; });
+    const R = reality(state, today, now);
+    for (let i = 0; i < 7; i++) {
+      const d = addDays(weekStartYmd, i), day = planDay(state, d); if (d > today || !day) continue;
+      slotsFor(state, d).forEach(sl => {
+        const r = day[sl]; if (!r || !slotPast(state, d, sl, today, now)) return;
+        out[sl].seated++;
+        const e = effLog(state, d, sl);
+        if (e) { if (out[sl][e.s] != null) out[sl][e.s]++; return; }
+        if (r.kind === 'out') out[sl].out++;
+        else if (r.kind === 'leftover' || r.kind === 'cook') { const b = R.byId[plannedBatchOf(day, sl)]; if (b && realB(b)) out[sl].ate++; else out[sl].unknown++; }
+        else out[sl].ate++;
+      });
+    }
+    return out;
+  }
+  /* A rung is PASSED by code: ≥6 REAL pot meals of the rung's mains (made cooks, leftovers of real batches, assembly
+     mains included — rung 1 must be passable) spanning ≥10 days. Never via `other`/`home` rows or a bought batch. */
+  function rungCheck(state, today, now) {
+    const rung = ladderRung(state), days = (state.plan && state.plan.days) || {}, R = reality(state, today, now);
+    let n = 0, first = null, last = null; const weeks = {};
+    Object.keys(days).sort().forEach(d => {
+      if (d > today) return; const day = days[d] || {};
+      SLOTS.forEach(sl => {
+        if (!slotPast(state, d, sl, today, now)) return;
+        const e = effLog(state, d, sl); let bid;
+        if (e) { if (e.s !== 'ate') return; bid = e.of || null; } else bid = plannedBatchOf(day, sl);
+        const b = bid && R.byId[bid]; if (!b || !(realB(b) || b.state === 'tossed')) return;
+        if (b.src === 'bought' || b.src === 'other') return;
+        const rec = b.recipe && recipeById(state, b.recipe); if (!rec || rec.role !== 'main' || rec.rung !== rung) return;
+        n++; weeks[isoWeek(d)] = 1; if (!first || d < first) first = d; if (!last || d > last) last = d;
+      });
+    });
     const span = first ? diffDays(first, last) : 0;
     return { pass: n >= 6 && span >= 10, n, weeks: Object.keys(weeks).length, span, rung };
   }
-  function rungUp(state, today) { const c = rungCheck(state, today); if (!c.pass) return c; state.ladder.passed = state.ladder.passed || []; state.ladder.passed.push({ rung: c.rung, on: today, ate: c.n }); state.ladder.rung = c.rung + 1; state.ladder.since = today; return c; }
+  function rungUp(state, today, now) { const c = rungCheck(state, today, now); if (!c.pass) return c; state.ladder.passed = state.ladder.passed || []; state.ladder.passed.push({ rung: c.rung, on: today, ate: c.n }); state.ladder.rung = c.rung + 1; state.ladder.since = today; return c; }
 
-  /* What a meal COSTS in minutes — the city's packer reads this off los.olla. Clamped: a missing reading is not a 0-minute meal. */
+  /* What a meal COSTS in minutes for the city's packer. A `cook` dinner is billed EATING only (20): the cook anchor bills the cooking. */
   function minutesFor(state, date, slot) {
-    const S = state.settings, day = (state.plan && state.plan.days || {})[date]; if (!day || !day[slot]) return null;
+    const S = S_(state), day = planDay(state, date); if (!day || !day[slot]) return null;
     const r = day[slot], walk = (S.hall && S.hall.walkMin) || 10; let m;
-    if (r.kind === 'swipe') m = 2 * walk + 20; else if (r.kind === 'leftover') m = 15; else if (r.kind === 'home') m = 10; else if (r.kind === 'out') m = 60;
-    else { const rec = day.cook && recipeById(state, day.cook.recipe); m = rec ? (rec.minutes || {}).total || 30 : 30; }
-    return Math.max(10, Math.min(180, m));
+    if (r.kind === 'swipe') m = 2 * walk + 20; else if (r.kind === 'leftover') m = 15; else if (r.kind === 'home') m = 10; else if (r.kind === 'out') m = 60; else m = 20;
+    return clamp(Math.round(m), 10, 180);
+  }
+  function batchName(state, id) {
+    const b = batchRef(state, id); if (!b) return null;
+    const rec = b.recipe && recipeById(state, b.recipe), x = (state.extra || {})[id];
+    return (x && x.name) || (rec && rec.name) || b.recipe || null;
   }
   function slotLabel(state, date, slot) {
-    const day = (state.plan && state.plan.days || {})[date]; if (!day || !day[slot]) return '';
-    const r = day[slot], S = state.settings;
+    const day = planDay(state, date); if (!day || !day[slot]) return '';
+    const r = day[slot], S = S_(state);
     if (r.kind === 'swipe') return (S.hall && S.hall.name) || 'swipe';
     if (r.kind === 'out') return 'fuera';
     if (r.kind === 'cook') { const rec = day.cook && recipeById(state, day.cook.recipe); return rec ? rec.name : 'cocinar'; }
-    if (r.kind === 'leftover') { const b = potFrom(state, state.plan).find(x => x.id === r.of); return b ? b.name + ' (sobra)' : 'sobra'; }
+    if (r.kind === 'leftover') { const n = r.of && batchName(state, r.of); return n ? n + ' (sobra)' : 'sobra'; }
     const rec = r.recipe && recipeById(state, r.recipe); return rec ? rec.name : 'de la nevera';
   }
-  return { SLOTS, KINDS, ymd, parse, addDays, dow, diffDays, weekStart, isoWeek, hm, fmtHM, windowsFor, hallDay, outDay, trainDay,
-           recipeById, staple, maxServings, gearOk, eligible, potFrom, liveBatches, potNow, coverAhead, buildWeek, trimSwipes, swipesUsed,
-           validateWeek, setKind, nextKind, setCookRecipe, groceries, logMeal, weekRegister, rungCheck, rungUp, minutesFor, slotLabel };
+
+  /* THE PROJECTION `pub` — what the city and the Worker read (§2.7, a FROZEN contract). Integers only (Swift `Int`). */
+  function project(state, today, now, at) {
+    const S = S_(state), N = numNow(now), st = S.store || {}, R = reality(state, today, N), sh = shopping(state, today, N);
+    const pub = { v: 2, at: int(at, 0), day: today,
+      store: { name: String(st.name || 'Safeway'), open: hm(st.open) ?? 360, close: hm(st.close) ?? 1320, inStoreMin: int(st.inStoreMin, 30), mode: st.mode === 'delivery' ? 'delivery' : 'walk' },
+      days: {}, pot: [] };
+    for (let i = 0; i < 7; i++) {
+      const d = addDays(today, i), day = planDay(state, d);
+      if (!day || !MEALS.every(sl => day[sl] && day[sl].kind)) continue;   // a day the engine cannot project is OMITTED, never defaulted
+      const o = { train: !!day.train };
+      MEALS.forEach(sl => {
+        const r = day[sl], e = effLog(state, d, sl), bid = plannedBatchOf(day, sl), b = bid && R.byId[bid];
+        o[sl] = { kind: r.kind, sub: trunc((e && e.what) || slotLabel(state, d, sl), 60), min: minutesFor(state, d, sl), logged: !!e, at: int(eatAt(state, d, sl)),
+                  real: (r.kind === 'leftover' || r.kind === 'cook') ? !!(b && realB(b)) : true };
+      });
+      o.cook = null;
+      if (day.cook && day.cook.batch) {
+        const rec = recipeById(state, day.cook.recipe), cat = hm(day.cook.at), cs = cookState(state, d, today, N);
+        const w = windowsFor(S, d).find(x => cat != null && cat >= x.s && cat <= x.e);
+        if (rec && cat != null) o.cook = { at: cat, min: clamp(totalOf(rec), 10, 180), active: clamp(int(rec.minutes && rec.minutes.active, 10), 0, 180), verb: verbFor(rec), name: trunc(rec.name, 60), recipe: rec.id,
+          servings: int(day.cook.servings, 2), win: w ? [w.s, w.e] : [cat, cat + totalOf(rec)], state: (cs === 'due' || cs === 'cooking') ? 'planned' : cs };
+      }
+      const t = sh.trips.find(x => x.date === d && x.left > 0);
+      o.shop = t ? { at: hm(t.at), min: clamp(int(t.min, 30), 10, 180), n: t.left, for: trips4(t), by: t.by } : null;
+      pub.days[d] = o;
+    }
+    pub.pot = potNow(state, today, N).map(b => ({ name: trunc(b.name, 60), left: int(b.left), expires: b.expires }));
+    return pub;
+  }
+  function trips4(t) { const f = []; t.items.forEach(it => { if (it.checked) return; it.for.forEach(n => { if (n !== 'cada semana' && f.indexOf(n) < 0) f.push(n); }); }); return f.slice(0, 4).map(n => trunc(n, 60)); }
+
+  /* Merge REALITY from another copy (another device's gist). Arrays are unioned by content, sorted by `at` (ties by
+     content, so every device converges on the same order); likes and checks: the later `at` wins; extras by id.
+     Never touches plan/settings/recipes. Returns how many things it added or changed in `into`. */
+  function canon(o) { if (o === null || typeof o !== 'object') return JSON.stringify(o); if (Array.isArray(o)) return '[' + o.map(canon).join(',') + ']'; return '{' + Object.keys(o).sort().map(k => JSON.stringify(k) + ':' + canon(o[k])).join(',') + '}'; }
+  function mergeReality(into, from) {
+    if (!into || !from) return 0;
+    let n = 0;
+    ['log', 'cooks'].forEach(f => {
+      const A = into[f] = (into[f] && typeof into[f] === 'object') ? into[f] : {}, B = (from[f] && typeof from[f] === 'object') ? from[f] : {};
+      Object.keys(B).forEach(k => {
+        const bl = Array.isArray(B[k]) ? B[k] : [], al = Array.isArray(A[k]) ? A[k] : [];
+        const seen = {}; al.forEach(e => { seen[canon(e)] = 1; });
+        let added = 0; bl.forEach(e => { if (!e || typeof e !== 'object') return; const c = canon(e); if (seen[c]) return; seen[c] = 1; al.push(e); added++; });
+        if (added) { al.sort((x, y) => (+x.at || 0) - (+y.at || 0) || cmpStr(canon(x), canon(y))); n += added; }
+        A[k] = al;
+      });
+    });
+    into.extra = (into.extra && typeof into.extra === 'object') ? into.extra : {};
+    Object.keys(from.extra || {}).forEach(id => { if (!into.extra[id] && from.extra[id]) { into.extra[id] = clone(from.extra[id]); n++; } });
+    into.likes = (into.likes && typeof into.likes === 'object') ? into.likes : {};
+    Object.keys(from.likes || {}).forEach(id => { const b = from.likes[id], a = into.likes[id]; if (b && (!a || (+b.at || 0) > (+a.at || 0))) { into.likes[id] = clone(b); n++; } });
+    into.groceries = into.groceries || {}; into.groceries.checked = (into.groceries.checked && typeof into.groceries.checked === 'object') ? into.groceries.checked : {};
+    const fc = (from.groceries && from.groceries.checked) || {};
+    Object.keys(fc).forEach(k => { const b = fc[k], a = into.groceries.checked[k]; if (b && typeof b === 'object' && (!a || (+b.at || 0) > (+a.at || 0))) { into.groceries.checked[k] = clone(b); n++; } });
+    return n;
+  }
+
+  return { SLOTS, MEALS, KINDS, SECTIONS, ymd, parse, addDays, dow, diffDays, weekStart, isoWeek, hm, fmtHM,
+           windowsFor, hallDay, outDay, trainDay, slotsFor, eatAt, tripMinutes,
+           recipeById, ingredient, eligible, maxServings, gearOk, verbFor, batchable,
+           liveEntries, effLog, effCook, reality, potNow, freezer, expired, cookState, questions, cookSlot,
+           buildWeek, trimSwipes, swipesUsed, validateWeek, setKind, nextKind, setCookRecipe, backToRule,
+           logMeal, logCook, freeze, like, pickRecipe, scaleIngredients, stepTimer, remateFor,
+           shopping, check, listText, rescue, nextAction, weekRegister, minutesFor, slotLabel, project, mergeReality,
+           rungCheck, rungUp };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = OLLA;
 /* ═══ OLLA-ENGINE-END ═══ */
 
-/* ═══ OLLA-SEED-BEGIN ═══ the book and the defaults. Minutes, servings, fridge days and protein are ESTIMATES
-   from the 29-sep-2026 ladder brief (LA-OLLA-PLAN.md in leandro-os-prototype), not measurements; the UI says so.
-   Exactly ONE `staple:true` per rung — the fallback week's cook. `assembly:true` = no knife, no heat worth the name;
-   those are the fridge defaults and never count toward passing a rung. Gear keys: pot, pan, oven, microwave,
-   riceCooker, blender, thermometer, sheetPan. */
-const OLLA_SEED = {
-  settings: {
-    hall: { name: 'The Local', walkMin: 10, swipesPerWeek: 14, breakfastSwipe: true, days: [1, 2, 3, 4, 5] },   // Mon–Fri; the hall is closed on weekends
-    outDays: [0],                                                        // Sunday lunch is on the Hilltop; not the pot's
-    cookWindows: { '0': [], '1': [], '2': [], '3': ['13:00-17:30'], '4': ['13:00-17:30'], '5': ['11:00-21:00'], '6': ['11:00-21:00'] },
-    trainDays: [1, 2, 4, 5],                                             // La Forja's plan.schedule as of 29-sep; the city will feed this later
-    fridge: { bf: 'yogur-bowl', meal: 'atun-huevo-bowl' },               // the two no-cook defaults
-    feed: 'leche (2 tazas) + yogur griego + mantequilla de maní',        // the fourth meal on a lift night, ~40 g, no cooking
-    gear: { pot: true, pan: true, oven: true, microwave: true, riceCooker: false, blender: false, thermometer: false, sheetPan: true },
-    pantry: ['sal', 'pimienta', 'aceite', 'aceite de oliva', 'ajo', 'sillao', 'vinagre', 'comino', 'orégano', 'azúcar'],
-    weekly: ['leche', 'yogur griego', 'mantequilla de maní'],
-  },
-  ladder: { rung: 1, since: null, passed: [] },
-  recipes: [
-    { id: 'yogur-bowl', name: 'Bowl de yogur griego', rung: 1, cuisine: 'US', assembly: true, staple: false, gear: [],
-      minutes: { active: 3, total: 3 }, servings: 1, doubles: false, fridgeDays: 0, proteinG: 22,
-      ingredients: [{ q: 200, u: 'g', n: 'yogur griego' }, { q: 40, u: 'g', n: 'granola' }, { q: 80, u: 'g', n: 'frutos rojos' }],
-      steps: ['Yogur en el bowl, granola encima, fruta encima. Ya.', 'Un scoop de whey revuelto en el yogur lo sube a ~40 g.'] },
-    { id: 'avena-nocturna', name: 'Avena nocturna (3 frascos)', rung: 1, cuisine: 'US', assembly: true, staple: false, gear: [],
-      minutes: { active: 8, total: 8 }, servings: 3, doubles: false, fridgeDays: 3, proteinG: 30,
-      ingredients: [{ q: 150, u: 'g', n: 'avena' }, { q: 300, u: 'g', n: 'yogur griego' }, { q: 300, u: 'ml', n: 'leche' }, { q: 3, u: 'cda', n: 'chía' }, { q: 1, u: '', n: 'plátano' }],
-      steps: ['Sábado: tres frascos. En cada uno 50 g de avena, 100 g de yogur, 100 ml de leche, 1 cda de chía.', 'Tapa, nevera. El del martes es el día 3: el último.', 'Plátano en rodajas al servir.'] },
-    { id: 'atun-huevo-bowl', name: 'Bowl de atún y huevo', rung: 1, cuisine: 'JP', assembly: true, staple: false, gear: ['microwave', 'pan'],
-      minutes: { active: 6, total: 8 }, servings: 1, doubles: false, fridgeDays: 0, proteinG: 35,
-      ingredients: [{ q: 1, u: 'bolsa', n: 'arroz listo (Ready Rice)' }, { q: 1, u: 'lata', n: 'atún' }, { q: 1, u: '', n: 'huevo' }, { q: 1, u: 'cda', n: 'sillao' }, { q: 1, u: 'cdta', n: 'aceite de sésamo' }, { q: 1, u: '', n: 'cebollita china' }],
-      steps: ['Arroz 90 s en el microondas.', 'Huevo frito en la sartén, 2 min por lado, o 60 s en una taza en el microondas.', 'Atún escurrido sobre el arroz, huevo encima, sillao + sésamo, cebollita picada con tijera.'] },
-    { id: 'revuelto-3', name: 'Revuelto de 3 huevos con tostada', rung: 1, cuisine: 'US', assembly: true, staple: false, gear: ['pan'],
-      minutes: { active: 8, total: 10 }, servings: 1, doubles: false, fridgeDays: 0, proteinG: 35,
-      ingredients: [{ q: 3, u: '', n: 'huevos' }, { q: 2, u: 'rebanadas', n: 'pan integral' }, { q: 150, u: 'g', n: 'yogur griego' }, { q: 1, u: 'cda', n: 'mantequilla' }],
-      steps: ['Sartén a fuego BAJO con la mantequilla. Huevos batidos con una pizca de sal.', 'Mueve despacio con una espátula hasta que cuajen pero brillen. Fuera del fuego antes de que se sequen.', 'Tostada, y el yogur al lado: ahí está la proteína que falta.'] },
-    { id: 'salsa-criolla', name: 'Salsa criolla', rung: 1, cuisine: 'PE', assembly: false, staple: false, gear: [],
-      minutes: { active: 8, total: 15 }, servings: 4, doubles: true, fridgeDays: 2, proteinG: 0,
-      ingredients: [{ q: 1, u: '', n: 'cebolla roja' }, { q: 2, u: '', n: 'limones' }, { q: 1, u: 'puñado', n: 'culantro' }, { q: 1, u: '', n: 'ají amarillo fresco (opcional)' }],
-      steps: ['Cebolla en pluma FINA: la primera cosa peruana, y enseña el cuchillo en la verdura más barata.', 'Enjuaga la cebolla en agua con sal 5 min, escurre.', 'Limón, sal, culantro picado. Reposa 10 min. Va encima de cualquier bowl de la semana.'] },
-    { id: 'pollo-rostizado-bowl', name: 'Pollo rostizado con arroz', rung: 1, cuisine: 'PE', assembly: true, staple: true, gear: ['microwave'],
-      minutes: { active: 8, total: 12 }, servings: 4, doubles: true, fridgeDays: 3, proteinG: 40,
-      ingredients: [{ q: 1, u: '', n: 'pollo rostizado (Safeway, deli)' }, { q: 4, u: 'bolsas', n: 'arroz listo (Ready Rice)' }, { q: 2, u: 'bolsas', n: 'verdura congelada' }, { q: 2, u: '', n: 'limones' }, { q: 1, u: '', n: 'ají o hot sauce' }],
-      steps: ['El peldaño 1 no cocina: ARMA. Deshuesa el pollo con las manos mientras está tibio; cuatro porciones.', 'Cada porción a su táper: pollo + una bolsa de arroz (90 s) + verdura (3 min al microondas) + limón.', 'Nevera, tres días. Sábado se hace la olla grande: dos pollos si la semana lo pide.', 'Salsa criolla encima si la hiciste.'] },
-    { id: 'arroz-graneado', name: 'Arroz graneado', rung: 2, cuisine: 'PE', assembly: false, staple: false, gear: ['pot'],
-      minutes: { active: 5, total: 25 }, servings: 4, doubles: true, fridgeDays: 2, proteinG: 4,
-      ingredients: [{ q: 2, u: 'tazas', n: 'arroz' }, { q: 2, u: 'dientes', n: 'ajo' }, { q: 1, u: 'cda', n: 'aceite' }],
-      steps: ['Lava el arroz hasta que el agua salga casi clara.', 'Olla con el aceite, el ajo picado 30 s, el arroz 1 min revolviendo.', 'Agua 1:1.25, sal. Hierve destapado hasta que el agua baje al nivel del arroz.', 'Tapa, fuego mínimo 15 min. Apaga, 5 min sin destapar, suelta con un tenedor.', 'Enfría RÁPIDO lo que sobre y a la nevera: el arroz es la sobra que más muerde.'] },
-    { id: 'bowl-coreano', name: 'Bowl coreano de carne molida', rung: 2, cuisine: 'KR', assembly: false, staple: true, gear: ['pan'],
-      minutes: { active: 15, total: 20 }, servings: 3, doubles: true, fridgeDays: 3, proteinG: 30,
-      ingredients: [{ q: 450, u: 'g', n: 'carne molida 85%' }, { q: 3, u: 'cda', n: 'sillao' }, { q: 1, u: 'cda', n: 'azúcar morena' }, { q: 3, u: 'dientes', n: 'ajo' }, { q: 1, u: 'cdta', n: 'jengibre rallado' }, { q: 1, u: 'cda', n: 'gochujang' }, { q: 1, u: 'cdta', n: 'aceite de sésamo' }, { q: 3, u: 'bolsas', n: 'arroz listo (Ready Rice)' }, { q: 2, u: '', n: 'cebollita china' }],
-      steps: ['Sartén caliente, la carne suelta hasta que dore; escurre la grasa si hay mucha.', 'Sillao, azúcar, ajo, jengibre, gochujang: 2 min.', 'Fuera del fuego el aceite de sésamo. Sobre arroz, cebollita encima. Dobla sin miedo: la salsa escala.'] },
-    { id: 'oyakodon', name: 'Oyakodon', rung: 2, cuisine: 'JP', assembly: false, staple: false, gear: ['pan'],
-      minutes: { active: 12, total: 15 }, servings: 1, doubles: true, fridgeDays: 2, proteinG: 45,
-      ingredients: [{ q: 1, u: '', n: 'muslo de pollo deshuesado' }, { q: 0.5, u: '', n: 'cebolla' }, { q: 2, u: '', n: 'huevos' }, { q: 100, u: 'ml', n: 'caldo (dashi o de pollo)' }, { q: 1, u: 'cda', n: 'sillao' }, { q: 1, u: 'cda', n: 'mirin' }, { q: 1, u: 'bolsa', n: 'arroz listo (Ready Rice)' }],
-      steps: ['Cebolla en pluma con el caldo, sillao y mirin: hierve 3 min en la sartén.', 'Pollo en trozos, 5 min tapado.', 'Huevos batidos por encima, tapa 1 min: cuajados por fuera, cremosos por dentro. Sobre arroz. Máximo dos por sartén.'] },
-    { id: 'pollo-bandeja', name: 'Pollo mediterráneo a la bandeja', rung: 2, cuisine: 'MED', assembly: false, staple: false, gear: ['oven', 'sheetPan'],
-      minutes: { active: 10, total: 40 }, servings: 4, doubles: false, fridgeDays: 3, proteinG: 40,
-      ingredients: [{ q: 4, u: '', n: 'muslos de pollo' }, { q: 500, u: 'g', n: 'papas' }, { q: 2, u: '', n: 'pimientos' }, { q: 200, u: 'g', n: 'tomates cherry' }, { q: 100, u: 'g', n: 'queso feta' }, { q: 1, u: '', n: 'limón' }, { q: 1, u: 'cda', n: 'orégano' }],
-      steps: ['Horno a 425°F. Muslos, papas en cubos y pimientos en la bandeja con aceite, limón, orégano, sal.', '20 min. Tomates y feta encima, 10 min más.', 'Una bandeja rinde 4; dos bandejas necesitan dos rejillas. Miércoles y jueves: al horno a las 4:45 o se come antes de las 5:30.'] },
-    { id: 'arroz-con-pollo', name: 'Arroz con pollo', rung: 3, cuisine: 'PE', assembly: false, staple: true, gear: ['pot', 'blender'],
-      minutes: { active: 25, total: 60 }, servings: 6, doubles: false, fridgeDays: 3, proteinG: 35,
-      ingredients: [{ q: 6, u: '', n: 'muslos de pollo' }, { q: 3, u: 'tazas', n: 'arroz' }, { q: 1, u: 'atado', n: 'culantro' }, { q: 1, u: '', n: 'cebolla roja' }, { q: 2, u: 'cda', n: 'pasta de ají amarillo' }, { q: 4, u: 'dientes', n: 'ajo' }, { q: 1, u: 'taza', n: 'arvejas congeladas' }, { q: 1, u: '', n: 'pimiento rojo' }, { q: 1, u: 'botella', n: 'cerveza negra' }, { q: 1, u: 'cubo', n: 'caldo de pollo' }],
-      steps: ['Dora los muslos por los dos lados en la olla; sácalos.', 'Sofrito: cebolla, ajo, ají amarillo 5 min. Culantro licuado con media taza de agua, adentro, 2 min.', 'Arroz, cerveza, caldo hasta cubrir dos dedos. Pollo encima. Hierve, tapa, mínimo 35 min.', 'Arvejas y pimiento los últimos 5. Reposa 10. Seis porciones: la olla del sábado.'] },
-    { id: 'chili', name: 'Chili de una olla', rung: 3, cuisine: 'US', assembly: false, staple: false, gear: ['pot'],
-      minutes: { active: 15, total: 55 }, servings: 6, doubles: true, fridgeDays: 4, proteinG: 35,
-      ingredients: [{ q: 900, u: 'g', n: 'carne molida 85%' }, { q: 1, u: '', n: 'cebolla' }, { q: 4, u: 'dientes', n: 'ajo' }, { q: 2, u: 'cda', n: 'chili powder' }, { q: 1, u: 'cda', n: 'comino' }, { q: 1, u: 'lata', n: 'tomate triturado' }, { q: 2, u: 'latas', n: 'frijoles' }],
-      steps: ['Dora la carne en la olla; cebolla y ajo 5 min.', 'Especias 1 min, tomate y frijoles, 30–45 min a fuego bajo.', 'Se congela 3 meses. La olla más fácil de doblar del libro.'] },
-    { id: 'tallarin-saltado', name: 'Tallarín saltado de pollo', rung: 3, cuisine: 'PE', assembly: false, staple: false, gear: ['pot', 'pan'],
-      minutes: { active: 25, total: 30 }, servings: 2, doubles: 'two-rounds', fridgeDays: 2, proteinG: 45,
-      ingredients: [{ q: 250, u: 'g', n: 'espagueti' }, { q: 400, u: 'g', n: 'pechuga de pollo' }, { q: 1, u: '', n: 'cebolla roja' }, { q: 2, u: '', n: 'tomates' }, { q: 1, u: '', n: 'pimiento' }, { q: 3, u: 'cda', n: 'sillao' }, { q: 1, u: 'cda', n: 'salsa de ostión' }],
-      steps: ['Pasta hirviendo mientras cortas.', 'Sartén MUY caliente: pollo en tiras 2 min, fuera.', 'Cebolla, tomate y pimiento 2 min rápido; sillao y ostión; pollo de vuelta, pasta adentro, 1 min.', 'Dos porciones por sartén como mucho; para cuatro, dos rondas.'] },
-    { id: 'lomo-saltado', name: 'Lomo saltado', rung: 4, cuisine: 'PE', assembly: false, staple: true, gear: ['pan', 'oven'],
-      minutes: { active: 25, total: 30 }, servings: 2, doubles: 'two-rounds', fridgeDays: 2, proteinG: 40,
-      ingredients: [{ q: 400, u: 'g', n: 'lomo o bistec' }, { q: 1, u: '', n: 'cebolla roja' }, { q: 2, u: '', n: 'tomates' }, { q: 1, u: 'cda', n: 'pasta de ají amarillo' }, { q: 3, u: 'cda', n: 'sillao' }, { q: 1, u: 'cda', n: 'vinagre' }, { q: 1, u: 'bolsa', n: 'papas fritas congeladas' }, { q: 2, u: 'bolsas', n: 'arroz listo (Ready Rice)' }, { q: 1, u: 'puñado', n: 'culantro' }],
-      steps: ['Papas al horno según la bolsa, en paralelo.', 'Sartén hasta que humee. Carne en tiras, en DOS tandas, 1–2 min cada una: fuera.', 'Cebolla en gajos gruesos, tomate en gajos, ají: 1 min a fuego máximo.', 'Carne de vuelta, sillao y vinagre por el borde, 30 s. Papas y culantro adentro. Con arroz.', 'Las sobras: solo la carne se recalienta; las papas no.'] },
-    { id: 'aji-de-gallina', name: 'Ají de gallina', rung: 5, cuisine: 'PE', assembly: false, staple: true, gear: ['pot', 'blender'],
-      minutes: { active: 30, total: 45 }, servings: 4, doubles: true, fridgeDays: 3, proteinG: 40,
-      ingredients: [{ q: 1, u: '', n: 'pollo rostizado (Safeway, deli)' }, { q: 4, u: 'rebanadas', n: 'pan de molde' }, { q: 1, u: 'lata', n: 'leche evaporada' }, { q: 50, u: 'g', n: 'nueces' }, { q: 50, u: 'g', n: 'parmesano' }, { q: 3, u: 'cda', n: 'pasta de ají amarillo' }, { q: 1, u: '', n: 'cebolla' }, { q: 3, u: 'dientes', n: 'ajo' }, { q: 4, u: '', n: 'papas' }, { q: 2, u: '', n: 'huevos duros' }],
-      steps: ['Pan remojado en la leche evaporada; licúa con las nueces.', 'Sofrito de cebolla, ajo y ají amarillo, 6 min.', 'La crema adentro, el pollo deshilachado, el parmesano; 10 min a fuego bajo hasta que espese.', 'Sobre papa sancochada y arroz; huevo duro encima.'] },
-  ],
-};
+/* ═══ OLLA-SEED-BEGIN ═══ the book (v2) and the defaults. Minutes, servings, fridge days, freezer months and protein
+   are ESTIMATES (the UI says so) — minutes are written for a BEGINNER and lean long; nobody has timed him yet.
+   Food-safety numbers come from USDA FSIS and cite it in `sources` (leftovers 3–4 days and into the fridge within 2 h;
+   reheat to 165°F; poultry 165°F, ground meat 160°F, fish 145°F; raw chicken and ground beef 1–2 days; rotisserie
+   chicken eaten or refrigerated within 2 h). Roles: main (a dinner the planner may cook — batchable when it keeps ≥1
+   day and makes ≥2) · side · condiment · bf · snack. `assembly:true` = «armar», never «cocinar» (rung 1 is assembly:
+   buying the rotisserie chicken IS the recipe). One `staple:true` per rung: it sorts first into the rung's rotation set.
+   Every ingredient is an id into INGREDIENTS (a section in Safeway walking order, a canonical unit every recipe uses,
+   and `buyWithin` = how many days before its cook it may be bought). Gear keys: pot, pan, oven, microwave, riceCooker,
+   blender, thermometer, sheetPan. */
+const INGREDIENTS = (function () {
+  const FV = 'Frutas y verduras', PAN = 'Panadería', DELI = 'Deli', CAR = 'Carnes y pescado', LAC = 'Lácteos y huevos', CON = 'Congelados',
+        ARR = 'Arroz, pasta y legumbres', LAT = 'Latas y salsas', INT = 'Internacional', ESP = 'Especias y aceites', OTR = 'Otros';
+  const LATINA = "Goya/Inca's Food; tiendas latinas o en línea";
+  const i = (n, section, unit, buyWithin, o) => Object.assign({ n, section, unit, buy: unit === 'g' ? 'weight' : 'unit', indivisible: false, buyWithin, pantry: false }, o || {});
+  const u = (n, pl, section, buyWithin, o) => i(n, section, 'u', buyWithin, Object.assign({ pl, indivisible: true }, o || {}));
+  const shelf = (n, section, unit, o) => i(n, section, unit, 60, Object.assign({ pantry: true }, o || {}));
+  return {
+    // Frutas y verduras — tender produce 5 days, hardy (onion, potato, carrot) 10
+    'cebolla-roja': u('cebolla roja', 'cebollas rojas', FV, 10),
+    'cebolla': u('cebolla blanca', 'cebollas blancas', FV, 10),
+    'ajo': i('ajo', FV, 'diente', 30, { pantry: true, note: 'una cabeza trae unos 10 dientes' }),
+    'limon': u('limón', 'limones', FV, 7, { note: 'en Safeway son las «limes»: el limón peruano es la lima de acá' }),
+    'culantro': i('culantro', FV, 'atado', 4, { indivisible: true, note: 'en Safeway: «cilantro»' }),
+    'cebollita-china': u('cebollita china', 'cebollitas chinas', FV, 5, { note: 'en Safeway: «green onions», en atado de ~6' }),
+    'kion': i('kión (jengibre)', FV, 'cdta', 14, { note: 'un trozo del tamaño de un pulgar rinde ~2 cdtas rallado' }),
+    'tomate': u('tomate', 'tomates', FV, 5),
+    'tomate-cherry': i('tomates cherry', FV, 'g', 5, { buy: 'pack' }),
+    'pimiento-rojo': u('pimiento rojo', 'pimientos rojos', FV, 5),
+    'aji-amarillo-fresco': u('ají amarillo fresco', 'ajíes amarillos frescos', FV, 5, { note: 'casi nunca hay; es opcional' }),
+    'aji-chile': u('ají (serrano o tailandés)', 'ajíes (serrano o tailandés)', FV, 7),
+    'jalapeno': u('jalapeño', 'jalapeños', FV, 7),
+    'papa': i('papa', FV, 'g', 10, { note: 'Yukon Gold es lo más parecido a la papa amarilla' }),
+    'zanahoria': u('zanahoria', 'zanahorias', FV, 10),
+    'platano': u('plátano', 'plátanos', FV, 4),
+    'palta': u('palta', 'paltas', FV, 3, { note: 'en Safeway: «avocado»; firme si es para dentro de 3 días' }),
+    'lechuga': u('lechuga romana', 'lechugas romanas', FV, 5),
+    'pepino': u('pepino', 'pepinos', FV, 5),
+    'brocoli': i('brócoli', FV, 'g', 5),
+    'albahaca': i('albahaca (tailandesa si hay)', FV, 'atado', 3, { indivisible: true }),
+    // Panadería
+    'tortilla-harina': u('tortilla de harina grande', 'tortillas de harina grandes', PAN, 7),
+    'tortilla-maiz': u('tortilla de maíz', 'tortillas de maíz', PAN, 7),
+    'pan-integral': i('pan integral', PAN, 'rebanada', 7, { indivisible: true }),
+    'pan-molde': i('pan de molde blanco', PAN, 'rebanada', 7, { indivisible: true }),
+    // Deli — the rotisserie chicken is bought the day it is eaten
+    'pollo-rostizado': u('pollo rostizado', 'pollos rostizados', DELI, 0, { note: 'mostrador caliente del deli; a casa directo: come o refrigera en menos de 2 horas' }),
+    'hummus': i('hummus', DELI, 'g', 7, { buy: 'pack' }),
+    // Carnes y pescado — raw meat and poultry 2 days, fish 1 (FSIS: 1–2 days in the fridge)
+    'carne-molida': i('carne molida de res (85/15)', CAR, 'g', 2),
+    'pollo-molido': i('pollo molido', CAR, 'g', 2),
+    'muslo-pollo': i('muslo de pollo deshuesado', CAR, 'g', 2),
+    'muslo-pollo-hueso': i('muslo de pollo con hueso y piel', CAR, 'g', 2),
+    'pechuga-pollo': i('pechuga de pollo', CAR, 'g', 2),
+    'presas-pollo': i('presas de pollo con hueso (piernas y muslos)', CAR, 'g', 2),
+    'bistec': i('lomo o bistec de res (sirloin)', CAR, 'g', 2),
+    'carne-guiso': i('carne de res para guiso (chuck)', CAR, 'g', 2),
+    'salmon': i('salmón en filetes', CAR, 'g', 1),
+    // Lácteos y huevos
+    'huevo': u('huevo', 'huevos', LAC, 14),
+    'leche': i('leche', LAC, 'ml', 7),
+    'yogur-griego': i('yogur griego natural', LAC, 'g', 7, { buy: 'pack' }),
+    'mantequilla': i('mantequilla', LAC, 'cda', 30),
+    'queso-feta': i('queso feta', LAC, 'g', 14),
+    'parmesano': i('parmesano rallado', LAC, 'g', 30),
+    'queso-rallado': i('queso rallado (cheddar o mexicano)', LAC, 'g', 14),
+    'queso-fresco': i('queso fresco', LAC, 'g', 7),
+    // Congelados
+    'verdura-congelada': i('verduras mixtas congeladas', CON, 'g', 30),
+    'arvejas-congeladas': i('arvejas congeladas', CON, 'g', 30),
+    'papas-fritas-congeladas': i('papas fritas congeladas (para horno)', CON, 'g', 30),
+    'frutos-rojos-congelados': i('frutos rojos congelados', CON, 'g', 30),
+    // Arroz, pasta y legumbres
+    'arroz': shelf('arroz blanco de grano largo', ARR, 'taza'),
+    'arroz-listo': shelf('arroz listo (Ready Rice)', ARR, 'bolsa', { indivisible: true }),
+    'espagueti': shelf('espagueti', ARR, 'g'),
+    'pasta-corta': shelf('pasta corta (penne o rigatoni)', ARR, 'g'),
+    'lentejas': shelf('lentejas secas', ARR, 'g'),
+    // Latas y salsas
+    'atun': shelf('atún en agua', LAT, 'lata', { indivisible: true }),
+    'frijoles-negros': shelf('frijoles negros', LAT, 'lata', { indivisible: true }),
+    'frijoles-rojos': shelf('frijoles rojos (kidney)', LAT, 'lata', { indivisible: true }),
+    'tomate-triturado': shelf('tomate triturado (lata de 28 oz)', LAT, 'lata', { indivisible: true }),
+    'caldo-pollo': shelf('caldo de pollo (caja)', LAT, 'ml'),
+    'leche-evaporada': shelf('leche evaporada', LAT, 'lata', { indivisible: true }),
+    'mayonesa': shelf('mayonesa', LAT, 'cda'),
+    'salsa-picante': shelf('salsa picante', LAT, 'cdta'),
+    // Internacional
+    'sillao': shelf('sillao (salsa de soya)', INT, 'cda'),
+    'gochujang': shelf('gochujang (pasta coreana de ají)', INT, 'cda'),
+    'aceite-sesamo': shelf('aceite de sésamo tostado', INT, 'cdta'),
+    'mirin': shelf('mirin', INT, 'cda'),
+    'salsa-ostion': shelf('salsa de ostión', INT, 'cda'),
+    'salsa-pescado': shelf('salsa de pescado', INT, 'cda'),
+    'aji-amarillo-pasta': shelf('pasta de ají amarillo', INT, 'cda', { note: LATINA }),
+    'aji-panca-pasta': shelf('pasta de ají panca', INT, 'cda', { note: LATINA + ' (sustituto: chile ancho molido)' }),
+    // Especias y aceites
+    'sal': shelf('sal', ESP, 'cdta'),
+    'pimienta': shelf('pimienta negra', ESP, 'cdta'),
+    'aceite': shelf('aceite vegetal', ESP, 'cda'),
+    'aceite-oliva': shelf('aceite de oliva', ESP, 'cda'),
+    'comino': shelf('comino molido', ESP, 'cdta'),
+    'oregano': shelf('orégano seco', ESP, 'cdta'),
+    'azucar': shelf('azúcar', ESP, 'cdta'),
+    'azucar-rubia': shelf('azúcar rubia', ESP, 'cda'),
+    'chili-polvo': shelf('chili en polvo', ESP, 'cda'),
+    'pimenton': shelf('pimentón (paprika)', ESP, 'cdta'),
+    'vinagre': shelf('vinagre blanco', ESP, 'cda'),
+    'laurel': shelf('hoja de laurel', ESP, 'u', { pl: 'hojas de laurel', indivisible: true }),
+    // Otros
+    'avena': shelf('avena (old-fashioned)', OTR, 'g'),
+    'granola': shelf('granola', OTR, 'g'),
+    'chia': shelf('semillas de chía', OTR, 'cda'),
+    'mantequilla-mani': shelf('mantequilla de maní', OTR, 'cda'),
+    'cerveza-negra': shelf('cerveza negra (Guinness) o malta', OTR, 'ml', { note: 'la malta (Goya) da el dulzor sin alcohol' }),
+    'miel': shelf('miel', OTR, 'cda'),
+    'nueces': shelf('nueces', OTR, 'g'),
+  };
+})();
+
+const OLLA_SEED = (function () {
+  const FSIS = 'https://www.fsis.usda.gov/food-safety/safe-food-handling-and-preparation/';
+  const LEFTOVERS = FSIS + 'food-safety-basics/leftovers-and-food-safety';     // 3–4 days; fridge within 2 h; shallow containers; reheat 165°F
+  const TEMPS = FSIS + 'food-safety-basics/safe-temperature-chart';            // poultry 165 · ground meat 160 · beef steaks 145 + 3 min · fish 145 · leftovers 165
+  const CHICKEN = FSIS + 'poultry/chicken-farm-table';                         // raw chicken 1–2 days; rotisserie: eat or refrigerate within 2 h, 3–4 days
+  const GROUND = FSIS + 'meat/ground-beef-and-food-safety';                    // raw 1–2 days; cook to 160°F
+  const FREEZE = FSIS + 'food-safety-basics/freezing-and-food-safety';
+  const THAW = FSIS + 'food-safety-basics/big-thaw-safe-defrosting-methods';
+  const REHEAT = 'microondas 2–3 min tapado, revuelve a la mitad, hasta que humee (165°F)';
+  const st = (t, min, ing) => ({ t, min: min || 0, ing: ing || [] });
+  const g = (id, q, u, o) => Object.assign({ id, q, u }, o || {});
+  const recipes = [
+    // ── desayunos y la cuarta comida ──
+    { id: 'yogur-bowl', name: 'Bowl de yogur griego', rung: 1, role: 'bf', cuisine: 'US', assembly: true, staple: false, gear: [],
+      minutes: { active: 4, total: 4 }, servings: 1, doubles: false, fridgeDays: 0, freezesMonths: 0, proteinG: 22,
+      ingredients: [g('yogur-griego', 200, 'g'), g('granola', 40, 'g'), g('frutos-rojos-congelados', 80, 'g'), g('miel', 1, 'cda', { opt: true })],
+      steps: [st('Los frutos rojos congelados en el bowl: 1 min de microondas, o pásalos a la nevera la noche anterior.', 1, [2]),
+              st('El yogur encima y la granola al final, para que cruja. Miel si quieres.', 0, [0, 1, 3]),
+              st('Si te queda hambre: un scoop de proteína revuelto en el yogur.', 0)],
+      remates: [], addon: '+ un vaso de leche', reheat: null, sources: [] },
+    { id: 'avena-nocturna', name: 'Avena nocturna (3 frascos)', rung: 1, role: 'bf', cuisine: 'US', assembly: true, staple: false, gear: [],
+      minutes: { active: 10, total: 10 }, servings: 3, doubles: false, fridgeDays: 3, freezesMonths: 0, proteinG: 20,
+      ingredients: [g('avena', 150, 'g'), g('yogur-griego', 300, 'g'), g('leche', 300, 'ml'), g('chia', 3, 'cda'), g('platano', 3, 'u')],
+      steps: [st('Tres frascos o tápers. En cada uno: 50 g de avena, 100 g de yogur, 100 ml de leche y 1 cda de chía.', 0, [0, 1, 2, 3]),
+              st('Revuelve hasta el fondo (la chía se apelmaza si no), tapa y a la nevera: se hace sola en la noche.', 0),
+              st('Al servir, un plátano en rodajas encima. El frasco del tercer día es el último.', 0, [4])],
+      remates: ['plátano y canela', 'mantequilla de maní encima', 'frutos rojos'], addon: null, reheat: null, sources: [] },
+    { id: 'atun-huevo-bowl', name: 'Bowl de atún y huevo', rung: 1, role: 'main', cuisine: 'JP', assembly: true, staple: false, gear: ['microwave', 'pan'],
+      minutes: { active: 8, total: 10 }, servings: 1, doubles: false, fridgeDays: 0, freezesMonths: 0, proteinG: 35,
+      ingredients: [g('arroz-listo', 1, 'bolsa'), g('atun', 1, 'lata'), g('huevo', 1, 'u'), g('sillao', 1, 'cda'), g('aceite-sesamo', 1, 'cdta'), g('cebollita-china', 1, 'u')],
+      steps: [st('El arroz 90 segundos al microondas, en su bolsa abierta.', 1.5, [0]),
+              st('Huevo frito en la sartén con unas gotas de aceite, tapado, 2–3 min (o 60 s en una taza al microondas, con la yema pinchada).', 3, [2]),
+              st('El atún escurrido sobre el arroz, el huevo encima, sillao y sésamo; la cebollita picada con tijera.', 0, [1, 3, 4, 5])],
+      remates: [], addon: '+ un vaso de leche', reheat: null, sources: [] },
+    { id: 'revuelto-3', name: 'Revuelto de 3 huevos con tostada', rung: 1, role: 'bf', cuisine: 'US', assembly: false, staple: false, gear: ['pan'],
+      minutes: { active: 10, total: 10 }, servings: 1, doubles: false, fridgeDays: 0, freezesMonths: 0, proteinG: 38,
+      ingredients: [g('huevo', 3, 'u'), g('pan-integral', 2, 'rebanada'), g('yogur-griego', 150, 'g'), g('mantequilla', 1, 'cda')],
+      steps: [st('Bate los 3 huevos con una pizca de sal hasta que no se vea clara suelta.', 0, [0]),
+              st('Sartén a fuego BAJO con la mantequilla; cuando deje de espumar, los huevos.', 0, [3]),
+              st('Mueve despacio con la espátula, del borde al centro. Fuera del fuego cuando todavía brillen: se terminan solos.', 3),
+              st('Tostada, y el yogur al lado: ahí está la proteína que falta.', 0, [1, 2])],
+      remates: [], addon: null, reheat: null, sources: [] },
+    { id: 'tostadas-palta-huevo', name: 'Tostadas con palta y huevo', rung: 1, role: 'bf', cuisine: 'US', assembly: false, staple: false, gear: ['pan'],
+      minutes: { active: 10, total: 10 }, servings: 1, doubles: false, fridgeDays: 0, freezesMonths: 0, proteinG: 20,
+      ingredients: [g('pan-integral', 2, 'rebanada'), g('palta', 0.5, 'u'), g('huevo', 2, 'u'), g('limon', 0.5, 'u'), g('salsa-picante', 1, 'cdta', { opt: true })],
+      steps: [st('Tuesta el pan. Mientras, los huevos fritos en la sartén con unas gotas de aceite, tapados: 3 min yema blanda, 4 cuajada.', 3, [0, 2]),
+              st('Machaca la palta con sal y el limón, úntala en las tostadas, el huevo encima, pimienta y picante si quieres.', 0, [1, 3, 4])],
+      remates: [], addon: '+ un vaso de leche', reheat: null, sources: [] },
+    { id: 'batido-post', name: 'Batido post-pesas', rung: 1, role: 'snack', cuisine: 'US', assembly: true, staple: false, gear: [],
+      minutes: { active: 3, total: 3 }, servings: 1, doubles: false, fridgeDays: 0, freezesMonths: 0, proteinG: 32,
+      ingredients: [g('leche', 300, 'ml'), g('yogur-griego', 170, 'g'), g('mantequilla-mani', 1, 'cda'), g('platano', 1, 'u')],
+      steps: [st('Con licuadora: todo junto, 30 segundos.', 0, [0, 1, 2, 3]),
+              st('Sin licuadora: el yogur con la mantequilla de maní revuelta y el plátano en rodajas, y la leche en vaso al lado. Lo mismo en dos texturas.', 0),
+              st('Es la cuarta comida de la noche de pesas: tómala aunque no tengas hambre, antes de dormir.', 0)],
+      remates: [], addon: null, reheat: null, sources: [] },
+    // ── salsas y acompañamientos ──
+    { id: 'salsa-criolla', name: 'Salsa criolla', rung: 1, role: 'condiment', cuisine: 'PE', assembly: false, staple: false, gear: [],
+      minutes: { active: 10, total: 25 }, servings: 4, doubles: true, fridgeDays: 2, freezesMonths: 0, proteinG: 0,
+      ingredients: [g('cebolla-roja', 1, 'u'), g('limon', 2, 'u'), g('culantro', 0.5, 'atado'), g('aji-amarillo-fresco', 1, 'u', { opt: true })],
+      steps: [st('Cebolla roja en pluma FINA: medias lunas delgadas. Es la primera cosa peruana y enseña el cuchillo en la verdura más barata.', 0, [0]),
+              st('Remójala en agua con sal: le quita lo bravo. Escurre bien.', 5),
+              st('Jugo de limón, sal, culantro picado (y el ají en tiras, sin venas, si conseguiste). Reposa.', 10, [1, 2, 3]),
+              st('Va encima de cualquier bowl de la semana. Dura 2 días en la nevera; después se ablanda.', 0)],
+      remates: [], addon: null, reheat: null, sources: [] },
+    { id: 'arroz-graneado', name: 'Arroz graneado', rung: 2, role: 'side', cuisine: 'PE', assembly: false, staple: false, gear: ['pot'],
+      minutes: { active: 10, total: 40 }, servings: 4, doubles: true, fridgeDays: 2, freezesMonths: 1, proteinG: 4,
+      ingredients: [g('arroz', 2, 'taza'), g('ajo', 2, 'diente'), g('aceite', 1, 'cda')],
+      steps: [st('Lava el arroz en un colador hasta que el agua salga casi clara: 3 o 4 enjuagues.', 0, [0]),
+              st('Olla a fuego medio con el aceite; el ajo picado 30 segundos sin que se queme; el arroz 1 min revolviendo.', 0, [1, 2]),
+              st('Agua: 1¼ tazas por taza de arroz (2½ para 2) y 1 cdta de sal. Hierve destapado hasta que el agua baje al nivel del arroz y salgan «ojitos».', 8),
+              st('Tapa y fuego mínimo. No destapes.', 15),
+              st('Apaga y deja tapado; luego suelta con un tenedor.', 5),
+              st('Lo que sobre: extiéndelo en un táper bajo y a la nevera antes de 2 horas. El arroz es la sobra que más muerde: recalienta hasta que humee (165°F).', 0)],
+      remates: [], addon: null, reheat: REHEAT, sources: [LEFTOVERS] },
+    { id: 'papas-al-horno', name: 'Papas al horno', rung: 2, role: 'side', cuisine: 'US', assembly: false, staple: false, gear: ['oven', 'sheetPan'],
+      minutes: { active: 10, total: 55 }, servings: 4, doubles: false, fridgeDays: 3, freezesMonths: 0, proteinG: 4,
+      ingredients: [g('papa', 1000, 'g'), g('aceite', 2, 'cda'), g('pimenton', 1, 'cdta')],
+      steps: [st('Horno a 425°F. Mientras calienta: las papas bien lavadas, con cáscara, en cubos de 2 cm.', 0, [0]),
+              st('Sécalas con un trapo; aceite, sal y pimentón; en la bandeja en UNA capa (si se tocan, se cocinan al vapor y no doran).', 0, [1, 2]),
+              st('Al horno.', 20),
+              st('Voltéalas con una espátula y otros 15–20 min, hasta que estén doradas y se dejen pinchar.', 15)],
+      remates: [], addon: null, reheat: 'sartén o horno 5–8 min (el microondas las ablanda)', sources: [] },
+    { id: 'aji-verde', name: 'Ají verde rápido', rung: 2, role: 'condiment', cuisine: 'PE', assembly: false, staple: false, gear: ['blender'],
+      minutes: { active: 10, total: 10 }, servings: 6, doubles: true, fridgeDays: 3, freezesMonths: 0, proteinG: 1,
+      ingredients: [g('culantro', 1, 'atado'), g('jalapeno', 2, 'u'), g('queso-fresco', 60, 'g'), g('mayonesa', 3, 'cda'), g('limon', 1, 'u'), g('ajo', 1, 'diente'), g('aceite', 2, 'cda')],
+      steps: [st('Jalapeños sin venas ni pepas (ahí está el picante; deja algunas si lo quieres bravo), en trozos.', 0, [1]),
+              st('Todo a la licuadora: culantro con tallos, jalapeño, queso, mayonesa, limón, ajo, aceite y sal, hasta que quede liso.', 0, [0, 2, 3, 4, 5, 6]),
+              st('Prueba y corrige sal y limón. Frasco a la nevera, 3 días. Va con el pollo a la brasa, las papas y casi todo. (El clásico lleva huacatay; acá no hay sustituto real.)', 0)],
+      remates: [], addon: null, reheat: null, sources: [] },
+    // ── PELDAÑO 1 — armar, sin cuchillo de verdad ──
+    { id: 'pollo-rostizado-bowl', name: 'Pollo rostizado con arroz', rung: 1, role: 'main', cuisine: 'PE', assembly: true, staple: true, gear: ['microwave'],
+      minutes: { active: 20, total: 25 }, servings: 4, doubles: true, fridgeDays: 3, freezesMonths: 2, proteinG: 40,
+      ingredients: [g('pollo-rostizado', 1, 'u'), g('arroz-listo', 4, 'bolsa'), g('verdura-congelada', 450, 'g'), g('limon', 2, 'u')],
+      steps: [st('Comprarlo ya ES la receta: el pollo rostizado del deli de Safeway, a casa directo. Se come o se refrigera antes de 2 horas.', 0, [0]),
+              st('Deshuésalo con las manos mientras está tibio: fuera piel y huesos, la carne en trozos. Un pollo rinde cuatro porciones.', 0, [0]),
+              st('El arroz: cada bolsa 90 segundos al microondas.', 1.5, [1]),
+              st('Las verduras congeladas tapadas, con una cucharada de agua, al microondas.', 5, [2]),
+              st('Arma los tápers: pollo + arroz + verduras + un chorro de limón. El de hoy a la mesa; los demás a la nevera, en recipientes bajos.', 0, [3]),
+              st('Otro día: ' + REHEAT + '.', 0)],
+      remates: ['salsa criolla encima', 'ají verde o hot sauce', 'un huevo frito encima'], addon: '+ un vaso de leche', reheat: REHEAT, sources: [CHICKEN, LEFTOVERS] },
+    { id: 'chaufa-express', name: 'Chaufa express de pollo', rung: 1, role: 'main', cuisine: 'PE', assembly: false, staple: false, gear: ['pan'],
+      minutes: { active: 25, total: 30 }, servings: 2, doubles: 'two-rounds', fridgeDays: 3, freezesMonths: 0, proteinG: 38,
+      ingredients: [g('arroz-listo', 2, 'bolsa'), g('pollo-rostizado', 0.5, 'u'), g('huevo', 2, 'u'), g('cebollita-china', 3, 'u'), g('kion', 1, 'cdta'), g('verdura-congelada', 150, 'g'), g('sillao', 2, 'cda'), g('aceite-sesamo', 1, 'cdta'), g('aceite', 1, 'cda')],
+      steps: [st('Todo picado ANTES de prender el fuego: la cebollita china separando lo blanco de lo verde, el kión rallado, el pollo deshilachado sin piel.', 0, [1, 3, 4]),
+              st('Arroz FRÍO: el de las bolsas tal cual, sin microondas, o el arroz de ayer. Caliente se apelmaza.', 0, [0]),
+              st('Sartén grande a fuego ALTO con el aceite. Los huevos batidos, revuelve hasta que cuajen y sácalos a un plato.', 1, [2, 8]),
+              st('Lo blanco de la cebollita, el kión y las verduras congeladas.', 2, [3, 4, 5]),
+              st('El arroz, aplastando los grumos con la espátula, sin parar.', 3, [0]),
+              st('El pollo, el huevo de vuelta, el sillao por el borde de la sartén (chisporrotea: ahí está el sabor). Fuera del fuego: el sésamo y lo verde de la cebollita.', 1, [1, 6, 7]),
+              st('Para cuatro: dos rondas. Una sartén llena hierve en vez de saltear. Lo que sobre, a la nevera antes de 2 horas.', 0)],
+      remates: ['sillao con ají', 'un huevo frito encima', 'salsa criolla'], addon: null, reheat: REHEAT, sources: [CHICKEN, LEFTOVERS] },
+    { id: 'bowl-frijoles-huevo', name: 'Bowl de frijoles con huevo', rung: 1, role: 'main', cuisine: 'PE', assembly: false, staple: false, gear: ['pot', 'pan', 'microwave'],
+      minutes: { active: 20, total: 30 }, servings: 4, doubles: true, fridgeDays: 3, freezesMonths: 3, proteinG: 27,
+      ingredients: [g('frijoles-negros', 3, 'lata'), g('cebolla', 1, 'u'), g('ajo', 3, 'diente'), g('comino', 1, 'cdta'), g('aceite', 1, 'cda'), g('limon', 1, 'u'), g('arroz-listo', 4, 'bolsa'), g('huevo', 8, 'u'), g('palta', 2, 'u')],
+      steps: [st('La cebolla en cubos chicos y el ajo picado.', 0, [1, 2]),
+              st('Olla a fuego medio con el aceite: la cebolla hasta que esté transparente; luego el ajo y el comino 1 min.', 6, [1, 2, 3, 4]),
+              st('Los frijoles con su líquido. Hierve suave aplastando la mitad con un tenedor para que espese.', 10, [0]),
+              st('Sal y limón al final. Esa es la olla: dura 3 días y se congela bien.', 0, [5]),
+              st('Cada comida: arroz (90 s al microondas), frijoles calientes, dos huevos fritos al momento, tapados, y palta.', 3, [6, 7, 8])],
+      remates: ['salsa criolla encima', 'queso fresco desmoronado', 'hot sauce y cebollita china'], addon: '+ un vaso de leche', reheat: REHEAT, sources: [LEFTOVERS, FREEZE] },
+    { id: 'wrap-pollo-hummus', name: 'Wraps de pollo y hummus', rung: 1, role: 'main', cuisine: 'MED', assembly: true, staple: false, gear: [],
+      minutes: { active: 20, total: 25 }, servings: 4, doubles: true, fridgeDays: 3, freezesMonths: 0, proteinG: 45,
+      ingredients: [g('pollo-rostizado', 1, 'u'), g('tortilla-harina', 8, 'u'), g('hummus', 280, 'g'), g('lechuga', 1, 'u'), g('tomate', 2, 'u'), g('pepino', 1, 'u'), g('limon', 1, 'u')],
+      steps: [st('El pollo rostizado del deli: deshuésalo tibio, en tiras. Lo que no va hoy, a un táper a la nevera.', 0, [0]),
+              st('Lava y corta: la lechuga en tiras, el tomate y el pepino en bastones. Guárdalos APARTE del pollo: mojado, el wrap se ablanda.', 0, [3, 4, 5]),
+              st('Cada wrap al momento: la tortilla 15 segundos al microondas para que no se rompa, hummus untado, pollo, verduras, limón y sal. Enróllalo apretado doblando los lados. Dos por comida.', 0, [1, 2, 6]),
+              st('Para llevar, en papel aluminio. Pollo y verduras duran 3 días; el wrap se arma el día que se come.', 0)],
+      remates: ['ají verde adentro', 'con queso feta', 'tostado en sartén seca, 1 min por lado'], addon: null, reheat: 'el pollo frío está bien; si lo quieres caliente, 1 min al microondas antes de enrollar', sources: [CHICKEN] },
+    // ── PELDAÑO 2 — una sartén ──
+    { id: 'bowl-coreano', name: 'Bowl coreano de carne molida', rung: 2, role: 'main', cuisine: 'KR', assembly: false, staple: true, gear: ['pan'],
+      minutes: { active: 20, total: 30 }, servings: 3, doubles: true, fridgeDays: 3, freezesMonths: 3, proteinG: 30,
+      ingredients: [g('carne-molida', 450, 'g'), g('sillao', 3, 'cda'), g('azucar-rubia', 1, 'cda'), g('ajo', 3, 'diente'), g('kion', 1, 'cdta'), g('gochujang', 1, 'cda'), g('aceite-sesamo', 1, 'cdta'), g('arroz-listo', 3, 'bolsa'), g('cebollita-china', 2, 'u')],
+      steps: [st('La salsa en una taza: sillao, azúcar rubia, ajo picado, kión rallado y gochujang.', 0, [1, 2, 3, 4, 5]),
+              st('Sartén grande a fuego medio-alto. La carne, rompiéndola con la espátula, hasta que no quede nada rosado y empiece a dorar (160°F si tienes termómetro).', 8, [0]),
+              st('Si hay mucha grasa en el fondo, inclina la sartén y sácala con una cuchara.', 0),
+              st('La salsa adentro, revolviendo hasta que brille.', 2),
+              st('Fuera del fuego, el aceite de sésamo. Sobre arroz caliente (90 s la bolsa), cebollita china encima.', 0, [6, 7, 8]),
+              st('Para la semana: carne y arroz en tápers bajos, a la nevera antes de 2 horas. Dobla sin miedo: la salsa escala.', 0)],
+      remates: ['un huevo frito encima', 'pepino en rodajas con vinagre', 'salsa criolla'], addon: '+ un vaso de leche', reheat: REHEAT, sources: [GROUND, LEFTOVERS] },
+    { id: 'oyakodon', name: 'Oyakodon', rung: 2, role: 'main', cuisine: 'JP', assembly: false, staple: false, gear: ['pan'],
+      minutes: { active: 15, total: 20 }, servings: 1, doubles: true, fridgeDays: 2, freezesMonths: 0, proteinG: 45,
+      ingredients: [g('muslo-pollo', 170, 'g'), g('cebolla', 0.5, 'u'), g('huevo', 2, 'u'), g('caldo-pollo', 100, 'ml'), g('sillao', 1, 'cda'), g('mirin', 1, 'cda'), g('azucar', 1, 'cdta'), g('arroz-listo', 1, 'bolsa'), g('cebollita-china', 1, 'u')],
+      steps: [st('La cebolla en pluma; el pollo en trozos de un bocado.', 0, [0, 1]),
+              st('En una sartén chica: caldo, sillao, mirin y azúcar. Hierve con la cebolla.', 3, [1, 3, 4, 5, 6]),
+              st('El pollo, tapado a fuego medio, volteándolo a la mitad, hasta que no esté rosado por dentro (165°F).', 6, [0]),
+              st('Los huevos batidos apenas, por encima en círculo. Tapa: cuajados por fuera, cremosos por dentro.', 1, [2]),
+              st('Deslízalo sobre el arroz caliente, cebollita encima. Máximo dos por sartén.', 0, [7, 8]),
+              st('El de mañana: recalienta hasta que humee (165°F). El huevo pierde lo cremoso; el sabor queda.', 0)],
+      remates: ['shichimi o ají molido', 'cebollita china extra', 'pepinillo encurtido'], addon: null, reheat: REHEAT, sources: [TEMPS, LEFTOVERS] },
+    { id: 'pollo-bandeja', name: 'Pollo mediterráneo a la bandeja', rung: 2, role: 'main', cuisine: 'MED', assembly: false, staple: false, gear: ['oven', 'sheetPan'],
+      minutes: { active: 15, total: 60 }, servings: 4, doubles: false, fridgeDays: 3, freezesMonths: 0, proteinG: 40,
+      ingredients: [g('muslo-pollo-hueso', 1100, 'g'), g('papa', 500, 'g'), g('pimiento-rojo', 2, 'u'), g('tomate-cherry', 200, 'g'), g('queso-feta', 100, 'g'), g('limon', 1, 'u'), g('oregano', 3, 'cdta'), g('aceite-oliva', 2, 'cda')],
+      steps: [st('Horno a 425°F. Las papas en cubos de 2 cm, los pimientos en tiras.', 0, [1, 2]),
+              st('En la bandeja: los muslos con la piel arriba, papas y pimientos alrededor, en una sola capa. Aceite, limón exprimido, orégano, sal y pimienta; frota bien el pollo.', 0, [0, 5, 6, 7]),
+              st('Al horno.', 30),
+              st('Los tomates cherry y el feta desmoronado encima; otros 10–15 min, hasta que la piel esté dorada.', 12, [3, 4]),
+              st('Listo cuando los jugos salen claros y junto al hueso ya no está rosado (con termómetro: 165°F en lo más grueso, sin tocar el hueso).', 0),
+              st('Una bandeja rinde 4; no la llenes de más: amontonado se cocina al vapor.', 0)],
+      remates: ['con ají verde', 'con yogur griego, limón y ajo', 'sobre arroz graneado'], addon: null, reheat: REHEAT, sources: [TEMPS, LEFTOVERS] },
+    { id: 'tacos-carne', name: 'Tacos de carne molida', rung: 2, role: 'main', cuisine: 'MX', assembly: false, staple: false, gear: ['pan'],
+      minutes: { active: 30, total: 35 }, servings: 4, doubles: true, fridgeDays: 3, freezesMonths: 3, proteinG: 32,
+      ingredients: [g('carne-molida', 450, 'g'), g('cebolla', 1, 'u'), g('ajo', 2, 'diente'), g('chili-polvo', 1, 'cda'), g('comino', 1, 'cdta'), g('oregano', 1, 'cdta'), g('culantro', 0.5, 'atado'), g('limon', 2, 'u'), g('tortilla-maiz', 12, 'u'), g('queso-rallado', 120, 'g')],
+      steps: [st('La cebolla: la mitad en cubos para la carne; la otra mitad muy fina, con el culantro picado, para encima.', 0, [1, 6]),
+              st('Sartén a fuego medio-alto: la carne rompiéndola, hasta que no quede nada rosado (160°F).', 6, [0]),
+              st('La cebolla en cubos, el ajo, el chili en polvo, el comino, el orégano y sal. Luego ¼ de taza de agua para que quede jugosa.', 5, [1, 2, 3, 4, 5]),
+              st('Las tortillas de a dos en la sartén seca, 30 segundos por lado, y envueltas en un trapo para que no se enfríen.', 0, [8]),
+              st('Carne, cebolla con culantro, queso y limón. Tres por persona.', 0, [7, 9]),
+              st('La carne se guarda sola, 3 días; las tortillas se calientan el día que se comen.', 0)],
+      remates: ['con palta', 'salsa criolla en vez de cebolla', 'en bowl con arroz y frijoles'], addon: null, reheat: REHEAT, sources: [GROUND, LEFTOVERS] },
+    { id: 'pasta-bolognesa-rapida', name: 'Pasta a la boloñesa rápida', rung: 2, role: 'main', cuisine: 'IT', assembly: false, staple: false, gear: ['pot', 'pan'],
+      minutes: { active: 25, total: 50 }, servings: 4, doubles: true, fridgeDays: 3, freezesMonths: 3, proteinG: 35,
+      ingredients: [g('carne-molida', 450, 'g'), g('cebolla', 1, 'u'), g('zanahoria', 1, 'u'), g('ajo', 3, 'diente'), g('tomate-triturado', 1, 'lata'), g('oregano', 1, 'cdta'), g('aceite-oliva', 1, 'cda'), g('pasta-corta', 450, 'g'), g('parmesano', 60, 'g')],
+      steps: [st('La cebolla en cubos chicos, la zanahoria rallada (más rápido que picarla), el ajo picado.', 0, [1, 2, 3]),
+              st('Olla o sartén honda con el aceite, fuego medio: cebolla y zanahoria.', 6, [1, 2, 6]),
+              st('La carne, rompiéndola, hasta que no quede rosado; el ajo el último minuto.', 7, [0, 3]),
+              st('El tomate, el orégano, sal y pimienta. Hierve suave, medio tapado, revolviendo de vez en cuando.', 20, [4, 5]),
+              st('Mientras: agua con bastante sal; la pasta 1 minuto menos de lo que dice el paquete.', 0, [7]),
+              st('La pasta con la salsa, el parmesano encima.', 0, [8]),
+              st('La salsa sola se congela 3 meses; la pasta, mejor fresca.', 0)],
+      remates: ['más parmesano y pimienta', 'con 1 cda de ají amarillo en la salsa', 'gratinada al horno con queso'], addon: null, reheat: REHEAT, sources: [GROUND, LEFTOVERS, FREEZE] },
+    // ── PELDAÑO 3 — arroz y un guiso ──
+    { id: 'arroz-con-pollo', name: 'Arroz con pollo', rung: 3, role: 'main', cuisine: 'PE', assembly: false, staple: true, gear: ['pot', 'blender'],
+      minutes: { active: 30, total: 80 }, servings: 6, doubles: false, fridgeDays: 3, freezesMonths: 2, proteinG: 35,
+      ingredients: [g('muslo-pollo-hueso', 1300, 'g'), g('arroz', 3, 'taza'), g('culantro', 1, 'atado'), g('cebolla-roja', 1, 'u'), g('aji-amarillo-pasta', 2, 'cda'), g('ajo', 4, 'diente'), g('cerveza-negra', 330, 'ml'), g('caldo-pollo', 750, 'ml'), g('arvejas-congeladas', 150, 'g'), g('pimiento-rojo', 1, 'u'), g('comino', 1, 'cdta'), g('aceite', 2, 'cda')],
+      steps: [st('Los muslos con sal, pimienta y comino. El culantro (hojas y tallos) licuado con ½ taza de agua: es el color y el sabor.', 0, [0, 2, 10]),
+              st('Olla grande a fuego medio-alto con el aceite: dora los muslos por los dos lados, en tandas. Sácalos.', 8, [0, 11]),
+              st('En la misma grasa: la cebolla roja picada fina; luego el ajo y el ají amarillo 2 min.', 7, [3, 4, 5]),
+              st('El culantro licuado, hasta que oscurezca un poco.', 2, [2]),
+              st('El arroz lavado, 1 min revolviendo. La cerveza y el caldo caliente: 4½ tazas de líquido en total para 3 de arroz. Sal. Los muslos encima, hundidos.', 0, [1, 6, 7]),
+              st('Hierve, baja a fuego mínimo, TAPA y no destapes.', 25),
+              st('Las arvejas y el pimiento en cubos encima; tapa otra vez.', 5, [8, 9]),
+              st('Apaga y reposa tapado. Junto al hueso, 165°F. Seis porciones: la olla del sábado.', 10),
+              st('Para guardar: tápers bajos, a la nevera antes de 2 horas; recalienta hasta que humee.', 0)],
+      remates: ['salsa criolla encima', 'con ají verde', 'con un huevo frito'], addon: null, reheat: REHEAT, sources: [TEMPS, LEFTOVERS] },
+    { id: 'chili', name: 'Chili de una olla', rung: 3, role: 'main', cuisine: 'US', assembly: false, staple: false, gear: ['pot'],
+      minutes: { active: 20, total: 70 }, servings: 6, doubles: true, fridgeDays: 4, freezesMonths: 3, proteinG: 35,
+      ingredients: [g('carne-molida', 900, 'g'), g('cebolla', 1, 'u'), g('pimiento-rojo', 1, 'u'), g('ajo', 4, 'diente'), g('chili-polvo', 2, 'cda'), g('comino', 3, 'cdta'), g('tomate-triturado', 1, 'lata'), g('frijoles-rojos', 2, 'lata'), g('caldo-pollo', 250, 'ml')],
+      steps: [st('La cebolla y el pimiento en cubos, el ajo picado.', 0, [1, 2, 3]),
+              st('Olla grande a fuego medio-alto: la carne rompiéndola hasta dorar. Si hay mucha grasa, saca casi toda.', 10, [0]),
+              st('Cebolla y pimiento 5 min; luego el ajo, el chili en polvo y el comino 1 min, hasta que huela.', 6, [1, 2, 3, 4, 5]),
+              st('El tomate, los frijoles escurridos, el caldo y sal. Hierve, baja el fuego y cocina medio tapado, revolviendo cada 10 min para que no se pegue.', 40, [6, 7, 8]),
+              st('Prueba: sal, y un chorrito de vinagre o limón si le falta vida.', 0),
+              st('Enfría en tápers bajos antes de 2 horas. Dura 4 días y se congela 3 meses (para descongelar: a la nevera la noche anterior). La olla más fácil de doblar del libro.', 0)],
+      remates: ['queso rallado y cebollita china', 'sobre arroz con palta', 'sobre papa al horno'], addon: null, reheat: REHEAT, sources: [GROUND, LEFTOVERS, FREEZE, THAW] },
+    { id: 'tallarin-saltado', name: 'Tallarín saltado de pollo', rung: 3, role: 'main', cuisine: 'PE', assembly: false, staple: false, gear: ['pot', 'pan'],
+      minutes: { active: 30, total: 40 }, servings: 2, doubles: 'two-rounds', fridgeDays: 2, freezesMonths: 0, proteinG: 45,
+      ingredients: [g('espagueti', 250, 'g'), g('pechuga-pollo', 400, 'g'), g('cebolla-roja', 1, 'u'), g('tomate', 2, 'u'), g('pimiento-rojo', 1, 'u'), g('kion', 1, 'cdta'), g('sillao', 3, 'cda'), g('salsa-ostion', 1, 'cda'), g('vinagre', 1, 'cda'), g('cebollita-china', 2, 'u'), g('aceite', 2, 'cda')],
+      steps: [st('Agua con sal a hervir. Mientras, corta: el pollo en tiras; la cebolla en gajos gruesos; el tomate en gajos sin pepas; el pimiento en tiras.', 0, [1, 2, 3, 4]),
+              st('La pasta 1 minuto menos de lo que dice el paquete; escurre y guarda una taza del agua.', 0, [0]),
+              st('Sartén MUY caliente con aceite: el pollo con sal, sin moverlo demasiado, hasta que esté dorado y blanco por dentro (165°F). Fuera.', 4, [1, 10]),
+              st('Cebolla y pimiento a fuego máximo; el tomate y el kión al final.', 3, [2, 3, 4, 5]),
+              st('Sillao, ostión y vinagre por el borde; el pollo de vuelta, la pasta, un chorrito del agua, revolviendo.', 1, [6, 7, 8]),
+              st('La cebollita china encima. Dos porciones por sartén como mucho; para cuatro, dos rondas.', 0, [9])],
+      remates: ['con ají amarillo', 'con un huevo frito', 'con más cebollita china'], addon: null, reheat: REHEAT, sources: [TEMPS, LEFTOVERS] },
+    { id: 'lentejas', name: 'Lentejas con arroz y huevo', rung: 3, role: 'main', cuisine: 'PE', assembly: false, staple: false, gear: ['pot', 'pan'],
+      minutes: { active: 20, total: 60 }, servings: 6, doubles: true, fridgeDays: 3, freezesMonths: 3, proteinG: 28,
+      ingredients: [g('lentejas', 450, 'g'), g('cebolla-roja', 1, 'u'), g('ajo', 3, 'diente'), g('tomate', 1, 'u'), g('aji-amarillo-pasta', 1, 'cda'), g('comino', 1, 'cdta'), g('zanahoria', 1, 'u'), g('aceite', 2, 'cda'), g('arroz-listo', 6, 'bolsa'), g('huevo', 6, 'u')],
+      steps: [st('Lava las lentejas en un colador y saca cualquier piedrita.', 0, [0]),
+              st('Olla a fuego medio con el aceite: la cebolla picada 5 min; el ajo, el ají amarillo, el comino y el tomate picado 4 min. Ese es el aderezo.', 9, [1, 2, 3, 4, 5, 7]),
+              st('Las lentejas, la zanahoria en cubos y 6 tazas de agua. Hierve, baja el fuego y cocina medio tapado hasta que estén suaves. Si se secan, agua caliente.', 30, [0, 6]),
+              st('La sal AL FINAL (antes las endurece). Deben quedar espesas, no sopa.', 0),
+              st('Cada plato: lentejas, arroz y un huevo frito encima, tapado.', 3, [8, 9]),
+              st('Se congelan muy bien en porciones: 3 meses.', 0)],
+      remates: ['un huevo frito encima', 'salsa criolla', 'un chorrito de limón y ají'], addon: '+ un vaso de leche', reheat: REHEAT, sources: [LEFTOVERS, FREEZE] },
+    { id: 'pollo-guisado', name: 'Estofado de pollo', rung: 3, role: 'main', cuisine: 'PE', assembly: false, staple: false, gear: ['pot'],
+      minutes: { active: 30, total: 75 }, servings: 6, doubles: true, fridgeDays: 3, freezesMonths: 3, proteinG: 35,
+      ingredients: [g('muslo-pollo', 900, 'g'), g('cebolla-roja', 1, 'u'), g('ajo', 4, 'diente'), g('tomate', 3, 'u'), g('aji-panca-pasta', 1, 'cda'), g('oregano', 1, 'cdta'), g('comino', 1, 'cdta'), g('zanahoria', 2, 'u'), g('papa', 600, 'g'), g('arvejas-congeladas', 150, 'g'), g('laurel', 2, 'u'), g('caldo-pollo', 500, 'ml'), g('aceite', 2, 'cda')],
+      steps: [st('El pollo en trozos grandes con sal, pimienta y comino. Pica la cebolla, el ajo y los tomates; la zanahoria en rodajas; las papas peladas en cuartos.', 0, [0, 1, 2, 3, 6, 7, 8]),
+              st('Olla a fuego medio-alto con el aceite: dora el pollo en dos tandas. Sácalo.', 5, [0, 12]),
+              st('La cebolla 5 min; el ajo, el ají panca y el orégano 1 min; los tomates hasta que se deshagan.', 11, [1, 2, 3, 4, 5]),
+              st('El pollo de vuelta, el caldo, el laurel y la zanahoria. Tapa y a fuego bajo.', 20, [10, 11, 7]),
+              st('Las papas, hasta que se dejen pinchar.', 18, [8]),
+              st('Las arvejas los últimos minutos. Prueba la sal. Con arroz. (Para congelar, mejor sin las papas: se ponen arenosas.)', 3, [9])],
+      remates: ['con arroz graneado', 'salsa criolla encima', 'con pan para mojar'], addon: null, reheat: REHEAT, sources: [TEMPS, LEFTOVERS, FREEZE] },
+    // ── PELDAÑO 4 — el saltado, fuego alto ──
+    { id: 'lomo-saltado', name: 'Lomo saltado', rung: 4, role: 'main', cuisine: 'PE', assembly: false, staple: true, gear: ['pan', 'oven'],
+      minutes: { active: 30, total: 45 }, servings: 2, doubles: 'two-rounds', fridgeDays: 2, freezesMonths: 0, proteinG: 40,
+      ingredients: [g('bistec', 400, 'g'), g('cebolla-roja', 1, 'u'), g('tomate', 2, 'u'), g('ajo', 2, 'diente'), g('aji-amarillo-pasta', 1, 'cda'), g('sillao', 3, 'cda'), g('vinagre', 1, 'cda'), g('papas-fritas-congeladas', 450, 'g'), g('arroz-listo', 2, 'bolsa'), g('culantro', 0.5, 'atado'), g('aceite', 2, 'cda')],
+      steps: [st('Horno según la bolsa de papas (≈425°F); las papas adentro apenas caliente.', 22, [7]),
+              st('Mientras: la carne en tiras gruesas con sal y pimienta; la cebolla roja en gajos gruesos; el tomate en gajos sin pepas; el ajo y el culantro picados.', 0, [0, 1, 2, 3, 9]),
+              st('La sartén más pesada a fuego MÁXIMO hasta que humee. La carne en DOS tandas, sin moverla mucho: dorada por fuera. Fuera.', 4, [0, 10]),
+              st('Cebolla y ajo con el ají amarillo a fuego máximo; el tomate 30 segundos.', 2, [1, 2, 3, 4]),
+              st('La carne de vuelta, sillao y vinagre por el borde, 30 segundos. El culantro, y las papas ENCIMA (no revueltas, que se ablandan). Con arroz.', 0, [5, 6, 8, 9]),
+              st('Las sobras: solo la carne se recalienta; las papas no — hornea papas frescas.', 0)],
+      remates: ['con un huevo frito', 'con ají verde', 'con más culantro'], addon: null, reheat: 'solo la carne: sartén caliente 1–2 min, hasta que humee', sources: [TEMPS] },
+    { id: 'pollo-saltado', name: 'Pollo saltado', rung: 4, role: 'main', cuisine: 'PE', assembly: false, staple: false, gear: ['pan', 'oven'],
+      minutes: { active: 30, total: 45 }, servings: 2, doubles: 'two-rounds', fridgeDays: 2, freezesMonths: 0, proteinG: 42,
+      ingredients: [g('pechuga-pollo', 450, 'g'), g('cebolla-roja', 1, 'u'), g('tomate', 2, 'u'), g('ajo', 2, 'diente'), g('aji-amarillo-pasta', 1, 'cda'), g('sillao', 3, 'cda'), g('vinagre', 1, 'cda'), g('papas-fritas-congeladas', 450, 'g'), g('arroz-listo', 2, 'bolsa'), g('culantro', 0.5, 'atado'), g('aceite', 2, 'cda')],
+      steps: [st('Horno según la bolsa de papas (≈425°F); las papas adentro apenas caliente.', 22, [7]),
+              st('Mientras: el pollo en tiras con sal y pimienta; la cebolla roja en gajos gruesos; el tomate en gajos sin pepas; el ajo y el culantro picados.', 0, [0, 1, 2, 3, 9]),
+              st('Sartén a fuego MÁXIMO: el pollo en dos tandas, hasta que esté dorado y blanco por dentro (165°F). Fuera.', 8, [0, 10]),
+              st('Cebolla y ajo con el ají amarillo a fuego máximo; el tomate 30 segundos.', 2, [1, 2, 3, 4]),
+              st('El pollo de vuelta, sillao y vinagre por el borde, 30 segundos. El culantro, y las papas encima. Con arroz.', 0, [5, 6, 8, 9]),
+              st('Como el lomo: las papas no se recalientan; el pollo sí.', 0)],
+      remates: ['con un huevo frito', 'con ají verde', 'con salsa criolla'], addon: null, reheat: 'solo el pollo: microondas 2 min tapado, hasta que humee (165°F)', sources: [TEMPS, LEFTOVERS] },
+    { id: 'pad-kra-pao', name: 'Pad kra pao de pollo', rung: 4, role: 'main', cuisine: 'TH', assembly: false, staple: false, gear: ['pan'],
+      minutes: { active: 25, total: 30 }, servings: 3, doubles: 'two-rounds', fridgeDays: 2, freezesMonths: 0, proteinG: 40,
+      ingredients: [g('pollo-molido', 450, 'g'), g('ajo', 6, 'diente'), g('aji-chile', 3, 'u'), g('salsa-ostion', 1, 'cda'), g('sillao', 1, 'cda'), g('salsa-pescado', 1, 'cda'), g('azucar', 1, 'cdta'), g('albahaca', 1, 'atado'), g('arroz-listo', 3, 'bolsa'), g('huevo', 3, 'u'), g('aceite', 3, 'cda')],
+      steps: [st('Machaca o pica muy fino el ajo con los ajíes (sin pepas si lo quieres suave). La salsa en una taza: ostión, sillao, salsa de pescado, azúcar y 2 cdas de agua.', 0, [1, 2, 3, 4, 5, 6]),
+              st('Los huevos fritos primero, en bastante aceite caliente, hasta que el borde se dore y cruja. Resérvalos.', 3, [9, 10]),
+              st('La misma sartén a fuego alto: ajo y ají 20 segundos, sin quemarlos.', 0, [1, 2]),
+              st('El pollo, rompiéndolo, hasta que no quede rosado (165°F).', 5, [0]),
+              st('La salsa, hasta que se pegue a la carne. Fuera del fuego, la albahaca a puñados: se marchita en segundos.', 1, [7]),
+              st('Sobre arroz, con el huevo encima. Para más de tres: dos rondas.', 0, [8])],
+      remates: ['con pepino al lado', 'con más ají', 'con un chorrito de limón'], addon: null, reheat: REHEAT, sources: [TEMPS, LEFTOVERS] },
+    { id: 'arroz-chaufa', name: 'Arroz chaufa', rung: 4, role: 'main', cuisine: 'PE', assembly: false, staple: false, gear: ['pot', 'pan'],
+      minutes: { active: 35, total: 90 }, servings: 3, doubles: 'two-rounds', fridgeDays: 3, freezesMonths: 0, proteinG: 38,
+      ingredients: [g('arroz', 2, 'taza'), g('pechuga-pollo', 400, 'g'), g('huevo', 3, 'u'), g('cebollita-china', 4, 'u'), g('kion', 2, 'cdta'), g('sillao', 3, 'cda'), g('aceite-sesamo', 1, 'cdta'), g('aceite', 3, 'cda')],
+      steps: [st('El arroz, idealmente la noche anterior. Si no: como el graneado pero con 1 taza de agua por taza de arroz.', 20, [0]),
+              st('Extiéndelo en una bandeja y a la nevera destapado. Arroz tibio = chaufa pegado.', 30),
+              st('Mientras se enfría: el pollo en cubos chicos con sal y 1 cda de sillao; la cebollita china (lo blanco y lo verde aparte); el kión rallado.', 0, [1, 3, 4, 5]),
+              st('Sartén o wok a fuego ALTO: los huevos batidos en una tortilla fina; fuera y en tiras.', 1, [2, 7]),
+              st('El pollo, dorado y blanco por dentro (165°F). Lo blanco de la cebollita y el kión 30 segundos.', 5, [1, 3, 4]),
+              st('El arroz frío, aplastando los grumos.', 4, [0]),
+              st('El sillao por el borde, la tortilla, lo verde de la cebollita; el sésamo al final.', 0, [5, 6]),
+              st('Tres porciones por sartén como mucho. Lo que sobre, en tápers bajos a la nevera antes de 2 horas.', 0)],
+      remates: ['con sillao y ají', 'con un huevo frito', 'con salsa de tamarindo o hot sauce'], addon: null, reheat: REHEAT, sources: [LEFTOVERS, TEMPS] },
+    // ── PELDAÑO 5 — el plato de verdad ──
+    { id: 'aji-de-gallina', name: 'Ají de gallina', rung: 5, role: 'main', cuisine: 'PE', assembly: false, staple: true, gear: ['pot', 'blender'],
+      minutes: { active: 40, total: 65 }, servings: 4, doubles: true, fridgeDays: 3, freezesMonths: 0, proteinG: 40,
+      ingredients: [g('pollo-rostizado', 1, 'u'), g('pan-molde', 4, 'rebanada'), g('leche-evaporada', 1, 'lata'), g('nueces', 50, 'g'), g('parmesano', 50, 'g'), g('aji-amarillo-pasta', 3, 'cda'), g('cebolla', 1, 'u'), g('ajo', 3, 'diente'), g('papa', 800, 'g'), g('huevo', 2, 'u'), g('arroz-listo', 4, 'bolsa'), g('aceite', 2, 'cda')],
+      steps: [st('Las papas enteras en una olla con agua y sal, hasta que se dejen pinchar. Los huevos en otra olla, 10 min, y a agua fría.', 22, [8, 9]),
+              st('El pan sin corteza remojado en la leche evaporada.', 5, [1, 2]),
+              st('Lícualo con las nueces hasta que quede una crema.', 0, [3]),
+              st('El pollo rostizado deshilachado fino, sin piel.', 0, [0]),
+              st('Olla a fuego medio con el aceite: la cebolla picada fina 6 min; el ajo y el ají amarillo 3 min, sin que se queme.', 9, [5, 6, 7, 11]),
+              st('La crema, revolviendo siempre; el pollo; a fuego bajo hasta que espese. El parmesano al final. Si se pone muy espeso, un chorrito de leche.', 10, [4]),
+              st('Sobre papa en rodajas, con arroz y medio huevo duro.', 0, [10]),
+              st('Las sobras espesan en la nevera: recalienta con un chorrito de leche, hasta que humee.', 0)],
+      remates: ['con aceituna de botija', 'con más huevo duro', 'con ají amarillo extra'], addon: null, reheat: 'olla a fuego bajo o microondas con un chorrito de leche, revolviendo, hasta que humee (165°F)', sources: [CHICKEN, LEFTOVERS] },
+    { id: 'seco-de-res', name: 'Seco de res', rung: 5, role: 'main', cuisine: 'PE', assembly: false, staple: false, gear: ['pot', 'blender'],
+      minutes: { active: 35, total: 150 }, servings: 6, doubles: true, fridgeDays: 3, freezesMonths: 3, proteinG: 40,
+      ingredients: [g('carne-guiso', 1000, 'g'), g('culantro', 2, 'atado'), g('cebolla-roja', 1, 'u'), g('ajo', 5, 'diente'), g('aji-amarillo-pasta', 2, 'cda'), g('comino', 1, 'cdta'), g('cerveza-negra', 330, 'ml'), g('caldo-pollo', 500, 'ml'), g('zanahoria', 2, 'u'), g('arvejas-congeladas', 150, 'g'), g('aceite', 2, 'cda')],
+      steps: [st('La carne en cubos grandes (4 cm) con sal, pimienta y comino. El culantro licuado con ½ taza de agua.', 0, [0, 1, 5]),
+              st('Olla pesada a fuego alto con el aceite: dora la carne en tandas, sin amontonar. Sácala.', 10, [0, 10]),
+              st('A fuego medio: la cebolla roja picada 6 min; el ajo y el ají amarillo 2 min.', 8, [2, 3, 4]),
+              st('El culantro licuado 3 min; la carne de vuelta; la cerveza y el caldo hasta casi cubrir. Hierve, baja a mínimo y TAPA.', 0, [1, 6, 7]),
+              st('A fuego bajo hasta que la carne se deshaga con un tenedor. Revisa cada 30 min que no se seque.', 90),
+              st('La zanahoria en rodajas y las arvejas los últimos minutos.', 15, [8, 9]),
+              st('Con arroz y frijoles. Mejor al día siguiente: es el guiso que gana en la nevera. Se congela 3 meses.', 0)],
+      remates: ['con frijoles canarios o negros', 'con salsa criolla', 'con yuca o papa sancochada'], addon: null, reheat: REHEAT, sources: [LEFTOVERS, FREEZE] },
+    { id: 'pollo-brasa-horno', name: 'Pollo a la brasa al horno', rung: 5, role: 'main', cuisine: 'PE', assembly: false, staple: false, gear: ['oven', 'sheetPan'],
+      minutes: { active: 25, total: 135 }, servings: 4, doubles: false, fridgeDays: 3, freezesMonths: 3, proteinG: 45,
+      ingredients: [g('presas-pollo', 1500, 'g'), g('aji-panca-pasta', 2, 'cda'), g('sillao', 3, 'cda'), g('limon', 2, 'u'), g('ajo', 6, 'diente'), g('comino', 1, 'cdta'), g('pimenton', 2, 'cdta'), g('oregano', 1, 'cdta'), g('cerveza-negra', 120, 'ml'), g('aceite', 3, 'cda'), g('papa', 800, 'g')],
+      steps: [st('La marinada: ajo, ají panca, sillao, jugo de limón, comino, pimentón, orégano, cerveza, 2 cdas de aceite y 1 cdta de sal, licuado o batido con un tenedor (el ajo rallado).', 0, [1, 2, 3, 4, 5, 6, 7, 8, 9]),
+              st('Las presas en una bolsa o bowl con la marinada, bien frotadas. A la nevera, mínimo 1 hora (mejor desde la noche anterior).', 60, [0]),
+              st('Horno a 425°F. Las presas en la bandeja con la piel arriba; las papas en cubos con aceite y sal en otra bandeja, abajo.', 0, [10]),
+              st('Al horno, hasta que la piel esté bien dorada; voltea las papas a la mitad.', 42),
+              st('Listo cuando el jugo sale claro y junto al hueso ya no está rosado (165°F). Reposa.', 5),
+              st('Con ají verde y ensalada. Lo que sobre, a la nevera antes de 2 horas.', 0)],
+      remates: ['con ají verde', 'con ensalada de lechuga y tomate', 'deshilachado en un sánguche'], addon: null, reheat: REHEAT, sources: [TEMPS, LEFTOVERS] },
+    { id: 'salmon-bandeja', name: 'Salmón a la bandeja con brócoli', rung: 5, role: 'main', cuisine: 'JP', assembly: false, staple: false, gear: ['oven', 'sheetPan'],
+      minutes: { active: 15, total: 50 }, servings: 4, doubles: false, fridgeDays: 2, freezesMonths: 0, proteinG: 38,
+      ingredients: [g('salmon', 680, 'g'), g('papa', 600, 'g'), g('brocoli', 450, 'g'), g('sillao', 2, 'cda'), g('miel', 1, 'cda'), g('ajo', 2, 'diente'), g('limon', 1, 'u'), g('aceite-oliva', 2, 'cda')],
+      steps: [st('Horno a 425°F. Las papas en cubos chicos con aceite y sal, solas en la bandeja.', 20, [1, 7]),
+              st('Mientras: el brócoli en ramitos; el glaseado de sillao, miel, ajo rallado y limón.', 0, [2, 3, 4, 5, 6]),
+              st('Saca la bandeja, las papas a los lados, el brócoli con aceite y sal, y el salmón al centro con la piel abajo. Píntalo con el glaseado.', 0, [0, 2]),
+              st('Al horno, hasta que el salmón se separe en láminas con un tenedor (145°F).', 13),
+              st('El salmón es el que menos aguanta: se come en 2 días. Recalienta suave, o cómelo frío desmenuzado sobre arroz.', 0)],
+      remates: ['con arroz y sillao', 'frío, desmenuzado sobre arroz', 'con limón y ají'], addon: null, reheat: 'microondas a media potencia 1–2 min, o frío', sources: [TEMPS, LEFTOVERS] },
+  ];
+  return {
+    settings: {
+      hall: { name: 'The Local', walkMin: 10, swipesPerWeek: 14, breakfastSwipe: true, days: [1, 2, 3, 4, 5], closes: '18:00' },   // Mon–Fri. Weekends nothing is open at the Capitol Campus (Leandro, 30-sep-2026)
+      outDays: [0],                                                        // Sunday lunch is on the Hilltop; not the pot's
+      cookWindows: { '0': [], '1': [], '2': [], '3': ['13:00-17:30'], '4': ['13:00-17:30'], '5': ['11:00-21:00'], '6': ['11:00-21:00'] },
+      cookAt: {},                                                          // per-dow «HH:MM» preferred start; absent = the window start (never asked yet)
+      eatAt: { bf: '08:45', lunch: '12:30', dinner: '19:00', post: '22:45' },
+      trainDays: [1, 2, 4, 5],                                             // La Forja's plan.schedule as of 29-sep; hand-set copy (the city holds the real one)
+      fridge: { bf: 'yogur-bowl', meal: 'atun-huevo-bowl', post: 'batido-post' },   // the no-cook defaults; post = the fourth meal after the lift
+      gear: { pot: true, pan: true, oven: true, microwave: true, riceCooker: false, blender: false, thermometer: false, sheetPan: true },
+      gearAsked: false,                                                    // the UI asks «¿qué hay en tu cocina?» once
+      containers: 0,                                                       // 0 = never asked
+      store: { name: 'Safeway', open: '06:00', close: '22:00', inStoreMin: 30, mode: 'walk' },
+      orders: [],
+      pantry: ['sal', 'pimienta', 'aceite', 'aceite-oliva', 'ajo', 'sillao', 'vinagre', 'comino', 'oregano', 'azucar'],
+      weekly: ['leche', 'yogur-griego', 'mantequilla-mani'],
+      theme: 'auto',
+    },
+    ladder: { rung: 1, since: null, passed: [] },
+    recipes,
+  };
+})();
 /* ═══ OLLA-SEED-END ═══ */
 
 /* ── app hooks (SLOT:APP-LOGIC) — La Olla ── */
-const OLLA_SCHEMA = 1;   // 1 = settings.{hall,outDays,cookWindows,trainDays,fridge,feed,gear,pantry,weekly}, ladder, recipes, plan{via,days}, log, groceries
+const OLLA_SCHEMA = 2;   // 2 = LA-OLLA-V2-SPEC.md §2.1: settings.{hall(+closes), outDays, cookWindows, cookAt, eatAt, trainDays, fridge(+post), gear, gearAsked, containers, store, orders, pantry[ids], weekly[ids], theme}, ladder, recipes (v2 shape), plan{via, days(+post, cook.batch)}, log{date:slot: [entries]}, cooks, extra, likes, groceries.checked{item@trip: {v, at}}, cookSession
+const OLLA_PRE_SCHEMA2_KEY = 'olla.v1.pre-schema2';   // the raw schema-1 state, written ONCE per device before its first migration (his only copy may be this phone's)
+/* The v1 book as it shipped (9dc95c2): FNV-1a of JSON [id, name, steps] per recipe, frozen here. A v1-shaped recipe whose
+   hash still matches was never edited, so its v2 version replaces it; anything else is his and wins. */
+const OLLA_V1_SEED_HASH = { 'yogur-bowl': '63e2d129', 'avena-nocturna': '5d44c227', 'atun-huevo-bowl': 'e7743c34', 'revuelto-3': '7ea403c4', 'salsa-criolla': 'f39f8020', 'pollo-rostizado-bowl': '6a592fa9', 'arroz-graneado': '0de832bf', 'bowl-coreano': '56b1af42', 'oyakodon': '33b1d57f', 'pollo-bandeja': 'f1d10aea', 'arroz-con-pollo': '6f6f52a7', 'chili': 'd9fc5e44', 'tallarin-saltado': 'cc337b62', 'lomo-saltado': '7e3df1c2', 'aji-de-gallina': 'ca9d04bc' };
+const OLLA_V1_PANTRY = ['sal', 'pimienta', 'aceite', 'aceite de oliva', 'ajo', 'sillao', 'vinagre', 'comino', 'orégano', 'azúcar'];   // v1 stored NAMES; v2 stores ingredient ids
+const OLLA_V1_WEEKLY = ['leche', 'yogur griego', 'mantequilla de maní'];
+function ollaHash(str) { let x = 0x811c9dc5; for (let i = 0; i < str.length; i++) { x ^= str.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; } return x.toString(16).padStart(8, '0'); }
+function ollaIdFor(name) {                                // a v1 pantry/weekly NAME → an ingredient id (an unknown one keeps a slug: the engine shows it «sin sección», never hides it)
+  const x = String(name == null ? '' : name).trim(); if (INGREDIENTS[x]) return x;
+  const low = x.toLowerCase(), hit = Object.keys(INGREDIENTS).find(id => INGREDIENTS[id].n.toLowerCase() === low);
+  if (hit) return hit;
+  const slug = low.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return slug;
+}
+function ollaIdList(list, dflt, v1Default) {
+  if (!Array.isArray(list)) return dflt.slice();
+  if (JSON.stringify(list) === JSON.stringify(v1Default)) return dflt.slice();
+  const out = []; list.forEach(n => { const id = ollaIdFor(n); if (id && out.indexOf(id) < 0) out.push(id); });
+  return out;
+}
 function appDefaultState() {
   const s = JSON.parse(JSON.stringify(OLLA_SEED));
-  return { settings: s.settings, ladder: s.ladder, recipes: s.recipes, plan: { via: 'fallback', days: {} }, log: {}, groceries: { week: null, checked: {} }, schema: OLLA_SCHEMA };
+  return { settings: s.settings, ladder: s.ladder, recipes: s.recipes, plan: { via: 'fallback', days: {} }, log: {}, cooks: {}, extra: {}, likes: {}, groceries: { checked: {} }, cookSession: null, schema: OLLA_SCHEMA };
 }
-/* Idempotent on every load AND every gist pull: MERGE over the seed's defaults, never assign wholesale — a
+/* Idempotent on every load AND every gist pull: MERGE over the seed's defaults, field by field, never assign wholesale — a
    restored pre-field snapshot must come back with the new field, not with `undefined` flowing into the week. */
 function appMigrate(s) {
+  const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
+  const fromV1 = !(s.schema >= 2);
+  if (fromV1 && looksLikeMyState(s)) {
+    try { if (typeof localStorage !== 'undefined' && !localStorage.getItem(OLLA_PRE_SCHEMA2_KEY)) localStorage.setItem(OLLA_PRE_SCHEMA2_KEY, JSON.stringify(s)); } catch (e) {}
+  }
   const seed = JSON.parse(JSON.stringify(OLLA_SEED));
-  s.settings = s.settings || {};
+  s.settings = isObj(s.settings) ? s.settings : {};
   const S = s.settings, D = seed.settings;
-  S.hall = Object.assign({}, D.hall, S.hall || {});
+  S.hall = Object.assign({}, D.hall, isObj(S.hall) ? S.hall : {});
   if (!Array.isArray(S.hall.days)) S.hall.days = D.hall.days.slice();
   if (!Array.isArray(S.outDays)) S.outDays = D.outDays.slice();
-  S.cookWindows = Object.assign({}, D.cookWindows, S.cookWindows || {});
+  S.cookWindows = Object.assign({}, D.cookWindows, isObj(S.cookWindows) ? S.cookWindows : {});
+  S.cookAt = Object.assign({}, D.cookAt, isObj(S.cookAt) ? S.cookAt : {});
+  S.eatAt = Object.assign({}, D.eatAt, isObj(S.eatAt) ? S.eatAt : {});
   if (!Array.isArray(S.trainDays)) S.trainDays = D.trainDays.slice();
-  S.fridge = Object.assign({}, D.fridge, S.fridge || {});
-  if (typeof S.feed !== 'string') S.feed = D.feed;
-  S.gear = Object.assign({}, D.gear, S.gear || {});
-  if (!Array.isArray(S.pantry)) S.pantry = D.pantry.slice();
-  if (!Array.isArray(S.weekly)) S.weekly = D.weekly.slice();
-  s.ladder = Object.assign({}, seed.ladder, s.ladder || {});
+  S.fridge = Object.assign({}, D.fridge, isObj(S.fridge) ? S.fridge : {});
+  S.gear = Object.assign({}, D.gear, isObj(S.gear) ? S.gear : {});
+  if (typeof S.gearAsked !== 'boolean') S.gearAsked = D.gearAsked;
+  if (!(S.containers >= 0)) S.containers = D.containers;
+  S.store = Object.assign({}, D.store, isObj(S.store) ? S.store : {});
+  if (!Array.isArray(S.orders)) S.orders = D.orders.slice();
+  S.pantry = ollaIdList(S.pantry, D.pantry, OLLA_V1_PANTRY);
+  S.weekly = ollaIdList(S.weekly, D.weekly, OLLA_V1_WEEKLY);
+  delete S.feed;                                          // v1's free-text lift-night feed is now a recipe: fridge.post = batido-post
+  if (['auto', 'esmalte', 'loza'].indexOf(S.theme) < 0) S.theme = S.theme === 'tokyo' ? 'loza' : 'auto';   // v1's shell keys: macchiato was the default, tokyo was a choice
+  s.ladder = Object.assign({}, seed.ladder, isObj(s.ladder) ? s.ladder : {});
   if (!Array.isArray(s.ladder.passed)) s.ladder.passed = [];
   if (!(s.ladder.rung >= 1)) s.ladder.rung = 1;
-  // the book: seed recipes are added by id when missing (a newer build ships a new dish); his edits to an existing id win
-  if (!Array.isArray(s.recipes)) s.recipes = [];
+  // the book: a v1 recipe he never edited becomes its v2 version; his edits win (only fields v1 never had are filled in);
+  // seed recipes missing by id are added (a newer build ships a new dish)
+  const v2 = {}; seed.recipes.forEach(r => { v2[r.id] = r; });
+  s.recipes = (Array.isArray(s.recipes) ? s.recipes : []).filter(r => r && r.id).map(r => {
+    const nr = v2[r.id]; if (!nr) return r;
+    const v1Shape = Array.isArray(r.steps) && r.steps.some(x => typeof x === 'string');
+    if (v1Shape && OLLA_V1_SEED_HASH[r.id] === ollaHash(JSON.stringify([r.id, r.name, r.steps]))) return JSON.parse(JSON.stringify(nr));
+    const out = Object.assign({}, r);
+    ['role', 'remates', 'addon', 'reheat', 'sources', 'freezesMonths', 'cuisine'].forEach(k => { if (out[k] === undefined && nr[k] !== undefined) out[k] = JSON.parse(JSON.stringify(nr[k])); });
+    return out;
+  });
   seed.recipes.forEach(r => { if (!s.recipes.some(x => x.id === r.id)) s.recipes.push(r); });
-  s.plan = s.plan || {}; s.plan.days = s.plan.days || {}; s.plan.via = s.plan.via || 'fallback';
-  s.log = s.log || {};
-  s.groceries = s.groceries || {}; s.groceries.checked = s.groceries.checked || {};
+  s.plan = isObj(s.plan) ? s.plan : {}; s.plan.days = isObj(s.plan.days) ? s.plan.days : {}; s.plan.via = s.plan.via || 'fallback';
+  // reality: v1's log[k] = {s, ts} → [{s, at}]; arrays stay arrays; cooks/extra/likes exist
+  s.log = isObj(s.log) ? s.log : {};
+  Object.keys(s.log).forEach(k => {
+    const v = s.log[k];
+    if (Array.isArray(v)) s.log[k] = v.filter(isObj).map(e => { if (e.at != null) return e; const o = Object.assign({}, e, { at: +e.ts || 0 }); delete o.ts; return o; });
+    else if (isObj(v) && typeof v.s === 'string') s.log[k] = [{ s: v.s, at: +v.ts || +v.at || 0 }];
+    else delete s.log[k];
+  });
+  s.cooks = isObj(s.cooks) ? s.cooks : {}; s.extra = isObj(s.extra) ? s.extra : {}; s.likes = isObj(s.likes) ? s.likes : {};
+  // v1 checked items by NAME for "the current Sunday week" — that can't be mapped to (item, trip) safely, and was a convenience: dropped
+  const ck = (isObj(s.groceries) && isObj(s.groceries.checked)) ? s.groceries.checked : {}, kept = {};
+  Object.keys(ck).forEach(k => { const v = ck[k]; if (isObj(v) && k.indexOf('@') > 0) kept[k] = { v: !!v.v, at: +v.at || 0 }; });
+  s.groceries = { checked: kept };
+  delete s.pub;                                           // derived at push time, never trusted on the way in
+  if (s.cookSession === undefined) s.cookSession = null;
   if (!(s.schema >= OLLA_SCHEMA)) s.schema = OLLA_SCHEMA;
   return s;
 }
 function looksLikeMyState(s) {                            // OUR gist: settings + a ladder + a plan with days + a recipe book. Rejects cuaderno.json (sessions) and lampara.json (reading) by shape.
   return !!(s && typeof s === 'object' && s.settings && s.ladder && s.plan && typeof s.plan === 'object' && s.plan.days && typeof s.plan.days === 'object' && Array.isArray(s.recipes));
 }
+/* The SHELL may read the clock; the engine may not. `today` is LOCAL (the shell's today() is UTC — the bug that filed La Forja's late sessions under tomorrow). */
+function ollaClock() { const d = new Date(); return { today: OLLA.ymd(d), now: d.getHours() * 60 + d.getMinutes(), at: d.getTime() }; }
+function ollaRebuild() { const c = ollaClock(); state.plan = OLLA.buildWeek(state, c.today, c.now); }   // the rule re-running: callers save it with {markModified:false, push:false}
 function appBuildClaudeSystem() { return state.settings.claudeRules || DEFAULT_CLAUDE_RULES; }   // the coach is step 4; nothing calls Claude in v1
 function appPrimaryAction() { OLLAUI.go('semana'); }
 function appRender() { OLLAUI.render(); }
@@ -1509,15 +2615,21 @@ function renderSyncStatus() {
 function isSyncEnabled() { return !!(state.settings.sync.enabled && state.settings.sync.githubPat && state.settings.sync.gistId); }
 
 // CRITICAL: never push credentials to the gist. Strip them before any write.
+// `pub` is the projection the city and the Worker read (§2.7): computed HERE at push time by the engine, deleted on every load/pull.
 function cleanStateForSync() {
-  return { ...state, settings: { ...state.settings,
+  const out = { ...state, settings: { ...state.settings,
     sync:   { lastModified: state.lastModified },
     claude: { model: state.settings.claude.model }
   } };
+  delete out.pub;
+  try { const c = ollaClock(); out.pub = OLLA.project(state, c.today, c.now, c.at); }
+  catch (e) { losErr('olla.pub.fail', { err: String((e && e.message) || e).slice(0, 160) }); }   // no pub → the city refuses the file (pub.v ≥ 2) instead of reading a wrong one
+  return out;
 }
 async function gistFetch(method, path, body = null) {
   const res = await fetch(`https://api.github.com${path}`, {
     method,
+    cache: 'no-store',   // GitHub serves gist GETs with max-age=60: a cached GET before a write sees nothing another device just wrote
     headers: { 'Authorization': `Bearer ${state.settings.sync.githubPat}`, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -1526,40 +2638,58 @@ async function gistFetch(method, path, body = null) {
 }
 let syncPushTimer = null;
 function scheduleSyncPush() { if (!isSyncEnabled()) return; clearTimeout(syncPushTimer); syncPushTimer = setTimeout(syncPush, 1500); }
+/* La Olla's sync: plan/settings/recipes are last-write-wins on lastModified (whole), but REALITY (log, cooks, extra, likes,
+   checks) is MERGED by key, both ways, so two devices that logged different slots never erase each other. Returns true when
+   the gist lacks something this device has (the caller pushes); a re-derivation of the week is saved without a push. */
 async function syncPull(force = false) {
-  if (!isSyncEnabled()) return;
+  if (!isSyncEnabled()) return false;
   try {
     setSyncPipState('syncing');
     const gist = await gistFetch('GET', `/gists/${state.settings.sync.gistId}`);
     const file = gist.files?.[GIST_FILENAME];
-    if (!file) { setSyncPipState('on'); return; }
+    if (!file) { setSyncPipState('on'); return true; }   // nothing up there yet: ours must go up
     const remoteState = JSON.parse(file.content);
-    if (!looksLikeMyState(remoteState)) { toast(`gist file ${GIST_FILENAME} doesn't look like this app's state — not adopting it.`, true); setSyncPipState('error'); return; }
-    const remoteModified = remoteState.lastModified || 0;
+    if (!looksLikeMyState(remoteState)) { toast(`gist file ${GIST_FILENAME} doesn't look like this app's state — not adopting it.`, true); setSyncPipState('error'); return false; }
+    const remote = migrate(remoteState);                  // schema 1 → 2 on the way in; drops its pub
+    const remoteModified = remote.lastModified || 0;
     const localModified = state.lastModified || 0;
+    let needPush, adopted = false;
     if (force || remoteModified > localModified) {
-      const preservedSync = state.settings.sync;
-      const preservedClaude = state.settings.claude;
-      state = migrate(remoteState);
-      state.settings.sync = preservedSync;
-      state.settings.claude = preservedClaude;
-      state.settings.sync.lastSyncedAt = Date.now();
-      suppressSync = true; save({ markModified: false, push: false }); suppressSync = false;
-      renderAll();
-      toast('synced from cloud.');
+      const mine = state;
+      remote.settings.sync = mine.settings.sync;
+      remote.settings.claude = mine.settings.claude;
+      needPush = OLLA.mergeReality(remote, mine) > 0;     // the newer plan/settings/recipes, plus every reality entry only this device had
+      state = remote; adopted = true;
     } else {
-      state.settings.sync.lastSyncedAt = Date.now();
-      save({ markModified: false, push: false });
+      OLLA.mergeReality(state, remote);
+      needPush = localModified > remoteModified || OLLA.mergeReality(JSON.parse(JSON.stringify(remote)), state) > 0;
     }
+    try { ollaRebuild(); } catch (e) { losErr('olla.rebuild.fail', { err: String((e && e.message) || e).slice(0, 160) }); }
+    state.settings.sync.lastSyncedAt = Date.now();
+    suppressSync = true; save({ markModified: false, push: false }); suppressSync = false;
+    renderAll();
+    if (adopted && !force) toast('synced from cloud.');
     setSyncPipState('on');
-  } catch (e) { console.error('pull', e); losErr('sync.pull.fail', { err: String(e.message || e).slice(0, 160) }); toast('pull failed: ' + e.message, true); setSyncPipState('error'); }
+    return needPush;
+  } catch (e) { console.error('pull', e); losErr('sync.pull.fail', { err: String(e.message || e).slice(0, 160) }); toast('pull failed: ' + e.message, true); setSyncPipState('error'); return false; }
 }
 async function syncPush() {
   if (!isSyncEnabled()) return;
   try {
     setSyncPipState('syncing');
+    // GET first (no-store): union whatever another device logged since our last pull, so this PATCH cannot erase it. A failed GET aborts the push.
+    const gist = await gistFetch('GET', `/gists/${state.settings.sync.gistId}`);
+    const file = gist.files?.[GIST_FILENAME];
+    if (file) {
+      const remoteState = JSON.parse(file.content);
+      if (looksLikeMyState(remoteState) && OLLA.mergeReality(state, migrate(remoteState)) > 0) {
+        try { ollaRebuild(); } catch (e) {}
+        suppressSync = true; save({ markModified: false, push: false }); suppressSync = false;
+        renderAll();
+      }
+    }
     const content = JSON.stringify(cleanStateForSync(), null, 2);
-    await gistFetch('PATCH', `/gists/${state.settings.sync.gistId}`, { files: { [GIST_FILENAME]: { content } } });
+    await gistFetch('PATCH', `/gists/${state.settings.sync.gistId}`, { files: { [GIST_FILENAME]: { content } } });   // olla.json ONLY
     state.settings.sync.lastSyncedAt = Date.now();
     suppressSync = true; save({ markModified: false, push: false }); suppressSync = false;
     setSyncPipState('on');
@@ -1840,7 +2970,13 @@ document.querySelectorAll('[data-theme-pick]').forEach(b => {
 applyTheme(state.settings.theme);
 appInit();
 renderAll();
-if (isSyncEnabled()) { setSyncPipState('on'); syncPull(); }
+if (isSyncEnabled()) { setSyncPipState('on'); syncPull().then(c => c && syncPush()); }
+// a phone that slept: pull on the way back (then push only if this device holds something the gist lacks), at most once a minute
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden || !isSyncEnabled()) return;
+  if (Date.now() - (state.settings.sync.lastSyncedAt || 0) < 60000) return;
+  syncPull().then(c => c && syncPush());
+});
 
 // Service worker — offline support
 if ('serviceWorker' in navigator) {
