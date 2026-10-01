@@ -9,25 +9,25 @@ before changing what a week IS. This file is the build.
 ## What this is (don't drift from this)
 - **A dinner-STOCK organ, not a planner and not a recipe app.** Its one job: tomorrow's dinner exists before
   tonight's is eaten. The problem it exists for is EATING (he skips, mostly on weekends and on the nights that
-  end with a 10pm lift), never cooking for its own sake.
+  end late), never cooking for its own sake.
 - **The week is a RULE, not a document.** `OLLA.buildWeek` is the default planner and runs on every boot;
   he only ever overrides a row (tap → `setKind`, marked `hand:true`), never writes a plan. There is no
   Saturday ritual, because a skipper skips planning too. The coach (step 4) is ADDITIVE and gated by the
   same `validateWeek`; the fallback week is what ships when the model is off — `plan.via` says which served.
 - **Dinner is never a swipe.** The Local's last station closes at 6pm and Urban Kitchen at 3pm (read
-  29-sep-2026, hoyaeats.com/menu-hours). **Weekends nothing is open at the Capitol Campus** (Leandro, 30-sep):
+  as of 29-sep-2026). **Weekends the hall is closed** (30-sep):
   Sat/Sun are never swipe days. Swipes are weekday
   breakfasts and lunches; every dinner is `cook`, `leftover`, `home` (a fridge default) or `out`.
 - **Every cook is a double** (`coverAhead`, clamped [2, maxServings]): Wed cooks two, Thu eats it; Fri cooks
   two, Sat lunch finishes it; Sat cooks the pot for Sun/Mon/Tue. Leftovers live ≤ `fridgeDays` (USDA 3–4).
 - **No calories, no macros, ever.** Protein per recipe is an ESTIMATE and the UI says so. The only truth for
-  "am I gaining" is a weekly bodyweight in La Forja, which this app does not read until four exist.
+  progress is a weekly reading in La Forja, which this app does not read until four exist.
 - **The register is append-only and never touches the plan** (`logMeal`); it refuses the future. No
   ate/skipped tap ships until its weekly read path (`weekRegister`) is on a screen — a write-only register
   is landfill. **A rung is passed by CODE** (`rungCheck`: ≥6 pot meals eaten at the rung spanning ≥10 days),
   never asserted; fridge defaults (`home` rows) never count. The ladder is a LIST in the book, not a screen.
-- **Gear is asked, never seeded** (Settings → La cocina). Breaker #20 at 55 H St trips under ~300W with the
-  PS5 on; the fridge is on its own circuit — a 1500W appliance on the wrong outlet trips mid-cook.
+- **Gear is asked, never seeded** (Settings → La cocina). Check which outlet a 1500W appliance uses before
+  assuming it can run alongside everything else.
 
 ## Identity — enamel and chalk (don't drift from this)
 - Esmalte (night, default): enamel black `--bg #15190f`, chalk ink `#f1eadb`, the one green in the estate

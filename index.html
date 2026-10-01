@@ -1005,7 +1005,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = OLLA;
    riceCooker, blender, thermometer, sheetPan. */
 const OLLA_SEED = {
   settings: {
-    hall: { name: 'The Local', walkMin: 10, swipesPerWeek: 14, breakfastSwipe: true, days: [1, 2, 3, 4, 5] },   // Mon–Fri. Weekends: nothing is open at the Capitol Campus (Leandro, 30-sep-2026) — never a swipe day
+    hall: { name: 'The Local', walkMin: 10, swipesPerWeek: 14, breakfastSwipe: true, days: [1, 2, 3, 4, 5] },   // Mon–Fri; the hall is closed on weekends
     outDays: [0],                                                        // Sunday lunch is on the Hilltop; not the pot's
     cookWindows: { '0': [], '1': [], '2': [], '3': ['13:00-17:30'], '4': ['13:00-17:30'], '5': ['11:00-21:00'], '6': ['11:00-21:00'] },
     trainDays: [1, 2, 4, 5],                                             // La Forja's plan.schedule as of 29-sep; the city will feed this later
