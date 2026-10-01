@@ -6,13 +6,19 @@
      a reload; the recipe sheet scales its quantities; the cook-along opens, steps, keeps its session across a reload;
      La lista checks persist per (item, trip); the kitchen settings render; the sibling gist is refused; the ring a
      finger would hit is the ring (elementFromPoint, never a dispatched click on a hidden node).
+     Then the flows the final UI review found unrun (1-oct): a cook question answered «Sí» with a yield, and «Otra cosa»
+     BEFORE its dinner can be logged (the purchase must survive as a batch); a planned cook-along finished (its batch made)
+     and an off-plan one (a cooked batch, the dinner log untouched); the pot sheet's «Comer una» at dinner and after it;
+     the cook-along closed before «Empezar» (Hoy keeps its real action); the runner as a modal dialog; 44px targets.
      CONTROLS: the log assertion is re-run with OLLA.logMeal stubbed out and must read FAIL (the instrument can see an
-     absent write); gate.sh also requires the explicit CONTROL line to read FAIL. -->
+     absent write); the «otra cosa» flow is re-run with the OLD path re-planted (the purchase written as a dinner MEAL
+     before the dinner can be logged) and must read FAIL; a ring shrunk to 30px must fail the 44px check. gate.sh
+     requires every CONTROL line to read FAIL. -->
 <html>
 <head><meta charset="utf-8"></head>
 <body>
 <pre id="out"></pre>
-<iframe id="f" src="about:blank" style="width:400px;height:860px"></iframe>
+<iframe id="f" src="about:blank" style="width:375px;height:812px"></iframe>
 <script>
 'use strict';
 const out = [];
@@ -24,8 +30,35 @@ const W = () => f.contentWindow, D = () => f.contentDocument;
 const q = s => D().querySelector(s), qa = s => Array.from(D().querySelectorAll(s));
 const st = () => JSON.parse(W().localStorage.getItem('olla.v1'));
 const E = name => W().eval(name);
-const CLOCK = '2026-10-01T19:30:00';   // a Thursday (a lift day), dinner time: every assertion below is about THIS moment, never the hour the gate runs
+const CLOCK = '2026-10-01T19:30:00';   // a Thursday (a training day), dinner time: every assertion below is about THIS moment, never the hour the gate runs
 async function loadApp() { f.src = 'index.html?clock=' + CLOCK + '&h=' + Date.now(); await new Promise(r => f.onload = r); await sleep(800); }
+async function loadAt(clock) { f.src = 'index.html?clock=' + clock + '&h=' + Date.now(); await new Promise(r => f.onload = r); await sleep(800); }
+function patchSt(fn) { const s = st(); fn(s); W().localStorage.setItem('olla.v1', JSON.stringify(s)); }   // edit the stored state between two loads
+const toastErr = () => q('#toast').classList.contains('show') && q('#toast').classList.contains('err');
+function smallTargets(scope) {   // every visible tap target under scope narrower or shorter than 44px
+  const els = Array.from(new Set(qa(['button', 'a[href]', 'input', 'textarea', 'select', '[data-act]'].map(s => scope + ' ' + s).join(', '))));
+  return els.filter(e => { const r = e.getBoundingClientRect(); if (r.width < 1 || r.height < 1) return false; const cs = W().getComputedStyle(e); return cs.visibility !== 'hidden' && cs.display !== 'none' && (r.width < 44 || r.height < 44); })
+    .map(e => (e.className || e.tagName) + '[' + (e.dataset.act || e.dataset.kact || e.id || '') + '] ' + Math.round(e.getBoundingClientRect().width) + 'x' + Math.round(e.getBoundingClientRect().height));
+}
+async function toRunnerEnd() { let g = 0; while (!q('#runner').hidden && !q('#runner [data-stepper="ryield"]') && g++ < 40) { q('#runner [data-act="r-next"]').click(); await sleep(60); } }
+/* «Otra cosa» on today's cook question at 17:45, his dinner set to 21:00 (so it can't be logged before 19:30). `before` runs
+   after the 17:45 load — the control re-plants the old path there. */
+async function otraCosaBeforeDinner(before) {
+  localStorage.clear(); await loadAt('2026-10-01T09:00:00');
+  patchSt(s => { s.settings.eatAt.dinner = '21:00'; });
+  await loadAt('2026-10-01T09:00:00');
+  const b = (st().plan.days['2026-10-01'].cook || {}).batch;
+  await loadAt('2026-10-01T17:45:00');
+  if (before) before();
+  const qo = q('#app-root [data-act="q-other"][data-batch="' + b + '"]'); if (!qo) return { b, asked: false };
+  qo.click(); await sleep(200);
+  const hidden = !q('#olla-sheet [data-act="log-skip"]') && !q('#olla-sheet [data-act="log-ate"]');
+  q('#log-what').value = 'pollo rostizado';
+  const plus = q('#olla-sheet [data-stepper="left"] [data-d="1"]'); plus.click(); plus.click(); await sleep(60);
+  q('#olla-sheet [data-act="log-other"]').click(); await sleep(300);
+  const s = st(), id = Object.keys(s.extra || {}).find(k => s.extra[k].src === 'bought' && s.extra[k].name === 'pollo rostizado');
+  return { b, asked: true, hidden, err: toastErr(), toast: q('#toast').textContent, cook: eff((s.cooks || {})[b]), extra: id ? s.extra[id] : null, id, dinner: s.plan.days['2026-10-01'].dinner, dinnerLog: (s.log || {})['2026-10-01:dinner'] };
+}
 function hit(el) { const r = el.getBoundingClientRect(); if (r.width < 8 || r.height < 8) return false; const x = D().elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return x === el || el.contains(x); }
 function eff(entries) { if (!Array.isArray(entries) || !entries.length) return null; return entries.reduce((a, b) => ((b.at || 0) >= (a.at || 0) ? b : a)); }
 (async () => {
@@ -96,6 +129,9 @@ function eff(entries) { if (!Array.isArray(entries) || !entries.length) return n
     log('«Empezar» moves to step 1', st().cookSession && st().cookSession.step === 0, JSON.stringify(st().cookSession && st().cookSession.step));
     await loadApp();
     log('RELOAD keeps the cook session; Hoy offers «Seguir»', !!st().cookSession && !!q('#app-root [data-act="runner-resume"]'));
+    { const na = E('OLLA').nextAction(st(), today, E('OLLAUI').nowMin()).kind;   // what Hoy's action IS right now, from the engine — then find ITS control on the page
+      const sel = { eat: '[data-act="ate"]', 'cook-now': '[data-act="cook"]', 'cook-soon': '[data-act="cook"]', shop: '.strike[data-act="go"][data-view="lista"]', rescue: '.rescue-item', 'confirm-cook': '[data-act="q-yes"]' }[na];
+      log('…as an extra line with «dejarlo», never a mask over Hoy\'s own action', !!q('#app-root [data-act="runner-drop"]') && !!sel && !!q('#app-root ' + sel), na + (sel && q('#app-root ' + sel) ? ' shown' : ' MISSING')); }
     q('#app-root [data-act="runner-resume"]').click(); await sleep(150);
     q('#runner [data-act="runner-close"]').click(); await sleep(100);
     // La lista
@@ -116,6 +152,205 @@ function eff(entries) { if (!Array.isArray(entries) || !entries.length) return n
     log('looksLikeMyState refuses cuaderno.json', E('looksLikeMyState')({ settings: {}, exercises: [], sessions: [] }) === false);
     log('looksLikeMyState accepts our state', E('looksLikeMyState')(st()) === true);
     log('the app reads the pinned LOCAL day, through the one clock', E('OLLAUI').todayYmd() === '2026-10-01' && E('OLLAUI').nowMin() >= 19 * 60 + 30 && E('OLLAUI').nowMin() < 19 * 60 + 40, E('OLLAUI').todayYmd() + ' ' + E('OLLAUI').nowMin());
+
+    // ── A cook question answered «Sí» with a yield (Wednesday's cook, asked Thursday morning)
+    localStorage.clear(); await loadAt('2026-09-30T09:00:00');
+    const wedB = (st().plan.days['2026-09-30'].cook || {}).batch;
+    await loadAt('2026-10-01T08:00:00');
+    const qy = q('#app-root [data-act="q-yes"][data-batch="' + wedB + '"]');
+    log('Thursday 08:00: Hoy asks about Wednesday\'s unconfirmed cook', !!wedB && !!qy, wedB);
+    if (qy) {
+      qy.click(); await sleep(200);
+      const y0 = parseInt((q('#olla-sheet [data-stepper="yield"] [data-val]') || {}).textContent, 10);
+      q('#olla-sheet [data-stepper="yield"] [data-d="1"]').click(); await sleep(60);
+      q('#olla-sheet [data-act="cookq-save"]').click(); await sleep(250);
+      const ec = eff((st().cooks || {})[wedB]);
+      log('«Sí» with a yield: the cook is MADE with the tápers he counted', !!ec && ec.s === 'made' && ec.yield === y0 + 1, JSON.stringify(ec) + ' (stepper ' + y0 + '+1)');
+      log('…and the question is gone', !q('#app-root [data-act="q-yes"][data-batch="' + wedB + '"]'));
+    }
+
+    // ── «Otra cosa» before the dinner can be logged: the purchase survives as a BATCH
+    const oc = await otraCosaBeforeDinner();
+    log('Thursday 17:45 (dinner at 21:00): Hoy asks about today\'s cook', oc.asked, oc.b);
+    log('…«Otra cosa» offers neither «lo del plan» nor «no comí» (both would be refused)', !!oc.hidden);
+    log('…«compré pollo rostizado, rinde 2 más» saves without an error', oc.asked && !oc.err, oc.toast);
+    log('…the cook is «no se hizo»', !!oc.cook && oc.cook.s === 'notmade', JSON.stringify(oc.cook));
+    log('…the purchase is KEPT as a batch: bought, 3 portions, tied to no meal', !!oc.extra && oc.extra.servings === 3 && !('log' in oc.extra), JSON.stringify(oc.extra));
+    log('…tonight\'s dinner eats from it, and the dinner log was not touched', !!oc.id && !!oc.dinner && oc.dinner.kind === 'leftover' && oc.dinner.of === oc.id && !oc.dinnerLog, JSON.stringify(oc.dinner));
+    {   // CONTROL: re-plant the old path — the purchase written as a dinner MEAL before the dinner can be logged (refused, lost)
+      const ocC = await otraCosaBeforeDinner(() => { const O = E('OLLA'); O.addBatch = (s, x, t, n, at) => O.logMeal(s, t, 'dinner', { s: 'other', what: x.name, left: x.servings - 1 }, t, n, at); });
+      log('CONTROL (must read FAIL): the old path (a dinner MEAL before dinner) keeps the purchase as a batch', !!ocC.extra && ocC.extra.servings === 3 && !('log' in ocC.extra), ocC.toast);
+    }
+
+    // ── A PLANNED cook-along finished: its batch is made
+    localStorage.clear(); await loadAt('2026-10-01T09:00:00');
+    const thuC = st().plan.days['2026-10-01'].cook || {};
+    q('#bottom-tabs .tab[data-view="semana"]').click(); await sleep(150);
+    q('#app-root .crow .dish[data-date="2026-10-01"]').click(); await sleep(200);
+    q('#olla-sheet [data-act="runner-start"]').click(); await sleep(200);
+    log('the planned cook-along opens on the plan\'s batch', !!thuC.batch && !!st().cookSession && st().cookSession.batch === thuC.batch, JSON.stringify(st().cookSession && st().cookSession.batch));
+    await toRunnerEnd();
+    const yv = parseInt((q('#runner [data-stepper="ryield"] [data-val]') || {}).textContent, 10);
+    q('#runner [data-act="r-next"]').click(); await sleep(300);   // «A la olla»
+    const mc = eff((st().cooks || {})[thuC.batch]);
+    log('finishing it marks the planned batch MADE, with the tápers counted', !!mc && mc.s === 'made' && mc.yield === yv, JSON.stringify(mc));
+    log('…and ends the cook-along', q('#runner').hidden && st().cookSession === null);
+
+    // ── The pot sheet's «Comer una»: tonight's dinner at 19:30; the post-gym meal at 22:30, never a second dinner
+    const potSum = m => E('OLLA').potNow(st(), '2026-10-01', m).reduce((a, b) => a + b.left, 0);
+    await loadAt('2026-10-01T19:30:00');
+    q('#app-root [data-act="pot"]').click(); await sleep(200);
+    q('#olla-sheet [data-act="pot-eat"]').click(); await sleep(250);
+    const dl = eff((st().log || {})['2026-10-01:dinner']);
+    log('«Comer una» at 19:30 is tonight\'s dinner, from that pot', !!dl && dl.s === 'ate' && dl.of === thuC.batch, JSON.stringify(dl));
+    await loadAt('2026-10-01T22:30:00');
+    const potA = potSum(22 * 60 + 30);
+    q('#app-root [data-act="pot"]').click(); await sleep(200);
+    const eat2 = q('#olla-sheet [data-act="pot-eat"]'); if (eat2) { eat2.click(); await sleep(250); }
+    const pl = eff((st().log || {})['2026-10-01:post']), potB = potSum(22 * 60 + 30);
+    log('«Comer una» at 22:30 after dinner is the post-gym meal — never a second dinner', !!pl && pl.s === 'ate' && pl.of === thuC.batch && ((st().log || {})['2026-10-01:dinner'] || []).length === 1, JSON.stringify(pl));
+    log('…and the pot drops by one', potA >= 1 && potB === potA - 1, potA + ' → ' + potB);
+
+    // ── An OFF-PLAN cook-along (Saturday 13:00, before any dinner can be logged): a cooked batch, the dinner log untouched
+    localStorage.clear(); await loadAt('2026-10-03T13:00:00');
+    q('#bottom-tabs .tab[data-view="libro"]').click(); await sleep(150);
+    q('#app-root .rec[data-id="chaufa-express"]').click(); await sleep(200);
+    q('#olla-sheet [data-act="runner-start"]').click(); await sleep(200);
+    await toRunnerEnd();
+    const y5 = parseInt((q('#runner [data-stepper="ryield"] [data-val]') || {}).textContent, 10);
+    q('#runner [data-act="r-next"]').click(); await sleep(300);
+    const s5 = st(), x5 = Object.values(s5.extra || {}).find(x => x.src === 'cooked' && x.recipe === 'chaufa-express');
+    log('an off-plan cook-along finishes into a COOKED batch with its tápers', !!x5 && x5.servings === y5, JSON.stringify(x5));
+    log('…the dinner log is untouched, nothing was refused, the runner closed', !(s5.log || {})['2026-10-03:dinner'] && !toastErr() && q('#runner').hidden, q('#toast').textContent);
+
+    // ── Closing the cook-along before «Empezar»: Hoy keeps its real action; the runner is a modal dialog while open
+    localStorage.clear(); await loadApp();
+    const a0 = (q('#app-root .strike') || { dataset: {} }).dataset.act, inert0 = q('.app').inert;
+    q('#bottom-tabs .tab[data-view="libro"]').click(); await sleep(150);
+    q('#app-root .rec').click(); await sleep(200);
+    q('#olla-sheet [data-act="runner-start"]').click(); await sleep(250);
+    const rn = q('#runner');
+    log('the runner is a modal dialog: role, aria-modal, the page behind it inert, focus on its main button', inert0 === false && rn.getAttribute('role') === 'dialog' && rn.getAttribute('aria-modal') === 'true' && q('.app').inert === true && q('#bottom-tabs').inert === true && D().activeElement === q('#runner [data-act="r-next"]'), 'inert0=' + inert0 + ' active=' + (D().activeElement && (D().activeElement.dataset.act || D().activeElement.tagName)));
+    { const got = qa('#runner [data-act="got"]');
+      log('…its «saca esto» lines are real buttons that say whether they are on the table', got.length > 0 && got.every(b => b.tagName === 'BUTTON' && b.hasAttribute('aria-pressed')), got.length + ' ' + (got[0] && got[0].tagName)); }
+    q('#runner [data-act="runner-close"]').click(); await sleep(200);
+    log('…closed, the page behind is live again', q('.app').inert === false && q('#bottom-tabs').inert === false);
+    q('#bottom-tabs .tab[data-view="hoy"]').click(); await sleep(200);
+    const a1 = (q('#app-root .strike') || { dataset: {} }).dataset.act;
+    log('closed before «Empezar»: no «Seguir», no session, Hoy\'s real action is back', !q('#app-root [data-act="runner-resume"]') && st().cookSession === null && !!a0 && a1 === a0, a0 + ' → ' + a1);
+
+    // ── «Cociné otra cosa» at dinner: a COOKED batch (it counts toward the rung); «Compré» is the default, shown chosen
+    localStorage.clear(); await loadApp();
+    q('#app-root .row:nth-child(3) .ring').click(); await sleep(200);   // tonight's dinner
+    const bought = q('#olla-sheet [data-act="mode"][data-v="bought"]');
+    log('the log sheet opens with «Compré» chosen, and says so (aria-pressed)', !!bought && bought.classList.contains('on') && bought.getAttribute('aria-pressed') === 'true');
+    q('#olla-sheet [data-act="mode"][data-v="cooked"]').click(); q('#log-what').value = 'Chaufa express de pollo';
+    q('#olla-sheet [data-stepper="left"] [data-d="1"]').click(); await sleep(60);
+    q('#olla-sheet [data-act="log-other"]').click(); await sleep(250);
+    { const s = st(), x = Object.values(s.extra || {}).find(v => v.log === '2026-10-01:dinner');
+      log('«Cociné otra cosa, sobró 1»: the leftover batch is COOKED, named by its recipe', !!x && x.src === 'cooked' && x.recipe === 'chaufa-express' && x.servings === 1, JSON.stringify(x)); }
+
+    // ── «Siempre en la lista» offers real ingredient ids; a refused kitchen value is refused out loud; typing keeps the field
+    q('#settings-btn').click(); await sleep(250);
+    { const wk = qa('#kitchen-settings [data-kact="weekly"]').map(b => b.dataset.k);
+      log('«Siempre en la lista» offers huevo and plátano by their real ids (no «huevos» twin)', wk.indexOf('huevo') >= 0 && wk.indexOf('platano') >= 0 && wk.indexOf('huevos') < 0 && wk.indexOf('platanos') < 0, wk.join(',')); }
+    const change = (el, v) => { el.value = v; el.dispatchEvent(new (W().Event)('change', { bubbles: true })); };
+    { const w3 = q('#kitchen-settings [data-kact="win"][data-i="3"]'), before = JSON.stringify(st().settings.cookWindows['3']);
+      change(w3, '19:00-13:00'); await sleep(80);
+      const e1 = toastErr() && JSON.stringify(st().settings.cookWindows['3']) === before && w3.value === (st().settings.cookWindows['3'] || []).join(', ');
+      change(q('#kitchen-settings [data-kact="eat"][data-k="dinner"]'), '25:00'); await sleep(80);
+      const e2 = toastErr() && st().settings.eatAt.dinner === '19:00';
+      change(q('#kitchen-settings [data-kact="cookat"][data-i="6"]'), '23:00'); await sleep(80);
+      const e3 = toastErr() && !(st().settings.cookAt || {})['6'];
+      log('impossible kitchen values are REFUSED with a toast and the field shows what is stored: 19:00-13:00, 25:00, a Saturday start at 23:00', e1 && e2 && e3, [e1, e2, e3].join(','));
+      const ca3 = q('#kitchen-settings [data-kact="cookat"][data-i="3"]');
+      change(q('#kitchen-settings [data-kact="win"][data-i="3"]'), '13:00-18:00'); await sleep(80);
+      log('a good value is saved without rebuilding the sheet under his finger (the next field is the same node)', JSON.stringify(st().settings.cookWindows['3']) === '["13:00-18:00"]' && q('#kitchen-settings [data-kact="cookat"][data-i="3"]') === ca3);
+      log('every kitchen toggle says aria-pressed; every kitchen field has a name; the toast is a polite live region; the pot panel names itself by its text',
+        qa('#kitchen-settings .chip-btn').every(b => b.hasAttribute('aria-pressed')) && qa('#kitchen-settings input, #kitchen-settings textarea').every(i => i.getAttribute('aria-label')) && q('#toast').getAttribute('role') === 'status' && q('#toast').getAttribute('aria-live') === 'polite' && !q('#app-root .pot-panel').hasAttribute('aria-label'));
+      log('a ring\'s name says what is logged; a bowl\'s says what the dinner is', qa('#app-root .ring').length > 0 && qa('#app-root .ring').every(r => /: .+ — (comido|no comiste|otra cosa|fuera|sin anotar)$/.test(r.getAttribute('aria-label') || '')) && qa('#app-root .bowl').every(b => /· cena: /.test(b.getAttribute('aria-label') || '')),
+        (q('#app-root .ring') || { getAttribute: () => '' }).getAttribute('aria-label'));
+      // ONE save per theme tap (the shell's own listener used to fire too, and fall back to macchiato)
+      const SP = W().Storage.prototype, real = SP.setItem; let saves = 0; SP.setItem = function (k, v) { if (k === 'olla.v1') saves++; return real.call(this, k, v); };
+      q('#settings-modal [data-theme-pick="loza"]').click(); await sleep(60); SP.setItem = real;
+      log('a theme tap saves once, as «loza», and the page wears Loza', saves === 1 && st().settings.theme === 'loza' && D().documentElement.getAttribute('data-theme') === 'tokyo', saves + ' ' + st().settings.theme);
+    }
+    q('#settings-modal [data-close="settings"]').click(); await sleep(80);
+
+    // ── Hand edits: a liked-away dish leaves the week NOW; a hand-picked recipe can go back to the rule
+    localStorage.clear(); await loadAt('2026-10-01T09:00:00');
+    { const x = st().plan.days['2026-10-01'].cook.recipe;
+      q('#bottom-tabs .tab[data-view="libro"]').click(); await sleep(150);
+      q('#app-root .rec[data-id="' + x + '"]').click(); await sleep(200);
+      q('#olla-sheet [data-act="like"][data-v="never"]').click(); await sleep(200);
+      log('«nunca» on today\'s dish takes it off the week at once, not at the next minute tick', st().plan.days['2026-10-01'].cook.recipe !== x, x + ' → ' + st().plan.days['2026-10-01'].cook.recipe);
+      W().document.getElementById('olla-sheet').close(); }
+    q('#bottom-tabs .tab[data-view="semana"]').click(); await sleep(150);
+    { const SAT = '2026-10-03', r0 = st().plan.days[SAT].cook.recipe;
+      q('#app-root [data-act="pick"][data-date="' + SAT + '"]').click(); await sleep(200);
+      // a «close» queued by an EARLIER sheet can land after this one opened (seen in the gate, 3 of 18 runs, under virtual time):
+      // it must not null the open picker's context — delivered here on purpose, so the check is deterministic
+      q('#olla-sheet').dispatchEvent(new (W().Event)('close')); await sleep(30);
+      const other = qa('#olla-sheet [data-act="choose"]').find(b => b.dataset.id !== r0 && b.dataset.id === 'wrap-pollo-hummus') || qa('#olla-sheet [data-act="choose"]').find(b => b.dataset.id !== r0);
+      other.click(); await sleep(250);
+      const back = q('#app-root .crow-rule [data-act="rule"][data-date="' + SAT + '"]');
+      log('a hand-picked recipe shows «volver a la regla» on its cook row', st().plan.days[SAT].cook.hand === true && !!back, st().plan.days[SAT].cook.recipe + ' chose ' + (other && other.dataset.id) + ' r0 ' + r0 + ' toast «' + q('#toast').textContent + '» sheet ' + q('#olla-sheet').open);
+      if (back) { back.click(); await sleep(250); }
+      log('…and it goes back to the rule', !st().plan.days[SAT].cook.hand, JSON.stringify(st().plan.days[SAT].cook)); }
+
+    // ── «volver a la regla» is offered only where it can act: never on a slot already behind him
+    localStorage.clear(); await loadAt('2026-10-01T07:00:00');
+    q('#bottom-tabs .tab[data-view="semana"]').click(); await sleep(150);
+    q('#app-root .kind[data-date="2026-10-01"][data-slot="bf"]').click(); await sleep(200);
+    const bfHand = !!(st().plan.days['2026-10-01'].bf || {}).hand, offered7 = !!q('#app-root .back-rule[data-date="2026-10-01"][data-slot="bf"]');
+    await loadAt('2026-10-01T19:30:00');
+    q('#bottom-tabs .tab[data-view="semana"]').click(); await sleep(150);
+    log('a hand row offers «volver a la regla» while editable, and not once its meal is behind him', bfHand && offered7 && !!(st().plan.days['2026-10-01'].bf || {}).hand && !q('#app-root .back-rule[data-date="2026-10-01"][data-slot="bf"]'), [bfHand, offered7].join(','));
+
+    // ── A session that vanished under an open runner (another tab, a pull): the next tap closes it, nothing throws
+    { let errs = 0; const onErr = () => { errs++; }; W().addEventListener('error', onErr);
+      q('#bottom-tabs .tab[data-view="libro"]').click(); await sleep(150);
+      q('#app-root .rec').click(); await sleep(200); q('#olla-sheet [data-act="runner-start"]').click(); await sleep(200);
+      W().eval('state.cookSession = null');
+      q('#runner [data-act="r-next"]').click(); await sleep(150);
+      W().removeEventListener('error', onErr);
+      log('a runner whose session vanished closes on the next tap, without an error', errs === 0 && q('#runner').hidden, 'errors ' + errs); }
+
+    // ── A crafted import can't inject markup or a javascript: link
+    localStorage.clear(); await loadAt('2026-10-01T15:00:00');
+    patchSt(s => { const c = s.plan.days['2026-10-01'].cook; c.at = '<img id=xss1 src=x>'; s.cooks[c.batch] = [{ s: 'made', at: 1 }];
+      s.likes['bowl-coreano'] = { v: '"><img id=xss2 src=x>', at: 1 }; s.settings.hall.swipesPerWeek = '<img id=xss3 src=x>';
+      const r = s.recipes.find(x => x.id === 'bowl-coreano'); r.sources = ['javascript:alert(1)'].concat(r.sources || []); r.minutes.total = '<img id=xss4 src=x>'; });
+    await loadAt('2026-10-01T15:00:00');
+    q('#bottom-tabs .tab[data-view="semana"]').click(); await sleep(150);
+    const inj1 = !!(D().getElementById('xss1') || D().getElementById('xss3'));
+    q('#bottom-tabs .tab[data-view="libro"]').click(); await sleep(150);
+    q('#app-root .rec[data-id="bowl-coreano"]').click(); await sleep(200);
+    const inj2 = !!(D().getElementById('xss2') || D().getElementById('xss4')), js = qa('#olla-sheet a').some(a => /^\s*javascript:/i.test(a.getAttribute('href') || ''));
+    q('#bottom-tabs .tab[data-view="hoy"]').click(); W().document.getElementById('olla-sheet').close(); await sleep(150);
+    const inj3 = !!(D().getElementById('xss1') || D().getElementById('xss4'));
+    log('stored fields are escaped everywhere they render, and a javascript: source is never a link', !inj1 && !inj2 && !inj3 && !js, [inj1, inj2, inj3, js].join(','));
+
+    // ── Rescue: «la de la nevera» when tonight already IS that fridge dish is the plan («comí»), not «otra cosa»
+    localStorage.clear(); await loadAt('2026-10-01T20:40:00');
+    { const rh = q('#app-root [data-act="rescue-home"]');
+      if (rh) { rh.click(); await sleep(250); }
+      const e = eff((st().log || {})['2026-10-01:dinner']);
+      log('rescue at 20:40 with tonight\'s dinner the fridge default: «comí», as planned', !!rh && !!e && e.s === 'ate', JSON.stringify(e));
+      W().document.getElementById('olla-sheet').close(); await sleep(60); }
+    localStorage.clear(); await loadApp();
+
+    // ── Tap targets at 375px: Hoy, La semana, La lista (and the bars)
+    const smalls = smallTargets('#app-root').concat(smallTargets('header.topbar'), smallTargets('#bottom-tabs'));
+    q('#bottom-tabs .tab[data-view="semana"]').click(); await sleep(150); smallTargets('#app-root').forEach(x => smalls.push('semana ' + x));
+    q('#bottom-tabs .tab[data-view="lista"]').click(); await sleep(150); smallTargets('#app-root').forEach(x => smalls.push('lista ' + x));
+    q('#bottom-tabs .tab[data-view="hoy"]').click(); await sleep(150);
+    log('every tap target is at least 44×44 at 375px (Hoy, La semana, La lista, the bars)', smalls.length === 0, smalls.slice(0, 4).join(' | '));
+    {   // CONTROL: a ring shrunk to 30px must be SEEN by the same check
+      const sty = D().createElement('style'); sty.textContent = '.ring{width:30px!important;height:30px!important}'; D().head.appendChild(sty); await sleep(50);
+      log('CONTROL (must read FAIL): a 30px ring passes the 44px check', smallTargets('#app-root').length === 0);
+      sty.remove();
+    }
     log('CONTROL (must read FAIL): Hoy has zero rows', qa('#app-root .row').length === 0 && false);
   } catch (e) { log('harness crashed', false, String(e && e.stack || e).slice(0, 300)); }
   out.push('HARNESS: DONE'); render();

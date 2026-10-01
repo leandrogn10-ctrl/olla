@@ -20,9 +20,9 @@ if ! LC_ALL=C grep -q 'OLLA-ENGINE-BEGIN' "$SERVED"; then echo "gate: FAIL — t
 # --dump-dom writes the DOM within a second and then Chrome LINGERS (it wakes the Google Updater on exit and never
 # returns under this sandbox), so the gate polls the dump for </html> and kills Chrome itself, never waits on it.
 OUT=$(mktemp)
-"$CHROME" --headless=new --disable-gpu --no-first-run --disable-background-networking --disable-component-update --user-data-dir="$(mktemp -d)" --host-resolver-rules="MAP fonts.googleapis.com 127.0.0.1, MAP fonts.gstatic.com 127.0.0.1" --virtual-time-budget=8000 --dump-dom "http://localhost:$PORT/test-harness.html" > "$OUT" 2>/dev/null &
+"$CHROME" --headless=new --disable-gpu --no-first-run --disable-background-networking --disable-component-update --user-data-dir="$(mktemp -d)" --host-resolver-rules="MAP fonts.googleapis.com 127.0.0.1, MAP fonts.gstatic.com 127.0.0.1" --virtual-time-budget=60000 --dump-dom "http://localhost:$PORT/test-harness.html" > "$OUT" 2>/dev/null &
 CPID=$!
-for _ in $(seq 1 60); do grep -q "</html>" "$OUT" 2>/dev/null && break; sleep 1; done
+for _ in $(seq 1 120); do grep -q "</html>" "$OUT" 2>/dev/null && break; sleep 1; done
 pkill -P "$CPID" 2>/dev/null; kill "$CPID" 2>/dev/null
 DOM=$(cat "$OUT")
 LINES=$(printf '%s\n' "$DOM" | grep -o 'HARNESS: [^<]*' | sed 's/&gt;/>/g; s/&amp;/\&/g')

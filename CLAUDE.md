@@ -7,17 +7,23 @@ lives in the private `leandro-os-prototype` repo: `LA-OLLA-PLAN.md`, `LA-OLLA-V2
 
 ## What this is (don't drift from this)
 - **A dinner-STOCK organ, not a planner and not a recipe app.** Its one job: tomorrow's dinner exists before
-  tonight's is eaten. The problem it exists for is EATING (skipped meals, mostly weekends and lift nights).
+  tonight's is eaten. The problem it exists for is EATING: dinner that exists before he needs it.
 - **Plan = intent, log = reality.** `plan.days` is what the rule (or his hand) intended; `log`, `cooks`,
   `extra`, `likes` are what happened. Nothing ever writes a past `plan.days[d]`. The pot, the leftovers, the
   register and the ladder derive from reality first. **When unsure, the pot holds LESS**: a past cook nobody
-  confirmed is NOT in the pot (it is asked about, today and yesterday only — never a guilt list).
+  confirmed is NOT in the pot (it is asked about, today and yesterday only — never a guilt list). Today's cook is
+  asked about only once its cook WINDOW has closed (the city may seat it later inside that window) and never later
+  than the moment its dinner can be logged (`cookDueAt`); until then it reads «cooking».
 - **The week is a RULE, not a document.** `OLLA.buildWeek(state, today, now)` runs on every boot, wake and tap;
   he only overrides a row (tap → `setKind`, `hand:true`; «volver a la regla» → `backToRule`). Cooks are seated
   FIRST, by coverage (who must eat from this pot until the next day that can cook), then leftovers. Rotation:
-  three dishes per rung until boring (`pickRecipe`), gear-aware, liking-aware, never back-to-back.
+  three dishes per rung until boring (`pickRecipe`), gear-aware, liking-aware, never back-to-back. Once today's
+  trip has left (its departure, cook − trip, is behind `now` and the list is still unticked) the cook stays at its
+  hour and the trip at its departure — silence means he went; back from it, nothing nudges him to shop for it.
 - **«Comprado» is success.** Rung-1 dishes are assembly: their verb is «armar». Buying a rotisserie chicken is the
-  plan; buying something off-plan that leaves portions creates a real batch the planner uses like a cook.
+  plan; buying something off-plan that leaves portions creates a real batch the planner uses like a cook. A batch
+  with no meal behind it (answered before its dinner can be logged, the pot sheet's «compré», an off-plan
+  cook-along) is `addBatch` — an `extra` tied to no log entry, taken back with `logCook(id, {s:'tossed'})`.
 - **Dinner is never a swipe** (the hall's last station closes at 6pm; weekends nothing is open on that campus).
 - **No calories, no macros, no streaks, no counters of failure.** Protein per recipe is an ESTIMATE and says so;
   a protein ADD-ON line («+ leche con el swipe») is allowed. The weekly register names a skipped slot, never a score.
@@ -45,6 +51,7 @@ lives in the private `leandro-os-prototype` repo: `LA-OLLA-PLAN.md`, `LA-OLLA-V2
 - **Sync (app-specific, keep it):** every gist request is `cache:'no-store'`; pull adopts the newer copy's
   plan/settings and MERGES reality (`mergeReality`) both ways; push GETs, merges, then PATCHes `olla.json` only;
   a re-derivation saves `{markModified:false, push:false}` (it must never win a sync against his tap).
+  `cookSession` is device-local: never pushed, and kept when a pull adopts a newer copy.
   `cleanStateForSync` adds **`pub`**, the projection the city (the Heraldo's cook and Safeway blocks) and the
   Worker (Pushover reminders) read — its shape is a FROZEN contract (`LA-OLLA-V2-SPEC.md` §2.7): integers only,
   seven days, a day the engine can't project is omitted. `appMigrate` deletes `pub` on load.
@@ -55,8 +62,11 @@ lives in the private `leandro-os-prototype` repo: `LA-OLLA-PLAN.md`, `LA-OLLA-V2
 ## The load-bearing rules
 - **Deploy gate = `bash gate.sh`**: `test-olla.js` (engine pins; every control must go RED) then the
   headless-Chrome `test-harness.html` (boot, log, RELOAD persistence, hand rows, recipe scaling, the cook-along
-  surviving a reload, list checks, settings, sibling-gist refusal, hit-testing), whose CONTROL lines must all
-  read FAIL. Run it headless; don't eyeball. `gate.sh` runs under `pipefail`.
+  surviving a reload, list checks, settings, sibling-gist refusal, hit-testing; and, at pinned hours, a cook
+  question answered «Sí» with a yield and «otra cosa» before dinner, planned and off-plan cook-alongs finished, the
+  pot's «Comer una», the runner closed before «Empezar» and as a modal dialog, kitchen values refused, escaping,
+  44px targets at 375px), whose CONTROL lines must all read FAIL. Run it headless; don't eyeball. `gate.sh` runs
+  under `pipefail`. A UI fix gets a harness line AND a run with the original defect re-planted in a scratch copy.
 - **Shipping `index.html` means bumping `CACHE_NAME` in `sw.js`, same commit**, then `curl` the Pages URL and
   grep the SERVED bytes for the string you added. A green gate on localhost is a fact about your server.
 - **Persistence discipline**: a schema change is invisible to a returning user unless it migrates — bump

@@ -42,6 +42,7 @@ function control(name, fn) { let red = false, msg = ''; try { red = !fn(); } cat
 function plant(src, find, repl) { once(src, find, 're-plant anchor'); const b = src.replace(find, repl); if (b === src) throw new Error('re-plant changed nothing: ' + find.slice(0, 60)); return b; }
 const SAT0 = '2026-09-26', WED = '2026-09-30', THU = '2026-10-01', FRI = '2026-10-02', SAT = '2026-10-03', SUN = '2026-10-04', MON = '2026-10-05', TUE = '2026-10-06', TUE0 = '2026-09-29';
 const hm = s => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
+const OLLA_hm = s => (s == null ? NaN : hm(String(s)));
 const AT = (d, t) => { const [y, mo, da] = d.split('-').map(Number); const [h, mi] = (t || '12:00').split(':').map(Number); return new Date(y, mo - 1, da, h, mi).getTime(); };
 const hash = o => JSON.stringify(o);
 const pastHash = (s, today) => hash(Object.keys(s.plan.days).filter(d => d < today).sort().map(d => [d, s.plan.days[d]]));
@@ -59,7 +60,7 @@ console.log('\n0. The engine has no clock, every §2.6 name is exported, and no 
   const API = ['ymd', 'parse', 'addDays', 'dow', 'diffDays', 'weekStart', 'isoWeek', 'hm', 'fmtHM', 'slotsFor', 'eatAt', 'recipeById', 'ingredient', 'eligible', 'maxServings', 'verbFor',
     'reality', 'potNow', 'expired', 'cookState', 'questions', 'buildWeek', 'validateWeek', 'setKind', 'nextKind', 'setCookRecipe', 'backToRule', 'logMeal', 'logCook', 'freeze', 'like',
     'effLog', 'effCook', 'pickRecipe', 'scaleIngredients', 'stepTimer', 'remateFor', 'shopping', 'check', 'listText', 'rescue', 'nextAction', 'weekRegister', 'minutesFor', 'slotLabel',
-    'project', 'mergeReality', 'rungCheck', 'rungUp'];
+    'project', 'mergeReality', 'rungCheck', 'rungUp', 'addBatch'];
   const missing = API.filter(n => typeof O[n] !== 'function');
   ok('every §2.6 function is on OLLA', !missing.length, missing.join(','));
   ok('SLOTS and KINDS are the spec\'s', hash(O.SLOTS) === hash(['bf', 'lunch', 'dinner', 'post']) && hash(O.KINDS) === hash(['swipe', 'leftover', 'cook', 'home', 'out']));
@@ -82,7 +83,7 @@ console.log('\n1. The fallback week (model OFF) is a VALID week');
   ok('dinner is NEVER a swipe', days.every(d => s.plan.days[d].dinner.kind !== 'swipe'));
   ok('weekday breakfast + lunch are swipes', [WED, THU, FRI, MON, TUE].every(d => s.plan.days[d].bf.kind === 'swipe' && s.plan.days[d].lunch.kind === 'swipe'));
   ok('weekend breakfast is the fridge default; Sunday lunch is out', s.plan.days[SAT].bf.kind === 'home' && s.plan.days[SUN].bf.kind === 'home' && s.plan.days[SUN].lunch.kind === 'out');
-  ok('lift nights get the fourth meal (batido-post), and only lift nights', s.plan.days[THU].post && s.plan.days[THU].post.recipe === 'batido-post' && !s.plan.days[WED].post && !s.plan.days[SAT].post);
+  ok('training nights get the fourth meal (batido-post), and only training nights', s.plan.days[THU].post && s.plan.days[THU].post.recipe === 'batido-post' && !s.plan.days[WED].post && !s.plan.days[SAT].post);
   const wc = s.plan.days[WED].cook, wr = O.recipeById(s, wc.recipe);
   ok('Wed cooks inside its window, start AND end', wc && hm(wc.at) >= hm('13:00') && hm(wc.at) + wr.minutes.total <= hm('17:30') && s.plan.days[WED].dinner.kind === 'cook', JSON.stringify(wc));
   ok('Thu (its window not needed) eats Wed\'s pot', !s.plan.days[THU].cook && s.plan.days[THU].dinner.kind === 'leftover' && s.plan.days[THU].dinner.of === wc.batch);
@@ -229,22 +230,22 @@ console.log('\n6. Silence about a past cook: NOT in the pot, and asked — only 
   s.plan = O.buildWeek(s, THU, hm('08:00'));
   ok('the planner does not seat Thursday from a phantom: Thursday cooks for itself', s.plan.days[THU].dinner.kind === 'cook' && s.plan.days[THU].cook, JSON.stringify(s.plan.days[THU]));
   ok('two days later the question is dropped silently — never a guilt list', O.questions(s, FRI, hm('08:00')).every(q => q.date !== WED));
-  ok('cookState walks planned → due → cooking → unconfirmed → made', (() => { const t = week(mk(), WED, 0), at = hm(t.plan.days[WED].cook.at), tot = O.recipeById(t, t.plan.days[WED].cook.recipe).minutes.total;
-    const a = [O.cookState(t, WED, WED, at - 30), O.cookState(t, WED, WED, at - 10), O.cookState(t, WED, WED, at + 1), O.cookState(t, WED, WED, at + tot)];
-    O.logCook(t, batchOf(t, WED), { s: 'made' }, WED, at + tot, AT(WED, '16:00')); a.push(O.cookState(t, WED, WED, at + tot)); return a.join(',') === 'planned,due,cooking,unconfirmed,made'; })());
+  ok('cookState walks planned → due → cooking (through the end of its window) → unconfirmed → made', (() => { const t = week(mk(), WED, 0), at = hm(t.plan.days[WED].cook.at), tot = O.recipeById(t, t.plan.days[WED].cook.recipe).minutes.total;
+    const a = [O.cookState(t, WED, WED, at - 30), O.cookState(t, WED, WED, at - 10), O.cookState(t, WED, WED, at + 1), O.cookState(t, WED, WED, at + tot), O.cookState(t, WED, WED, hm('17:30'))];
+    O.logCook(t, batchOf(t, WED), { s: 'made' }, WED, hm('17:30'), AT(WED, '17:30')); a.push(O.cookState(t, WED, WED, hm('17:30'))); return a.join(',') === 'planned,due,cooking,cooking,unconfirmed,made'; })(), 'at ' + (week(mk(), WED, 0).plan.days[WED].cook || {}).at);
   const t = week(mk(), WED, hm('10:00'));
   const r = O.logMeal(t, THU, 'dinner', { s: 'ate' }, THU, hm('19:30'), AT(THU, '19:30'));
   ok('eating a portion of an unconfirmed pot confirms it (the pot existed)', r.ok && O.cookState(t, WED, THU, hm('19:30')) === 'made', JSON.stringify(r));
 }
 {
-  const s = week(mk(), WED, hm('09:00')); s.plan = O.buildWeek(s, WED, hm('15:00'));
-  ok('Wed 15:00, today\'s cook done but unconfirmed: tonight stays THE COOK (it reads «¿se hizo?»), not the fridge', s.plan.days[WED].dinner.kind === 'cook' && O.cookState(s, WED, WED, hm('15:00')) === 'unconfirmed' && O.potNow(s, WED, hm('15:00')).length === 0, JSON.stringify(s.plan.days[WED].dinner));
+  const s = week(mk(), WED, hm('09:00')); s.plan = O.buildWeek(s, WED, hm('17:45'));
+  ok('Wed 17:45, today\'s cook done but unconfirmed: tonight stays THE COOK (it reads «¿se hizo?»), not the fridge', s.plan.days[WED].dinner.kind === 'cook' && O.cookState(s, WED, WED, hm('17:45')) === 'unconfirmed' && O.potNow(s, WED, hm('17:45')).length === 0, JSON.stringify(s.plan.days[WED].dinner));
   O.logCook(s, batchOf(s, WED), { s: 'made', yield: 3 }, THU, hm('08:00'), AT(THU, '08:00')); s.plan = O.buildWeek(s, THU, hm('08:00'));
   ok('…answered the next morning (made, 3): Wednesday\'s dinner counts as eaten, so the pot holds 2 — never a phantom third', O.potNow(s, THU, hm('08:00'))[0].left === 2);
 }
 control('re-plant: re-seating tonight on the fridge while the cook is unconfirmed makes the next-morning answer a phantom portion', () => {
   const B = replant('engine', "cookB = b || (rb && rb.state === 'unconfirmed' ? { id: rb.id, left: 0, pending: true } : null);", 'cookB = b || null;');
-  const s = mkWith(B.seed); s.plan = B.O.buildWeek(s, WED, hm('09:00')); s.plan = B.O.buildWeek(s, WED, hm('15:00'));
+  const s = mkWith(B.seed); s.plan = B.O.buildWeek(s, WED, hm('09:00')); s.plan = B.O.buildWeek(s, WED, hm('17:45'));
   B.O.logCook(s, s.plan.days[WED].cook.batch, { s: 'made', yield: 3 }, THU, hm('08:00'), AT(THU, '08:00')); s.plan = B.O.buildWeek(s, THU, hm('08:00'));
   return B.O.potNow(s, THU, hm('08:00'))[0].left === 2;
 });
@@ -909,6 +910,111 @@ control('re-plant: a big pot with no cooling step is CAUGHT', () => { const b = 
 control('re-plant the checkpoint\'s pollo a la bandeja («listo cuando los jugos salen claros») is CAUGHT', () => { const b = JSON.parse(JSON.stringify(seed.recipes)), r = b.find(x => x.id === 'pollo-bandeja'); r.steps.forEach(s => { s.t = s.t.replace(/color no prueba/g, 'jugos claros'); }); return bookRules(b).length === 0; });
 control('re-plant: an ingredient no step uses is CAUGHT (it would be bought and never cooked)', () => { const b = JSON.parse(JSON.stringify(seed.recipes)); b.find(x => x.id === 'chili').ingredients.push({ id: 'comino', q: 1, u: 'cdta' }); return bookRules(b).length === 0; });
 
+console.log('\n31. A cook is asked about only once its WINDOW is over — and never later than its dinner (final e2e review #2)');
+const dueCase = B => {
+  const out = {};
+  { const s = mkWith(B.seed); s.plan = B.O.buildWeek(s, THU, hm('09:00')); const c = s.plan.days[THU].cook;   // window 13:00–17:30, the city may seat it at 15:00
+    out.thuAt = c && c.at;
+    out.thu1430 = B.O.cookState(s, THU, THU, hm('14:30')); out.thuQ1430 = B.O.questions(s, THU, hm('14:30')).length; out.thuNext1430 = B.O.nextAction(s, THU, hm('14:30')).kind;
+    out.thuPub1430 = (B.O.project(s, THU, hm('14:30'), 1).days[THU].cook || {}).state;
+    out.thu1730 = B.O.cookState(s, THU, THU, hm('17:30')); out.thuQ1730 = B.O.questions(s, THU, hm('17:30')).length;
+    out.thuPot1430 = B.O.potNow(s, THU, hm('14:30')).length; }
+  { const s = mkWith(B.seed); s.plan = B.O.buildWeek(s, SAT, hm('08:00'));                                      // window 11:00–21:00, dinner 19:00
+    out.sat1500 = B.O.cookState(s, SAT, SAT, hm('15:00')); out.sat1730 = B.O.cookState(s, SAT, SAT, hm('17:30')); out.satNext2000 = B.O.nextAction(s, SAT, hm('20:00')).kind; }
+  return out;
+};
+{
+  const r = dueCase(BASE);
+  ok('Thursday 14:30, its hour + total behind but the window open: still «cooking», nothing asked, Hoy does not confirm', r.thu1430 === 'cooking' && r.thuQ1430 === 0 && r.thuNext1430 !== 'confirm-cook', JSON.stringify(r));
+  ok('…pub still says «planned» (the Worker keeps its 15:00 notice for a cook the paper moved there)', r.thuPub1430 === 'planned', r.thuPub1430);
+  ok('…and the pot still holds nothing for it (unsure = less)', r.thuPot1430 === 0);
+  ok('Thursday 17:30, the window shut: unconfirmed, and asked once', r.thu1730 === 'unconfirmed' && r.thuQ1730 === 1, r.thu1730 + ' q=' + r.thuQ1730);
+  ok('Saturday 15:00 inside its 11–21 window: still «cooking»', r.sat1500 === 'cooking', r.sat1500);
+  ok('Saturday 17:30, when its 19:00 dinner can be logged: asked — not at 21:00', r.sat1730 === 'unconfirmed', r.sat1730);
+  ok('…so at 20:00 Hoy confirms the cook instead of rescuing a dinner he may have cooked at noon', r.satNext2000 === 'confirm-cook', r.satNext2000);
+}
+control('re-plant the hour + total rule: Thursday 14:30 asks «¿se hizo?» about a cook the paper has at 15:00', () => dueCase(replant('engine',
+  "return w ? Math.max(at + tot, Math.min(w.e, eatAt(state, date, 'dinner') - EARLY)) : at + tot;", 'return at + tot;')).thu1430 === 'cooking');
+control('re-plant the bare window end (no dinner bound): Saturday is not asked until 21:00 and 20:00 shows the rescue card', () => { const r = dueCase(replant('engine',
+  "Math.min(w.e, eatAt(state, date, 'dinner') - EARLY)", 'w.e')); return r.sat1730 === 'unconfirmed' && r.satNext2000 === 'confirm-cook'; });
+
+console.log('\n32. A trip that has left is not re-timed: the cook stays at its hour, the trip at its departure (final e2e review #7)');
+const recedeCase = B => {
+  const out = { at: [], trip: [], pubShop: [] };
+  const s = mkWith(B.seed); s.plan = B.O.buildWeek(s, WED, hm('08:00'));   // nothing ticked, ever: he shops and cooks without touching the list
+  out.at0 = s.plan.days[WED].cook.at;
+  ['13:05', '13:20', '13:35', '13:45'].forEach(t => {
+    s.plan = B.O.buildWeek(s, WED, hm(t)); out.at.push(s.plan.days[WED].cook.at);
+    const tr = B.O.shopping(s, WED, hm(t)).trips.find(x => x.date === WED); out.trip.push(tr && tr.at);
+    const p = B.O.project(s, WED, hm(t), 1).days[WED]; out.pubShop.push(p.shop && p.shop.at);
+  });
+  s.plan = B.O.buildWeek(s, WED, hm('15:00'));
+  const tr = B.O.shopping(s, WED, hm('15:00')).trips.find(x => x.date === WED);
+  out.after = { next: B.O.nextAction(s, WED, hm('15:00')).kind, pubShop: B.O.project(s, WED, hm('15:00'), 1).days[WED].shop, listKept: !!(tr && tr.items.length && tr.left > 0) };
+  { const z = mkWith(B.seed); z.plan = B.O.buildWeek(z, WED, hm('08:00'));   // he ticks the whole list in the store at 13:20: the cook only waits for the walk home
+    B.O.shopping(z, WED, hm('13:20')).trips.filter(x => x.date === WED).forEach(t => t.items.forEach(i => B.O.check(z, i.key, true, AT(WED, '13:20'))));
+    z.plan = B.O.buildWeek(z, WED, hm('13:20')); out.ticked = z.plan.days[WED].cook.at; }
+  return out;
+};
+{
+  const r = recedeCase(BASE);
+  ok('Wednesday, nothing ticked: the cook stays at its hour on every rebuild after the trip left (13:05 → 13:45)', r.at.every(a => a === r.at0), r.at0 + ' → ' + r.at.join(','));
+  ok('…and the trip keeps its departure, never the publish minute', r.trip.every(t => t === r.trip[0]) && OLLA_hm(r.trip[0]) + O.tripMinutes(mk().settings) === OLLA_hm(r.at0), r.trip.join(','));
+  ok('…in pub too (the Worker\'s [at − 90, at) window means what it says)', r.pubShop.every(a => a === OLLA_hm(r.trip[0])), r.pubShop.join(','));
+  ok('back from the trip: nothing nudges him to shop for it — no «shop» action, no pub.shop', r.after.next !== 'shop' && r.after.pubShop === null, JSON.stringify(r.after));
+  ok('…but the list keeps its lines to tick (a cook whose hour came keeps its list — #4)', r.after.listKept);
+  ok('ticking the whole list in the store still frees the cook to the walk home', OLLA_hm(r.ticked) < OLLA_hm(r.at0) && OLLA_hm(r.ticked) >= hm('13:20') + 10, r.ticked);
+}
+control('re-plant the re-seat: an unticked cook recedes behind the clock on every rebuild', () => { const r = recedeCase(replant('engine',
+  'if (started || (d === today && departed(o.cook, oat))) {', 'if (started) {')); return r.at.every(a => a === r.at0); });
+control('re-plant the clamp to now: the trip\'s departure becomes the publish minute', () => { const r = recedeCase(replant('engine',
+  'if (T === today && !same.length) at = Math.max(at, ceil5(N));', 'if (T === today) at = Math.max(at, ceil5(N));')); return r.trip.every(t => t === r.trip[0]); });
+control('re-plant a trip that never ends: at 15:00 Hoy still sends him to Safeway for the cook he did', () => { const r = recedeCase(replant('engine',
+  'const gone = T === today && same.length > 0 && N >= at + trip;', 'const gone = false;')); return r.after.next !== 'shop' && r.after.pubShop === null; });
+
+console.log('\n33. addBatch: a batch without a meal — «compré, rinde N» before dinner, an off-plan cook (final UI review #1, #3, #5)');
+const batchCase = B => {
+  const out = {};
+  const s = mkWith(B.seed); s.settings.eatAt.dinner = '21:00'; s.plan = B.O.buildWeek(s, THU, hm('09:00'));   // dinner can't be logged before 19:30
+  const bt = batchOf(s, THU); out.hadCook = !!bt;
+  out.mealRefused = B.O.logMeal(JSON.parse(JSON.stringify(s)), THU, 'dinner', { s: 'other', what: 'pollo rostizado', left: 2 }, THU, hm('17:45'), AT(THU, '17:45')).ok === false;   // the old path: refused, the purchase lost
+  B.O.logCook(s, bt, { s: 'notmade' }, THU, hm('17:45'), AT(THU, '17:45'));
+  const r = B.O.addBatch(s, { name: 'pollo rostizado', servings: 3, src: 'bought' }, THU, hm('17:45'), AT(THU, '17:45') + 1);
+  s.plan = B.O.buildWeek(s, THU, hm('17:45'));
+  out.res = r; out.noLogKey = !!(r.batch && s.extra[r.batch] && !('log' in s.extra[r.batch]));
+  out.dinner = s.plan.days[THU].dinner; out.thuEats = !!(r.batch && out.dinner.kind === 'leftover' && out.dinner.of === r.batch);
+  out.fri = [s.plan.days[FRI].lunch, s.plan.days[FRI].dinner].some(x => x.of === r.batch);
+  out.pot = B.O.potNow(s, THU, hm('17:45')).map(b => b.id + ':' + b.left);
+  out.potOk = B.O.potNow(s, THU, hm('17:45')).some(b => b.id === r.batch && b.left === 3 && b.src === 'bought');
+  out.noDinnerLog = !B.O.effLog(s, THU, 'dinner'); out.gate = B.O.validateWeek(s, s.plan, THU, hm('17:45'));
+  out.tossed = B.O.logCook(s, r.batch, { s: 'tossed' }, THU, hm('18:00'), AT(THU, '18:00')).ok; s.plan = B.O.buildWeek(s, THU, hm('18:00'));
+  out.goneAfterToss = !B.O.potNow(s, THU, hm('18:00')).some(b => b.id === r.batch) && s.plan.days[THU].dinner.of !== r.batch;
+  out.refusals = [B.O.addBatch(s, { name: 'x', servings: 2 }, THU, 0, 0).ok, B.O.addBatch(s, { name: 'x', servings: 0 }, THU, 0, 1).ok, B.O.addBatch(s, { date: FRI, name: 'x', servings: 2 }, THU, 0, 1).ok, B.O.addBatch(s, { recipe: 'no-such', servings: 2 }, THU, 0, 1).ok];
+  const y = mkWith(B.seed); y.plan = B.O.buildWeek(y, SAT, hm('11:00'));
+  const c = B.O.addBatch(y, { recipe: 'chaufa-express', servings: 3, src: 'cooked' }, SAT, hm('13:00'), AT(SAT, '13:00'));
+  out.cooked = !!(c.ok && y.extra[c.batch].src === 'cooked' && y.extra[c.batch].name === B.O.recipeById(y, 'chaufa-express').name && B.O.potNow(y, SAT, hm('13:00')).some(b => b.id === c.batch && b.left === 3) && !B.O.effLog(y, SAT, 'dinner'));
+  return out;
+};
+{
+  const r = batchCase(BASE);
+  ok('the setup: Thursday has a cook, and «otra cosa» as a MEAL is refused before its dinner can be logged (the purchase used to be lost)', r.hadCook && r.mealRefused);
+  ok('«no se hizo» + addBatch(compré, 3): an extra with no log key', r.res.ok && r.noLogKey, JSON.stringify(r.res));
+  ok('…tonight eats the bought batch (the rotisserie Thursday, before dinner)', r.thuEats, JSON.stringify(r.dinner));
+  ok('…and Friday eats from it too', r.fri);
+  ok('…it is in the pot with all 3 portions, as bought', r.potOk, r.pot.join(','));
+  ok('…nothing was written to the dinner log, and the gate accepts the week', r.noDinnerLog && r.gate.length === 0, JSON.stringify(r.gate));
+  ok('he takes it back with logCook tossed: out of the pot and off tonight', r.tossed && r.goneAfterToss);
+  ok('addBatch refuses: no at, 0 servings, a future date, an unknown recipe', r.refusals.every(x => x === false), r.refusals.join(','));
+  ok('an off-plan cook (chaufa, 3, cooked) is a cooked batch named by its recipe; the dinner log untouched', r.cooked);
+  const z = mk(); z.ladder.rung = 1;   // why src matters: the rung counts an off-plan COOK, never a purchase
+  const rid = z.recipes.find(x => x.role === 'main' && x.rung === 1 && x.assembly).id;
+  const eat2 = src => { const s = mk(); s.plan = O.buildWeek(s, WED, hm('09:00')); const b = O.addBatch(s, { recipe: rid, servings: 2, src }, WED, hm('09:00'), AT(WED, '09:00')).batch;
+    O.logMeal(s, WED, 'dinner', { s: 'ate', of: b }, WED, hm('19:30'), AT(WED, '19:30')); O.logMeal(s, THU, 'lunch', { s: 'ate', of: b }, THU, hm('13:00'), AT(THU, '13:00')); return O.rungCheck(s, THU, hm('14:00')).n; };
+  ok('an off-plan cook counts toward the rung; the same food bought does not', eat2('cooked') === 2 && eat2('bought') === 0, eat2('cooked') + ' / ' + eat2('bought'));
+}
+control('re-plant a log key on addBatch: the batch dies with a meal that never existed, and tonight is not fed', () => batchCase(replant('engine',
+  "x.src : 'other', from: null, at: +at };", "x.src : 'other', from: null, at: +at, log: date + ':dinner' };")).thuEats);
+
 console.log('\n20. Sync (the shell): pull merges reality both ways and saves without a push; push GETs first, PATCHes olla.json only');
 function syncRig(local, remote, syncSrc) {
   const L = load(), calls = [], saves = [];
@@ -940,6 +1046,7 @@ const syncCase = async (syncSrc) => {
   { // A — the remote is NEWER: adopt its settings, keep this device's log entry
     const local = syncState(), remote = JSON.parse(JSON.stringify(local));
     O.logMeal(local, WED, 'lunch', { s: 'skipped' }, WED, hm('13:00'), AT(WED, '13:00')); local.lastModified = 100;
+    local.cookSession = { date: WED, batch: null, recipe: 'bowl-coreano', servings: 3, step: 2, timers: [], got: {}, startedAt: 1 }; remote.cookSession = null;   // he is mid-cook on THIS device
     O.logMeal(remote, WED, 'bf', { s: 'ate' }, WED, hm('09:00'), AT(WED, '09:00')); remote.settings.hall.swipesPerWeek = 9; remote.lastModified = 200; remote.pub = { v: 2, stale: true };
     delete remote.settings.sync; remote.settings.claude = { model: 'm' };
     const R = syncRig(local, remote, syncSrc), need = await R.api.syncPull(), st = R.api.get();
@@ -949,6 +1056,7 @@ const syncCase = async (syncSrc) => {
     out.noPub = !('pub' in st);
     out.quietSaves = R.saves.length > 0 && R.saves.every(o => o.markModified === false && o.push === false);
     out.noStore = R.calls.length > 0 && R.calls.every(c => c.cache === 'no-store');
+    out.keepSession = !!(st.cookSession && st.cookSession.step === 2 && st.cookSession.recipe === 'bowl-coreano');
   }
   { // B — the local copy is NEWER: keep its settings, take the remote's log entry
     const local = syncState(), remote = JSON.parse(JSON.stringify(local));
@@ -960,6 +1068,7 @@ const syncCase = async (syncSrc) => {
     const local = syncState(), remote = JSON.parse(JSON.stringify(local)); local.lastModified = 200; remote.lastModified = 100;
     O.logMeal(local, WED, 'lunch', { s: 'skipped' }, WED, hm('13:00'), AT(WED, '13:00'));
     O.logMeal(remote, WED, 'bf', { s: 'ate' }, WED, hm('09:00'), AT(WED, '09:00'));
+    local.cookSession = { date: WED, batch: null, recipe: 'bowl-coreano', servings: 3, step: 1, timers: [], got: {}, startedAt: 1 };
     const R = syncRig(local, remote, syncSrc); await R.api.syncPush();
     const methods = R.calls.map(c => c.method).join(','), patch = R.calls.find(c => c.method === 'PATCH');
     const content = patch && patch.body.files['olla.json'] && patch.body.files['olla.json'].content, pushed = content && JSON.parse(content);
@@ -968,6 +1077,7 @@ const syncCase = async (syncSrc) => {
     out.union = !!(pushed && O.effLog(pushed, WED, 'bf') && O.effLog(pushed, WED, 'lunch'));
     out.pub = !!(pushed && pushed.pub && pushed.pub.v === 2 && typeof pushed.pub.day === 'string');
     out.noSecrets = !!content && !/ghp_SECRET|sk-SECRET/.test(content);
+    out.noSession = !!pushed && !('cookSession' in pushed);
   }
   return out;
 };
@@ -986,9 +1096,13 @@ const redIf = (name, stayedGreen) => { if (!stayedGreen) { pass++; console.log('
   ok('push carries the union of both devices\' entries', r.union);
   ok('push carries pub (v2, the local day)', r.pub);
   ok('push never carries the PAT or the API key', r.noSecrets);
+  ok('push never carries the cook-along (device-local, UI review #11)', r.noSession);
+  ok('pull, remote newer: this device\'s cook-along in progress survives the adopt', r.keepSession);
   redIf('re-plant v1\'s pull (adopt the remote wholesale): this device\'s entry is lost', (await syncCase(replant('sync', 'needPush = OLLA.mergeReality(remote, mine) > 0;', 'needPush = false;').SYNC)).keepMine);
   redIf('re-plant v1\'s blind push: the other device\'s entry is erased by the PATCH', (await syncCase(replant('sync', 'if (looksLikeMyState(remoteState) && OLLA.mergeReality(state, migrate(remoteState)) > 0) {', 'if (false) {').SYNC)).union);
   redIf('re-plant: a gistFetch without no-store is SEEN', (await syncCase(replant('sync', "    cache: 'no-store',", '').SYNC)).noStore);
+  redIf('re-plant: the cook-along rides the gist again', (await syncCase(replant('sync', '  delete out.cookSession;', '').SYNC)).noSession);
+  redIf('re-plant: adopting a newer gist takes ITS null session and ends the cook-along here', (await syncCase(replant('sync', "      remote.cookSession = mine.cookSession === undefined ? null : mine.cookSession;", '').SYNC)).keepSession);
   finish();
 })().catch(e => { fail++; console.log('  FAIL sync rig crashed — ' + ((e && e.stack) || e)); finish(); });
 

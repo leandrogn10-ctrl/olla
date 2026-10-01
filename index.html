@@ -490,9 +490,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .brand h1::first-letter { color: inherit; }
 .tagline { display: none; }
 .actions { display: flex; gap: 8px; align-items: center; }
-.sync-pip { border: 0; padding: 6px 8px; font-size: 11px; letter-spacing: 0; text-transform: none; color: var(--ink-faint); border-radius: 999px; font-family: var(--mono); }
+.sync-pip { border: 0; padding: 6px 8px; min-height: 44px; font-size: 11px; letter-spacing: 0; text-transform: none; color: var(--ink-faint); border-radius: 999px; font-family: var(--mono); }
 .sync-pip:hover { color: var(--ink-dim); }
-.icon-btn { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; color: var(--ink-dim); background: var(--card); box-shadow: inset 0 0 0 1px var(--line); }
+.icon-btn { width: 44px; height: 44px; flex: none; display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; color: var(--ink-dim); background: var(--card); box-shadow: inset 0 0 0 1px var(--line); }
 .icon-btn:active { transform: scale(.95); }
 .icon-btn svg { width: 18px; height: 18px; }
 
@@ -512,7 +512,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .bottom-tabs .tab {
   flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
   padding: 8px 4px 4px; border-radius: 12px;
-  font-family: var(--serif); font-size: 18px; letter-spacing: 0; text-transform: none;
+  font-family: var(--serif); font-size: 18px; letter-spacing: 0; text-transform: none; min-height: 44px;
   color: var(--ink-faint); transition: color .15s, transform .08s;
 }
 .bottom-tabs .tab .icon { display: none; }
@@ -590,7 +590,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .strike.ghost small { color: var(--ink-faint); }
 .strike.sm { min-height: 52px; font-size: 24px; padding: 10px 18px; }
 .under { display: flex; justify-content: center; gap: 22px; margin: 10px 0 2px; }
-.link { font-family: var(--serif); font-style: italic; font-size: 17px; color: var(--ink-dim); padding: 6px 2px; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 4px; }
+.link { font-family: var(--serif); font-style: italic; font-size: 17px; color: var(--ink-dim); padding: 6px 2px; min-height: 44px; min-width: 44px; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 4px; }
 .link:hover { color: var(--ink); }
 .link.danger { color: var(--danger); }
 
@@ -627,7 +627,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .ring svg { width: 18px; height: 18px; }
 
 /* ── the week strip: seven bowls ── */
-.bowls { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; padding: 14px 12px 12px; }
+.bowls { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; padding: 14px 4px 12px; }   /* 2px/4px: each bowl ≥ 44px wide at 375px (a tap target) */
 .bowl { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 4px 0; border-radius: 12px; }
 .bowl svg { width: 100%; max-width: 46px; height: 30px; overflow: visible; }
 .bowl .b-out { fill: none; stroke: color-mix(in srgb, var(--ink) 28%, transparent); stroke-width: 1.4; }
@@ -651,7 +651,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .srow .slot { font-family: var(--serif); font-style: italic; font-size: 15px; color: var(--ink-faint); }
 .srow .dish { font-family: var(--serif); font-size: 19px; line-height: 1.15; color: var(--ink); }
 .srow .dish small { display: block; font-family: var(--mono); font-size: 11px; color: var(--ink-faint); margin-top: 2px; }
-.kind { min-width: 78px; min-height: 36px; padding: 6px 10px; border-radius: 999px; font-family: var(--mono); font-size: 12px; color: var(--ink-dim); box-shadow: inset 0 0 0 1px var(--line); text-align: center; }
+.kind { min-width: 78px; min-height: 44px; padding: 6px 10px; border-radius: 999px; font-family: var(--mono); font-size: 12px; color: var(--ink-dim); box-shadow: inset 0 0 0 1px var(--line); text-align: center; }
 .kind.k-cook { color: var(--accent-ink); background: var(--accent); box-shadow: none; }
 .kind.k-leftover { color: var(--accent-text); box-shadow: inset 0 0 0 1.2px color-mix(in srgb, var(--accent) 55%, transparent); }
 .kind.k-out { font-style: italic; }
@@ -661,8 +661,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .crow .at { font-family: var(--mono); font-size: 15px; color: var(--accent-text); font-variant-numeric: lining-nums tabular-nums; }
 .crow .dish { font-family: var(--serif); font-size: 19px; line-height: 1.15; color: var(--ink); text-align: left; }
 .crow .dish small { display: block; font-family: var(--mono); font-size: 11px; color: var(--ink-faint); margin-top: 2px; }
-.crow .swap { width: 40px; height: 40px; border-radius: 12px; color: var(--ink-dim); box-shadow: inset 0 0 0 1px var(--line); font-size: 16px; }
-.back-rule { font-size: 12px; color: var(--ink-faint); text-decoration: underline; text-underline-offset: 3px; padding: 4px 0; }
+.crow .swap { width: 44px; height: 44px; border-radius: 12px; color: var(--ink-dim); box-shadow: inset 0 0 0 1px var(--line); font-size: 16px; }
+.back-rule { display: block; min-height: 44px; font-size: 12px; color: var(--ink-faint); text-decoration: underline; text-underline-offset: 3px; padding: 4px 0; text-align: left; }
+.crow-rule { padding: 0 0 4px 82px; }
 .refusals { margin-top: 12px; padding: 14px 16px; border-radius: 16px; color: var(--danger); background: color-mix(in srgb, var(--danger) 8%, transparent); font-size: 12px; }
 .refusals h4 { font-family: var(--serif); font-size: 19px; margin-bottom: 4px; }
 
@@ -690,6 +691,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .trip-h { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .trip-h h3 { font-size: 28px; line-height: 1.05; }
 .trip-h .meta { margin-top: 4px; }
+.trip-h .icon-btn { flex: 0 0 44px; height: 44px; }
 .aisle { font-family: var(--serif); font-style: italic; font-size: 16px; color: var(--ink-faint); margin: 16px 0 2px; }
 .item { display: grid; grid-template-columns: 34px 1fr auto; gap: 10px; align-items: center; width: 100%; text-align: left; padding: 10px 0; border-top: 1px solid var(--line-soft); min-height: 54px; }
 .item .box { width: 26px; height: 26px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--ink) 30%, transparent); display: inline-flex; align-items: center; justify-content: center; }
@@ -708,7 +710,7 @@ dialog::backdrop { background: rgba(6,8,4,.62); -webkit-backdrop-filter: blur(3p
 .modal header h2 { font-size: 30px; }
 .modal header p { text-transform: none; letter-spacing: 0; font-size: 12px; font-family: var(--mono); }
 .modal footer { border-top: 1px solid var(--line-soft); }
-.modal .close { width: 40px; height: 40px; border-radius: 12px; font-size: 24px; }
+.modal .close { flex: none; width: 44px; height: 44px; border-radius: 12px; font-size: 24px; }
 dialog.sheet { margin: auto auto 0; width: 100%; max-width: 600px; }
 dialog.sheet .modal { width: 100%; max-height: 92vh; border-radius: 24px 24px 0 0; padding-bottom: env(safe-area-inset-bottom); animation: sheetIn .3s cubic-bezier(.2,.8,.2,1); }
 dialog.sheet .modal::before { content: ''; display: block; width: 38px; height: 5px; border-radius: 3px; background: var(--ink-faint); opacity: .35; margin: 8px auto 0; }
@@ -719,7 +721,7 @@ dialog.sheet .modal::before { content: ''; display: block; width: 38px; height: 
 .field { display: block; margin-top: 14px; }
 .field > span { display: block; font-family: var(--serif); font-style: italic; font-size: 16px; color: var(--ink-faint); margin-bottom: 6px; }
 .field input[type=text], .field input[type=number], .field textarea, .field select {
-  width: 100%; font-family: var(--mono); font-size: 16px; color: var(--ink); background: var(--paper); border-radius: 12px; padding: 12px 14px; box-shadow: inset 0 0 0 1px var(--line); }
+  min-height: 44px; width: 100%; font-family: var(--mono); font-size: 16px; color: var(--ink); background: var(--paper); border-radius: 12px; padding: 12px 14px; box-shadow: inset 0 0 0 1px var(--line); }
 .seg { display: flex; flex-wrap: wrap; gap: 8px; }
 .seg .chip-btn { flex: 1 1 auto; min-width: 52px; font-size: 18px; min-height: 44px; padding: 8px 10px; }
 .stepper { display: inline-flex; align-items: center; gap: 4px; background: var(--paper); border-radius: 14px; box-shadow: inset 0 0 0 1px var(--line); }
@@ -737,7 +739,7 @@ dialog.sheet .modal::before { content: ''; display: block; width: 38px; height: 
 .steps li::before { content: counter(s); font-family: var(--serif); font-style: italic; font-size: 22px; color: var(--accent-text); line-height: 1.1; }
 .steps .t-chip { display: inline-block; margin-left: 6px; font-family: var(--mono); font-size: 11px; color: var(--accent-text); padding: 1px 7px; border-radius: 999px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent); vertical-align: 2px; }
 .notes p { font-family: var(--serif); font-size: 17px; color: var(--ink-dim); line-height: 1.4; padding: 3px 0; }
-.notes a { color: var(--ink-faint); font-family: var(--mono); font-size: 11px; border: 0; text-decoration: underline; }
+.notes a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink-faint); font-family: var(--mono); font-size: 11px; border: 0; text-decoration: underline; }
 
 /* ── the cook-along (full-screen, La Forja's runner) ── */
 .runner { position: fixed; inset: 0; z-index: 950; background: var(--bg); display: flex; flex-direction: column; animation: fadeUp .25s ease both; }
@@ -749,7 +751,7 @@ dialog.sheet .modal::before { content: ''; display: block; width: 38px; height: 
 .ingots i.done { background: color-mix(in srgb, var(--accent) 55%, var(--paper-hi)); }
 .ingots i.now { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
 .timers { display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 18px 0; position: relative; }
-.timer-chip { font-family: var(--mono); font-size: 13px; padding: 6px 12px; border-radius: 999px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink); }
+.timer-chip { min-height: 44px; font-family: var(--mono); font-size: 13px; padding: 6px 12px; border-radius: 999px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink); }
 .timer-chip.ring-now { background: var(--danger); color: #fff; animation: pulse 1s infinite; }
 .timer-chip.done { color: var(--ink-faint); }
 .r-body { position: relative; flex: 1; overflow-y: auto; padding: 18px 22px 20px; max-width: 600px; width: 100%; margin: 0 auto; }
@@ -759,6 +761,9 @@ dialog.sheet .modal::before { content: ''; display: block; width: 38px; height: 
 .r-ings li { display: grid; grid-template-columns: 92px 1fr; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line-soft); font-family: var(--serif); font-size: 19px; list-style: none; }
 .r-ings li .q { font-family: var(--mono); font-size: 13px; color: var(--accent-text); padding-top: 4px; }
 .r-ings li.got { color: var(--ink-faint); text-decoration: line-through; text-decoration-color: var(--line); }
+.r-ings li.tap { display: block; padding: 0; }   /* the «got» row is a real button (focusable, ≥44px), drawn as the row it replaces */
+.r-ings li.tap > button { display: grid; grid-template-columns: 92px 1fr; gap: 10px; width: 100%; min-height: 44px; padding: 8px 0; text-align: left; font: inherit; color: inherit; }
+.r-ings li.tap.got > button { color: var(--ink-faint); text-decoration: line-through; text-decoration-color: var(--line); }
 .r-big { font-family: var(--serif); font-size: clamp(84px, 26vw, 132px); line-height: .9; text-align: center; margin: 26px 0 6px; font-variant-numeric: lining-nums tabular-nums; letter-spacing: -0.03em;
   color: color-mix(in oklab, var(--fresh) calc(var(--t-left, 1) * 100%), var(--accent)); }
 .r-big.over { color: var(--danger); animation: pulse 1s infinite; }
@@ -780,18 +785,21 @@ dialog.sheet .modal::before { content: ''; display: block; width: 38px; height: 
 .settings-section h3 { font-size: 22px; }
 .settings-section .desc { font-size: 12px; }
 .form-grid label { text-transform: none; letter-spacing: 0; font-family: var(--serif); font-style: italic; font-size: 15px; color: var(--ink-faint); }
-.form-grid input[type="text"], .form-grid input[type="password"], .form-grid select, .settings-section textarea { font-family: var(--mono); font-size: 16px; border-radius: 12px; background: var(--paper); border: 0; box-shadow: inset 0 0 0 1px var(--line); }
+.form-grid input[type="text"], .form-grid input[type="password"], .form-grid select, .settings-section textarea { min-height: 44px; font-family: var(--mono); font-size: 16px; border-radius: 12px; background: var(--paper); border: 0; box-shadow: inset 0 0 0 1px var(--line); }
+.btn-primary, .btn-secondary, .btn-danger, .modal footer .submit { min-height: 44px; }
 .btn-primary, .modal footer .submit { background: var(--strike); color: var(--accent-ink); border-radius: 14px; font-family: var(--serif); font-style: italic; font-size: 19px; text-transform: none; letter-spacing: 0; padding: 10px 22px; box-shadow: var(--strike-glow); }
 .btn-secondary { border-radius: 14px; text-transform: none; letter-spacing: 0; font-family: var(--serif); font-size: 17px; border: 0; box-shadow: inset 0 0 0 1px var(--line); }
 .btn-danger { text-transform: none; letter-spacing: 0; font-family: var(--serif); font-size: 16px; }
 .sync-status { font-family: var(--mono); font-size: 12px; }
+.settings-section p a { display: inline-block; padding: 15px 0; margin: -15px 0; }   /* a 44px target that keeps the sentence's line height */
 .claude-only { display: none !important; }
 .k-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-.k-grid .chip-btn { font-size: 14px; min-height: 40px; padding: 6px 2px; font-family: var(--mono); }
+@media (max-width: 480px) { .k-grid { grid-template-columns: repeat(4, 1fr); } }   /* seven 44px days don't fit a phone's sheet: two rows, never a 34px target */
+.k-grid .chip-btn { font-size: 14px; min-height: 44px; padding: 6px 2px; font-family: var(--mono); }
 .wins { display: grid; grid-template-columns: 1fr; gap: 6px; }
 .win { display: grid; grid-template-columns: 44px 1fr 1fr; gap: 6px; align-items: center; }
 .win .d { font-size: 12px; color: var(--ink-dim); }
-.win input { font-family: var(--mono); font-size: 16px; padding: 8px 10px; border-radius: 10px; background: var(--paper); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink); width: 100%; }
+.win input { min-height: 44px; font-family: var(--mono); font-size: 16px; padding: 8px 10px; border-radius: 10px; background: var(--paper); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink); width: 100%; }
 .toast { border-radius: 14px; font-family: var(--serif); font-size: 18px; text-transform: none; letter-spacing: 0; bottom: calc(96px + env(safe-area-inset-bottom)); }
 .empty { text-align: center; padding: 40px 20px; }
 .empty .art { width: 120px; height: 110px; margin: 0 auto 10px; display: block; }
@@ -919,7 +927,7 @@ dialog.sheet .modal::before { content: ''; display: block; width: 38px; height: 
   </div>
 </dialog>
 
-<div class="runner" id="runner" hidden></div>
+<div class="runner" id="runner" hidden role="dialog" aria-modal="true" aria-label="Cocinar paso a paso"></div>
 
 <aside class="claude-panel hidden" id="claude-panel">
   <header>
@@ -942,7 +950,7 @@ dialog.sheet .modal::before { content: ''; display: block; width: 38px; height: 
   <button class="tab" data-tab="lista" data-view="lista"><span class="icon"></span>Lista</button>
 </nav>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 'use strict';
@@ -1113,10 +1121,21 @@ const OLLA = (function () {
     if (x.log) { const l = liveEntries((state.log || {})[x.log]); return !!l.length && l[l.length - 1].batch === id; }   // the EFFECTIVE entry, not any live one: «otra cosa, sobró 2» corrected to «comí» kills the batch
     return true;
   }
+  /* The minute silence about today's cook starts to mean «unconfirmed» (e2e review 1-oct #2). Not its own hour + total: the
+     city seats the cook past his calendar walls, anywhere up to the end of the window that holds it (pub cook.win[1]), so
+     until that window closes the cook may still be ahead of him — and «¿se hizo?» answered «no» then kills a cook the paper
+     still has at 15:00. But never later than the moment its dinner can be logged (eatAt − EARLY): at dinner the pot must
+     know (a Saturday window open until 21:00 would leave a dinner he cooked at 11 unasked, and rescued, all evening).
+     A cook outside every window (a hand-forced hour) keeps at + total. */
+  function cookDueAt(state, date, cook) {
+    const at = hm(cook && cook.at); if (at == null) return null;
+    const tot = totalOf(recipeById(state, cook.recipe)), w = windowsFor(S_(state), date).find(x => at >= x.s && at <= x.e);
+    return w ? Math.max(at + tot, Math.min(w.e, eatAt(state, date, 'dinner') - EARLY)) : at + tot;
+  }
   function cookPast(state, date, cook, today, now) {
     if (date < today) return true;
     if (date > today) return false;
-    const at = hm(cook.at); return at != null && at + totalOf(recipeById(state, cook.recipe)) <= numNow(now);
+    const due = cookDueAt(state, date, cook); return due != null && due <= numNow(now);
   }
 
   /* reality(state, today, now) → { batches, byId }. Batch: {id, date, name, recipe, servings, left, leftNow, fridgeDays,
@@ -1199,8 +1218,7 @@ const OLLA = (function () {
     if (date < today) return 'unconfirmed';
     if (date > today) return 'planned';
     const at = hm(c.at), N = numNow(now); if (at == null) return 'planned';
-    const tot = totalOf(recipeById(state, c.recipe));
-    if (N >= at + tot) return 'unconfirmed';
+    if (N >= cookDueAt(state, date, c)) return 'unconfirmed';     // not at + total: see cookDueAt
     if (N >= at) return 'cooking';
     if (N >= at - 15) return 'due';
     return 'planned';
@@ -1321,6 +1339,11 @@ const OLLA = (function () {
     const S = S_(state), N = numNow(now), old = (state.plan && state.plan.days) || {}, days = {};
     Object.keys(old).forEach(d => { if (d < today && diffDays(d, today) <= 21) days[d] = clone(old[d]); });
     const H = []; for (let i = 0; i < span; i++) H.push(addDays(today, i));
+    /* Today's cook whose OWN trip has left (the plan's departure, at − trip, is behind `now` and the list still needs a trip):
+       silence about that trip means he went (§1.3), so the cook stays at its hour, like a started one. Re-deriving it added the
+       whole trip to `now` again on every rebuild — the cook and the trip receding all afternoon, a trip ahead of the clock
+       (e2e review 1-oct #7). Ticking the whole list still frees it: the cook then waits only for the walk home. */
+    const departed = (c, at) => { const r = recipeById(state, c.recipe); return at != null && !!r && N >= at - tripMinutes(S) && leadFor(state, r, today, today, N) > walkOf(S); };
     const fr = {};
     H.forEach(d => {
       const o = old[d] || {}, train = trainDay(S, d), f = { d, train, rows: {}, pot: {}, keep: {}, cook: null, cookKeep: false };
@@ -1332,8 +1355,8 @@ const OLLA = (function () {
         if (rule) f.rows[sl] = rule; else f.pot[sl] = 'rule';
       });
       if (o.cook) {
-        const started = d === today && (effCook(state, o.cook.batch) || (hm(o.cook.at) != null && N >= hm(o.cook.at)) || (f.keep.dinner && f.rows.dinner && f.rows.dinner.kind === 'cook'));
-        if (started) { f.cook = clone(o.cook); f.cookKeep = true; }
+        const oat = hm(o.cook.at), started = d === today && (effCook(state, o.cook.batch) || (oat != null && N >= oat) || (f.keep.dinner && f.rows.dinner && f.rows.dinner.kind === 'cook'));
+        if (started || (d === today && departed(o.cook, oat))) { f.cook = clone(o.cook); f.cookKeep = true; }
         else if (o.cook.hand) f.cook = clone(o.cook);
       }
       fr[d] = f;
@@ -1562,13 +1585,16 @@ const OLLA = (function () {
     let id = base, k = 0; while (ex[id]) id = base + 'abcdefghijklmnopqrstuvwxyz'[k++ % 26] + (k > 26 ? k : '');
     return id;
   }
+  /* THE gate for «can this meal be logged now?» — logMeal refuses with it, and the UI asks it before choosing between a meal
+     log and a batch (one dial, so the sheet never offers what the register will refuse). */
+  function canLog(state, date, slot, today, now) { return !!parse(date) && SLOTS.indexOf(slot) >= 0 && !(date > today || (date === today && eatAt(state, date, slot) - EARLY > numNow(now))); }
   function logMeal(state, date, slot, entry, today, now, at) {
     if (SLOTS.indexOf(slot) < 0) return { ok: false, why: 'fila inválida' };
     if (!parse(date)) return { ok: false, why: 'fecha inválida' };
     if (!isAt(at)) return { ok: false, why: 'falta la hora del registro (at)' };
     entry = entry || {}; const s = entry.s;
     if (!LOG_S[s]) return { ok: false, why: 'estado inválido' };
-    if (date > today || (date === today && eatAt(state, date, slot) - EARLY > numNow(now))) return { ok: false, why: 'esa comida todavía no pasó' };
+    if (!canLog(state, date, slot, today, now)) return { ok: false, why: 'esa comida todavía no pasó' };
     const key = date + ':' + slot, e = { s, at: +at }, res = { ok: true };
     state.log = state.log || {};
     if (s === 'void') { const cur = effLog(state, date, slot); if (!cur) return { ok: false, why: 'no hay nada que deshacer' }; e.ref = cur.at; }
@@ -1630,6 +1656,24 @@ const OLLA = (function () {
     (state.cooks[batch] = Array.isArray(state.cooks[batch]) ? state.cooks[batch] : []).push({ s: 'froze', n, at: +at, id });
     state.extra[id] = { date: today, name: b.name, recipe: b.recipe || null, servings: n, fridgeDays: 90, src: 'frozen', from: batch, at: +at };
     return { ok: true, id };
+  }
+  /* A batch that exists WITHOUT a meal: «compré, rinde N» answered before its dinner can be logged, a cook-along of a dish
+     that was not the plan's, a purchase from the pot sheet. An extra with no `log` key, so nothing can orphan it; he
+     retracts it with logCook(id, {s:'tossed'}). src: bought | cooked (an off-plan cook counts toward the rung and the
+     rotation) | other. The date defaults to today and is never in the future. */
+  function addBatch(state, x, today, now, at) {
+    x = x || {};
+    if (!isAt(at)) return { ok: false, why: 'falta la hora del registro (at)' };
+    const date = x.date || today, n = Math.floor(+x.servings);
+    if (!parse(date) || date > today) return { ok: false, why: 'fecha inválida' };
+    if (!(n >= 1 && n <= 40)) return { ok: false, why: 'porciones inválidas' };
+    const rec = x.recipe ? recipeById(state, x.recipe) : null; if (x.recipe && !rec) return { ok: false, why: 'receta desconocida' };
+    const id = extraId(state, 'u', date, at);
+    state.extra = state.extra || {};
+    state.extra[id] = { date, name: String(x.name || (rec && rec.name) || 'otra cosa').slice(0, 80), recipe: rec ? rec.id : null, servings: n,
+      fridgeDays: x.fridgeDays != null ? Math.max(0, Math.floor(+x.fridgeDays)) : ((rec && rec.fridgeDays) || 3),
+      src: EXTRA_SRC[x.src] ? x.src : 'other', from: null, at: +at };
+    return { ok: true, batch: id };
   }
   function like(state, recipeId, v, at) {
     state.likes = state.likes || {};
@@ -1766,8 +1810,11 @@ const OLLA = (function () {
     const trips = points.map(T => {
       const mine = needs.filter(x => x.trip === T), same = mine.filter(x => x.need === T && x.cookAt != null);
       let at = same.length ? Math.min.apply(null, same.map(x => x.cookAt - trip)) : clamp(eatAt(state, T, 'lunch') + 60, open, close - inStore - walk);
-      if (T === today) at = Math.max(at, ceil5(N));
+      // today's SAME-DAY trip keeps the plan's own departure (its cook stays at its hour once the trip has left — buildWeek):
+      // clamped to `now` it became the publish minute, and the Worker's [at − 90, at) window was shut before it could read it
+      if (T === today && !same.length) at = Math.max(at, ceil5(N));
       at = Math.max(at, open);
+      const gone = T === today && same.length > 0 && N >= at + trip;   // he is back from it: what he didn't tick reads as BOUGHT for every nudge (§1.3); the list keeps the lines to tick
       const items = {}, add = (id, info, parts, by, f) => {
         const it = items[id] || (items[id] = { id, parts: {}, section: info.section || NO_SECTION, buyBy: by, for: [], info });
         Object.keys(parts).forEach(u => { it.parts[u] = (it.parts[u] || 0) + parts[u]; });   // every unit keeps its own quantity: «2 dientes + 1 cda», never a dropped one
@@ -1778,9 +1825,9 @@ const OLLA = (function () {
       const list = Object.keys(items).map(id => shopLine(items[id], id + '@' + T, checked))
         .sort((a, b) => (SECTIONS.indexOf(a.section) < 0 ? 99 : SECTIONS.indexOf(a.section)) - (SECTIONS.indexOf(b.section) < 0 ? 99 : SECTIONS.indexOf(b.section)) || a.n.localeCompare(b.n, 'es'));
       const by = mine.reduce((m, x) => (x.hi < m ? x.hi : m), '9999-12-31');   // the last day this trip can happen and still put every cook item inside its window
-      return { date: T, at: fmtHM(at), by: mine.length ? by : T, items: list, left: list.filter(it => !it.checked).length, min: inStore, late: mine.some(x => x.late) };
+      return { date: T, at: fmtHM(at), by: mine.length ? by : T, items: list, left: list.filter(it => !it.checked).length, min: inStore, late: mine.some(x => x.late), gone };
     });
-    return { trips, next: trips.find(t => t.left > 0) || null };
+    return { trips, next: trips.find(t => t.left > 0 && !t.gone) || null };
   }
   /* one list line: per-unit quantities rounded (indivisible → ceil); a spoonful of a jar is not a shopping quantity — the jar is */
   function shopLine(it, key, checked) {
@@ -1849,10 +1896,10 @@ const OLLA = (function () {
     }
     const sh = shopping(state, today, N), tomorrow = addDays(today, 1);
     if (day && day.cook && cookState(state, today, today, N) === 'planned') {   // precedence keeps cook-soon above shop; the trip that must come FIRST rides along
-      const first = sh.trips.find(t => t.date === today && t.left > 0) || null;
+      const first = sh.trips.find(t => t.date === today && t.left > 0 && !t.gone) || null;
       return { kind: 'cook-soon', date: today, batch: day.cook.batch, recipe: day.cook.recipe, at: day.cook.at, verb: verbFor(recipeById(state, day.cook.recipe)), trip: first };
     }
-    const tt = sh.trips.find(t => t.date === today && t.left > 0);
+    const tt = sh.trips.find(t => t.date === today && t.left > 0 && !t.gone);
     if (tt) return { kind: 'shop', date: today, at: tt.at, trip: tt };
     const mt = sh.trips.find(t => t.date === tomorrow && t.left > 0);
     if (mt && N >= 18 * 60) return { kind: 'shop', date: tomorrow, at: mt.at, trip: mt };
@@ -1945,7 +1992,7 @@ const OLLA = (function () {
         if (rec && cat != null) o.cook = { at: cat, min: clamp(totalOf(rec), 10, 180), active: clamp(int(rec.minutes && rec.minutes.active, 10), 0, 180), verb: verbFor(rec), name: trunc(rec.name, 60), recipe: rec.id,
           servings: int(day.cook.servings, 2), win: w ? [w.s, w.e] : [cat, cat + totalOf(rec)], state: (cs === 'due' || cs === 'cooking') ? 'planned' : cs };
       }
-      const t = sh.trips.find(x => x.date === d && x.left > 0);
+      const t = sh.trips.find(x => x.date === d && x.left > 0 && !x.gone);
       o.shop = t ? { at: hm(t.at), min: clamp(int(t.min, 30), 10, 180), n: t.left, for: trips4(t), by: t.by } : null;
       pub.days[d] = o;
     }
@@ -1986,8 +2033,8 @@ const OLLA = (function () {
            windowsFor, hallDay, outDay, trainDay, slotsFor, eatAt, tripMinutes,
            recipeById, ingredient, eligible, maxServings, gearOk, verbFor, batchable,
            liveEntries, effLog, effCook, reality, potNow, freezer, expired, cookState, questions, cookSlot,
-           buildWeek, trimSwipes, swipesUsed, validateWeek, setKind, nextKind, setCookRecipe, backToRule,
-           logMeal, logCook, freeze, like, pickRecipe, scaleIngredients, stepTimer, remateFor,
+           buildWeek, trimSwipes, swipesUsed, validateWeek, editable, canLog, setKind, nextKind, setCookRecipe, backToRule,
+           logMeal, logCook, freeze, like, addBatch, pickRecipe, scaleIngredients, stepTimer, remateFor,
            shopping, check, listText, rescue, nextAction, weekRegister, minutesFor, slotLabel, project, mergeReality,
            rungCheck, rungUp };
 })();
@@ -2450,12 +2497,12 @@ const OLLA_SEED = (function () {
   ];
   return {
     settings: {
-      hall: { name: 'The Local', walkMin: 10, swipesPerWeek: 14, breakfastSwipe: true, days: [1, 2, 3, 4, 5], closes: '18:00' },   // Mon–Fri. Weekends nothing is open at the Capitol Campus (Leandro, 30-sep-2026)
-      outDays: [0],                                                        // Sunday lunch is on the Hilltop; not the pot's
+      hall: { name: 'The Local', walkMin: 10, swipesPerWeek: 14, breakfastSwipe: true, days: [1, 2, 3, 4, 5], closes: '18:00' },   // Mon–Fri; the hall is closed on weekends
+      outDays: [0],                                                        // Sunday lunch is eaten out; not the pot's
       cookWindows: { '0': [], '1': [], '2': [], '3': ['13:00-17:30'], '4': ['13:00-17:30'], '5': ['11:00-21:00'], '6': ['11:00-21:00'] },
       cookAt: {},                                                          // per-dow «HH:MM» preferred start; absent = the window start (never asked yet)
       eatAt: { bf: '08:45', lunch: '12:30', dinner: '19:00', post: '22:45' },
-      trainDays: [1, 2, 4, 5],                                             // La Forja's plan.schedule as of 29-sep; hand-set copy (the city holds the real one)
+      trainDays: [1, 2, 4, 5],                                             // default training days; edit in Ajustes
       fridge: { bf: 'yogur-bowl', meal: 'atun-huevo-bowl', post: 'batido-post' },   // the no-cook defaults; post = the fourth meal after the lift
       gear: { pot: true, pan: true, oven: true, microwave: true, riceCooker: false, blender: false, thermometer: false, sheetPan: true },
       gearAsked: false,                                                    // the UI asks «¿qué hay en tu cocina?» once
@@ -2596,7 +2643,7 @@ const OLLAUI = (function () {
   const ROLE_ES = { main: '', side: 'acompañamiento', condiment: 'para encima', bf: 'desayuno', snack: 'entre comidas' };
   const GEAR_ES = { pot: 'olla', pan: 'sartén', oven: 'horno', microwave: 'microondas', riceCooker: 'arrocera', blender: 'licuadora', thermometer: 'termómetro', sheetPan: 'bandeja de horno' };
   const LIKE_ES = { again: 'otra vez', meh: 'meh', never: 'nunca' };
-  let view = 'hoy', lid = false, minuteTimer = null, runnerTimer = null, wake = null, actx = null, sheetCtx = null;
+  let view = 'hoy', lid = false, minuteTimer = null, runnerTimer = null, wake = null, actx = null, sheetCtx = null, runnerFrom = null;
 
   /* ── the clock lives HERE, never in the engine ── */
   const T = () => OLLA.ymd(ollaNow());
@@ -2614,6 +2661,8 @@ const OLLAUI = (function () {
   const verb = r => r ? OLLA.verbFor(r) : 'cocinar';
   const saveTap = () => save();                                            // his edit: modified, pushed
   const saveQuiet = () => save({ markModified: false, push: false });    // a re-derivation: never wins a sync
+  const pressed = on => ' aria-pressed="' + (on ? 'true' : 'false') + '"';   // every on/off chip says which it is
+  const srcOk = u => /^https?:\/\//i.test(String(u || ''));                // a recipe source is a web page or nothing (an imported javascript: never becomes a link)
 
   /* ── the week is a RULE: rebuilt from (today, now) on every boot, wake and tap ── */
   function ensureWeek() {
@@ -2631,7 +2680,7 @@ const OLLAUI = (function () {
     const t = pref === 'loza' ? 'tokyo' : pref === 'esmalte' ? 'macchiato' : (h >= 7 && h < 19 ? 'tokyo' : 'macchiato');   // the CSS keeps the shell's attribute names
     document.documentElement.setAttribute('data-theme', t);
     const meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.setAttribute('content', t === 'tokyo' ? '#f3ecdc' : '#10140d');
-    document.querySelectorAll('[data-theme-pick]').forEach(b => b.classList.toggle('active', b.dataset.themePick === pref));
+    document.querySelectorAll('[data-theme-pick]').forEach(b => { b.classList.toggle('active', b.dataset.themePick === pref); b.setAttribute('aria-pressed', String(b.dataset.themePick === pref)); });
   }
 
   /* ── the pot, drawn: an enamel graniteware pot whose fill is what is really in it ── */
@@ -2670,7 +2719,7 @@ const OLLAUI = (function () {
       setSteam(0.06);
       const next = nextCook(t, n);
       const line = next ? 'se llena ' + dayWord(next.date) + ' · ' + esc(next.name) : 'nada planeado esta semana';
-      return `<button class="card speckle pot-panel rise" style="--i:1" data-act="pot" aria-label="La olla">
+      return `<button class="card speckle pot-panel rise" style="--i:1" data-act="pot">
         <div><div class="kicker">En la olla</div><div class="pot-num word">Vacía</div><div class="pot-meta">${line}</div>${fz.length ? `<div class="pot-more">en el congelador: ${fz.map(b => esc(b.name) + ' (' + b.left + ')').join(', ')}</div>` : ''}</div>
         ${potSvg(0, { closed: true, cold: true, closing })}</button>`;
     }
@@ -2680,7 +2729,7 @@ const OLLAUI = (function () {
     const lvl = Math.min(1, total / Math.max(p.servings || total, total, 1));
     const warn = p.daysLeft <= 0 ? '<span class="warn">se come hoy</span>' : 'hasta ' + dayWord(p.expires);
     const more = pot.slice(1).map(b => esc(b.name) + ' (' + b.left + ')').join(', ');
-    return `<button class="card speckle pot-panel rise" style="--i:1" data-act="pot" aria-label="La olla">
+    return `<button class="card speckle pot-panel rise" style="--i:1" data-act="pot">
       <div><div class="kicker">En la olla</div>
         <div class="pot-num${closing ? ' pop' : ''}">${total}<span class="u">${total === 1 ? 'porción' : 'porciones'}</span></div>
         <div class="pot-name">${esc(cap(p.name))}</div>
@@ -2697,17 +2746,21 @@ const OLLAUI = (function () {
     return null;
   }
 
+  /* A cook-along in progress is an EXTRA line above Hoy's real action, never a mask over it: a session left open hid «Comí»
+     and the rescue for hours (UI review #2). «dejarlo» ends it. */
   function actionBlock(act, t, n) {
-    if (state.cookSession) {
-      const r = rec(state.cookSession.recipe);
-      return `<button class="strike rise" style="--i:2" data-act="runner-resume">Seguir <small>${esc(r ? r.name : '')}${state.cookSession.timers && state.cookSession.timers.some(x => !x.done) ? ' · hay un temporizador' : ''}</small></button>`;
-    }
+    const s = state.cookSession, r = s && rec(s.recipe);
+    const seguir = s ? `<button class="strike ghost sm rise" style="--i:2" data-act="runner-resume">Seguir <small>${esc(r ? r.name : '')}${s.timers && s.timers.some(x => !x.done) ? ' · hay un temporizador' : ''}</small></button>
+      <div class="under rise" style="--i:2"><button class="link" data-act="runner-drop">dejarlo</button></div>` : '';
+    return seguir + actionMain(act, t, n);
+  }
+  function actionMain(act, t, n) {
     if (!act) return '';
     if (act.kind === 'cook-now' || act.kind === 'cook-soon') {
       const day = state.plan.days[act.date] || {}, c = day.cook || {}, r = rec(act.recipe || c.recipe);
       if (!r) return '';
       const v = verb(r), at = act.at || c.at;
-      return `<button class="strike rise" style="--i:2" data-act="cook" data-date="${act.date}">${cap(v)} <small>${act.kind === 'cook-soon' ? 'a las ' : ''}${esc(at)} · ${esc(r.name)}<br>${r.minutes.total} min · ${porc(c.servings || r.servings)}</small></button>
+      return `<button class="strike rise" style="--i:2" data-act="cook" data-date="${esc(act.date)}">${cap(v)} <small>${act.kind === 'cook-soon' ? 'a las ' : ''}${esc(at)} · ${esc(r.name)}<br>${esc(r.minutes.total)} min · ${esc(porc(c.servings || r.servings))}</small></button>
         ${act.trip && act.trip.left ? `<button class="strike ghost sm rise" style="--i:3" data-act="go" data-view="lista">Primero, ${esc(state.settings.store.name || 'Safeway')} <small>${act.trip.left} ${act.trip.left === 1 ? 'cosa' : 'cosas'} · a las ${esc(act.trip.at)}</small></button>` : ''}
         <div class="under rise" style="--i:3"><button class="link" data-act="recipe" data-id="${esc(r.id)}" data-date="${act.date}">ver la receta</button><button class="link" data-act="skip-cook" data-date="${act.date}">hoy no ${v === 'armar' ? 'armo' : 'cocino'}</button></div>`;
     }
@@ -2742,7 +2795,7 @@ const OLLAUI = (function () {
       let tt = '', m = '', act = '';
       if (o.kind === 'pot') { tt = 'De la olla: ' + esc(o.batch.name); m = porc(o.batch.left); act = `data-act="rescue-eat" data-of="${esc(o.batch.id)}"`; }
       else if (o.kind === 'freezer') { tt = 'Del congelador: ' + esc(o.batch.name); m = 'descongela en el micro'; act = `data-act="rescue-eat" data-of="${esc(o.batch.id)}"`; }
-      else if (o.kind === 'home') { const r = rec(o.recipe); tt = esc(r ? r.name : 'algo de la nevera'); m = r ? r.minutes.total + ' min' : ''; act = `data-act="rescue-home" data-id="${esc(o.recipe || '')}"`; }
+      else if (o.kind === 'home') { const r = rec(o.recipe); tt = esc(r ? r.name : 'algo de la nevera'); m = r ? esc(r.minutes.total) + ' min' : ''; act = `data-act="rescue-home" data-id="${esc(o.recipe || '')}"`; }
       else if (o.kind === 'store') { tt = esc(store.name || 'Safeway') + ' hasta las ' + esc(o.until || store.close || '22:00'); m = esc(o.pick || 'un pollo rostizado'); act = `data-act="rescue-store" data-what="${esc(o.pick || 'pollo rostizado')}"`; }
       else if (o.kind === 'order') { tt = 'Pedir: ' + esc(o.what); m = ''; act = `data-act="rescue-order" data-what="${esc(o.what)}"`; }
       return `<button class="rescue-item" ${act}><span class="n">${i + 1}</span><span class="t">${tt}</span><span class="m">${m}</span></button>`;
@@ -2769,18 +2822,18 @@ const OLLAUI = (function () {
     let dish = OLLA.slotLabel(state, d, sl), sub = [];
     if (r.kind === 'swipe') sub.push('swipe · ' + hmOf(eat), '<span class="acc">+ leche o yogur</span>');
     else if (r.kind === 'leftover') { sub.push('sobra · ' + hmOf(eat)); const b = r.of && OLLA.reality(state, t, n).byId[r.of]; const rm = b && OLLA.remateFor(state, b, d); if (rm) sub.push('<span class="acc">+ ' + esc(rm) + '</span>'); if (b && b.state === 'unconfirmed') sub.push('si se hizo'); }
-    else if (r.kind === 'cook') { const c = day.cook, rr = c && rec(c.recipe); sub.push((rr ? verb(rr) : 'cocinar') + (c ? ' a las ' + c.at : '') + ' · se come ' + hmOf(eat)); }
-    else if (r.kind === 'home') { const rr = r.recipe && rec(r.recipe); sub.push('de la nevera' + (rr ? ' · ' + rr.minutes.total + ' min' : '')); if (rr && rr.addon) sub.push('<span class="acc">' + esc(rr.addon) + '</span>'); }
+    else if (r.kind === 'cook') { const c = day.cook, rr = c && rec(c.recipe); sub.push((rr ? verb(rr) : 'cocinar') + (c ? ' a las ' + esc(c.at) : '') + ' · se come ' + hmOf(eat)); }
+    else if (r.kind === 'home') { const rr = r.recipe && rec(r.recipe); sub.push('de la nevera' + (rr ? ' · ' + esc(rr.minutes.total) + ' min' : '')); if (rr && rr.addon) sub.push('<span class="acc">' + esc(rr.addon) + '</span>'); }
     else if (r.kind === 'out') sub.push('fuera · ' + hmOf(eat));
-    let ring = '', rcls = 'ring';
+    let ring = '', rcls = 'ring', said = 'sin anotar';
     if (eff && eff.s !== 'void') {
-      if (eff.s === 'ate') { rcls += ' ate'; ring = CHECK; }
-      else if (eff.s === 'skipped') { rcls += ' skipped'; ring = '×'; dish = dish; sub = ['no comiste']; }
-      else { rcls += ' other'; ring = '↗'; sub = [(eff.s === 'out' ? 'fuera' : 'otra cosa') + (eff.left ? ' · sobró ' + eff.left : '')]; dish = eff.what || (eff.s === 'out' ? 'Fuera' : 'Otra cosa'); }
+      if (eff.s === 'ate') { rcls += ' ate'; ring = CHECK; said = 'comido'; }
+      else if (eff.s === 'skipped') { rcls += ' skipped'; ring = '×'; sub = ['no comiste']; said = 'no comiste'; }
+      else { rcls += ' other'; ring = '↗'; sub = [(eff.s === 'out' ? 'fuera' : 'otra cosa') + (eff.left ? ' · sobró ' + esc(eff.left) : '')]; dish = eff.what || (eff.s === 'out' ? 'Fuera' : 'Otra cosa'); said = eff.s === 'out' ? 'fuera' : 'otra cosa'; }
     }
     return `<div class="row${past ? ' past' : ''}${eff && eff.s !== 'void' ? ' done' : ''}">
       <div><div class="slot">${cap(SLOT_ES[sl])}</div><div class="dish">${esc(cap(dish))}</div><div class="sub">${sub.join(' · ')}</div></div>
-      <button class="${rcls}" data-act="log" data-date="${d}" data-slot="${sl}" aria-label="Anotar ${esc(SLOT_ES[sl])}">${ring}</button></div>`;
+      <button class="${rcls}" data-act="log" data-date="${esc(d)}" data-slot="${esc(sl)}" aria-label="Anotar ${esc(SLOT_ES[sl])}: ${esc(dish)} — ${said}">${ring}</button></div>`;
   }
 
   function bowlsHtml(t, n) {
@@ -2794,7 +2847,7 @@ const OLLAUI = (function () {
       else if (k === 'home') fill = '<path class="b-home" d="M12 24 L34 24 Q30 27 23 27 Q16 27 12 24 Z"/>';
       const outline = k === 'out' ? '<path class="b-out" stroke-dasharray="3 3" d="M3 9 L43 9 Q41 27 23 27 Q5 27 3 9 Z"/>' : '<path class="b-out" d="M3 9 L43 9 Q41 27 23 27 Q5 27 3 9 Z"/>';
       const tag = day.cook ? hmShort(day.cook.at) : (day.train ? 'gym' : '');
-      out.push(`<button class="bowl${d === t ? ' today' : ''}" data-act="go" data-view="semana" aria-label="${esc(fmtDate(d))}"><svg viewBox="0 0 46 30">${fill}${outline}</svg><span class="d">${DOW1[OLLA.dow(d)]} ${OLLA.parse(d).getDate()}</span><span class="tag">${esc(tag)}</span></button>`);
+      out.push(`<button class="bowl${d === t ? ' today' : ''}" data-act="go" data-view="semana" aria-label="${esc(fmtDate(d) + ' · cena: ' + (KIND_ES[k] || '—') + (day.cook ? ' · cocinar a las ' + day.cook.at : '') + (day.train ? ' · gym' : ''))}"><svg viewBox="0 0 46 30">${fill}${outline}</svg><span class="d">${DOW1[OLLA.dow(d)]} ${OLLA.parse(d).getDate()}</span><span class="tag">${esc(tag)}</span></button>`);
     }
     return out.join('');
   }
@@ -2818,8 +2871,8 @@ const OLLAUI = (function () {
     const g = state.settings.gear || {};
     return `<div class="card speckle q-card rise" style="--i:5"><h3>¿Qué hay en tu cocina?</h3>
       <div class="meta">Una vez. Así el libro nunca te pide algo que no tienes.</div>
-      <div class="seg" style="margin-top:10px">${Object.keys(GEAR_ES).map(k => `<button class="chip-btn${g[k] !== false ? ' on' : ''}" data-act="gear" data-k="${k}">${GEAR_ES[k]}</button>`).join('')}</div>
-      <div class="field"><span>¿Cuántos tápers tienes?</span><div class="stepper"><button data-act="cont" data-d="-1" aria-label="menos">−</button><b>${state.settings.containers || 0}</b><button data-act="cont" data-d="1" aria-label="más">+</button></div></div>
+      <div class="seg" style="margin-top:10px">${Object.keys(GEAR_ES).map(k => `<button class="chip-btn${g[k] !== false ? ' on' : ''}" data-act="gear" data-k="${k}"${pressed(g[k] !== false)}>${GEAR_ES[k]}</button>`).join('')}</div>
+      <div class="field"><span>¿Cuántos tápers tienes?</span><div class="stepper"><button data-act="cont" data-d="-1" aria-label="menos tápers">−</button><b>${esc(state.settings.containers || 0)}</b><button data-act="cont" data-d="1" aria-label="más tápers">+</button></div></div>
       <button class="strike sm" data-act="gear-done">Listo</button></div>`;
   }
 
@@ -2848,7 +2901,7 @@ const OLLAUI = (function () {
     const sh = OLLA.shopping(state, t, n), trips = {}; (sh.trips || []).forEach(x => { trips[x.date] = x; });
     const bad = OLLA.validateWeek(state, state.plan, t, n);
     return `<div class="page-title rise" style="--i:0">La semana</div>
-      <div class="page-sub rise" style="--i:0">${used != null ? used + ' de ' + budget + ' swipes · ' : ''}${state.plan.via === 'coach' ? 'plan del coach' : 'la regla de la casa'} · toca una fila para cambiarla</div>
+      <div class="page-sub rise" style="--i:0">${used != null ? esc(used + ' de ' + budget + ' swipes · ') : ''}${state.plan.via === 'coach' ? 'plan del coach' : 'la regla de la casa'} · toca una fila para cambiarla</div>
       ${bad.length ? `<div class="refusals"><h4>La semana no cuadra</h4>${bad.slice(0, 6).map(b => '<div>' + esc(b.date) + ' · ' + esc(b.msg) + '</div>').join('')}</div>` : ''}
       ${days.map((d, i) => dayCard(d, i, t, n, trips[d])).join('')}`;
   }
@@ -2861,17 +2914,19 @@ const OLLAUI = (function () {
       if (eff && eff.s !== 'void') small = eff.s === 'ate' ? 'comido' : eff.s === 'skipped' ? 'no comiste' : 'comiste: ' + (eff.what || 'otra cosa');
       else if (r.kind === 'leftover') { const b = r.of && OLLA.reality(state, t, n).byId[r.of]; const rm = b && OLLA.remateFor(state, b, d); if (rm) small = '+ ' + rm; }
       else if (r.kind === 'swipe') small = '+ leche o yogur';
-      const hand = r.hand ? `<button class="back-rule" data-act="rule" data-date="${d}" data-slot="${sl}">a mano · volver a la regla</button>` : '';
+      const hand = r.hand && OLLA.editable(state, d, sl, t, n).ok ? `<button class="back-rule" data-act="rule" data-date="${esc(d)}" data-slot="${esc(sl)}">a mano · volver a la regla</button>` : '';   // only where backToRule can act (UI review #7)
       return `<div class="srow${r.hand ? ' hand' : ''}"><span class="slot">${cap(SLOT_ES[sl])}</span>
         <div class="dish">${esc(cap(dish))}${small ? `<small>${esc(small)}</small>` : ''}${hand}</div>
-        <button class="kind k-${r.kind}" data-act="cycle" data-date="${d}" data-slot="${sl}">${KIND_ES[r.kind]}</button></div>`;
+        <button class="kind k-${esc(r.kind)}" data-act="cycle" data-date="${esc(d)}" data-slot="${esc(sl)}">${esc(KIND_ES[r.kind] || r.kind)}</button></div>`;
     }).join('');
     let cook = '';
     if (day.cook) { const r = rec(day.cook.recipe), st = OLLA.cookState(state, d, t, n);
       const stw = { made: ' · hecho', notmade: ' · no se hizo', unconfirmed: ' · ¿se hizo?' }[st] || '';
+      const back = day.cook.hand && d >= t && ['planned', 'due', 'none'].indexOf(st) >= 0   // a hand-picked recipe can go back to the rule while its cook hasn't started (UI review #7)
+        ? `<div class="crow-rule"><button class="back-rule" data-act="rule" data-date="${esc(d)}" data-slot="cook">a mano · volver a la regla</button></div>` : '';
       cook = `<div class="crow"><span class="at">${esc(day.cook.at)}</span>
-        <button class="dish" data-act="recipe" data-id="${esc(r ? r.id : '')}" data-date="${d}">${esc(cap(verb(r)))} ${esc(r ? r.name : day.cook.recipe)}<small>${r ? r.minutes.total + ' min · ' : ''}${porc(day.cook.servings)}${stw}</small></button>
-        ${d >= t && st !== 'made' ? `<button class="swap" data-act="pick" data-date="${d}" aria-label="Otra receta">⇄</button>` : '<span></span>'}</div>`; }
+        <button class="dish" data-act="recipe" data-id="${esc(r ? r.id : '')}" data-date="${esc(d)}">${esc(cap(verb(r)))} ${esc(r ? r.name : day.cook.recipe)}<small>${r ? esc(r.minutes.total) + ' min · ' : ''}${esc(porc(day.cook.servings))}${stw}</small></button>
+        ${d >= t && st !== 'made' ? `<button class="swap" data-act="pick" data-date="${esc(d)}" aria-label="Otra receta">⇄</button>` : '<span></span>'}</div>${back}`; }
     const shop = trip && trip.left ? `<div class="crow"><span class="at">${esc(trip.at || '')}</span><button class="dish" data-act="go" data-view="lista">${esc(state.settings.store.name || 'Safeway')}<small>${trip.left} cosas · para ${esc(tripFor(trip))}</small></button><span></span></div>` : '';
     const p = OLLA.parse(d);
     return `<section class="card speckle day rise" style="--i:${i + 1}"><div class="day-h"><h3>${cap(DOWS[p.getDay()])} ${p.getDate()}</h3>${d === t ? '<span class="today-w">hoy</span>' : ''}${day.train ? '<span class="tag-g">gym</span>' : ''}</div>
@@ -2896,8 +2951,8 @@ const OLLAUI = (function () {
             const lk = state.likes && state.likes[r.id] && state.likes[r.id].v;
             const role = ROLE_ES[r.role] || '';
             return `<button class="rec" data-act="recipe" data-id="${esc(r.id)}"><span class="tile${r.cuisine === 'PE' ? ' pe' : ''}">${esc((r.name || '?').charAt(0))}</span>
-              <span><span class="nm">${esc(r.name)}</span><span class="mt">${esc(verb(r))} · ${r.minutes.total} min · ${porc(r.servings)}${role ? ' · ' + role : ''}</span></span>
-              <span class="lk${lk ? ' ' + lk : ''}">${lk ? LIKE_ES[lk] : ''}</span></button>`; }).join('')}</div></section>`; }).join('')}`;
+              <span><span class="nm">${esc(r.name)}</span><span class="mt">${esc(verb(r))} · ${esc(r.minutes.total)} min · ${esc(porc(r.servings))}${role ? ' · ' + role : ''}</span></span>
+              <span class="lk${lk ? ' ' + esc(lk) : ''}">${lk ? esc(LIKE_ES[lk] || '') : ''}</span></button>`; }).join('')}</div></section>`; }).join('')}`;
   }
 
   /* ═══════════════════════════════ LISTA ═══════════════════════════════ */
@@ -2912,7 +2967,7 @@ const OLLAUI = (function () {
         return `<section class="card speckle rise" style="--i:${i + 1}"><div class="trip-h"><div><h3>${cap(dayWord(trip.date))}${trip.at ? ' · ' + esc(trip.at) : ''}</h3>
           <div class="meta">${trip.left ? trip.left + ' por comprar' : 'todo comprado'} · para ${esc(tripFor(trip))}${trip.by && trip.by !== trip.date ? ' · antes del ' + dayShort(trip.by) : ''}</div></div>
           <button class="icon-btn" data-act="share" data-date="${trip.date}" aria-label="Compartir la lista">${SHARE}</button></div>
-          ${Object.keys(groups).map(sec => `<div class="aisle">${esc(sec)}</div>${groups[sec].map(it => `<button class="item${it.checked ? ' on' : ''}" data-act="check" data-key="${esc(it.key)}" data-v="${it.checked ? 0 : 1}">
+          ${Object.keys(groups).map(sec => `<div class="aisle">${esc(sec)}</div>${groups[sec].map(it => `<button class="item${it.checked ? ' on' : ''}" data-act="check" data-key="${esc(it.key)}" data-v="${it.checked ? 0 : 1}"${pressed(it.checked)}>
             <span class="box">${CHECK}</span><span><span class="nm">${esc(it.n)}</span><span class="fr">${esc((it.for || []).join(', '))}${(OLLA.ingredient(it.id) || {}).buyWithin === 0 ? ' · <span class="soon">el mismo día que cocinas</span>' : ''}</span></span>
             <span class="q mono">${esc(it.display || '')}</span></button>`).join('')}`).join('')}</section>`; }).join('')}`;
   }
@@ -2923,7 +2978,7 @@ const OLLAUI = (function () {
     const root = document.getElementById('app-root'); if (!root) return;
     if (view !== 'hoy') setSteam(0.25);
     root.innerHTML = view === 'semana' ? viewSemana() : view === 'libro' ? viewLibro() : view === 'lista' ? viewLista() : viewHoy();
-    document.querySelectorAll('#bottom-tabs .tab[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+    document.querySelectorAll('#bottom-tabs .tab[data-view]').forEach(b => { b.classList.toggle('active', b.dataset.view === view); if (b.dataset.view === view) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
     const cv = document.getElementById('current-view'); if (cv) cv.textContent = { hoy: 'Hoy', semana: 'La semana', libro: 'El libro', lista: 'La lista' }[view];
   }
   function go(v) { view = v === 'olla' ? 'hoy' : v; render(); window.scrollTo(0, 0); }
@@ -2938,7 +2993,7 @@ const OLLAUI = (function () {
   }
   function closeSheet() { const dlg = document.getElementById('olla-sheet'); if (dlg && dlg.open) dlg.close(); sheetCtx = null; }
 
-  function stepper(name, v, min, max) { return `<div class="stepper" data-stepper="${name}" data-min="${min}" data-max="${max}"><button data-act="step" data-d="-1" aria-label="menos">−</button><b data-val>${v}</b><button data-act="step" data-d="1" aria-label="más">+</button></div>`; }
+  function stepper(name, v, min, max) { return `<div class="stepper" data-stepper="${name}" data-min="${min}" data-max="${max}"><button data-act="step" data-d="-1" aria-label="menos">−</button><b data-val>${esc(v)}</b><button data-act="step" data-d="1" aria-label="más">+</button></div>`; }
   const stepVal = name => { const el = document.querySelector(`[data-stepper="${name}"] [data-val]`); return el ? parseInt(el.textContent, 10) || 0 : 0; };
 
   function openRecipe(id, ctx) {
@@ -2955,16 +3010,16 @@ const OLLAUI = (function () {
     const lk = state.likes && state.likes[r.id] && state.likes[r.id].v;
     const missing = (r.gear || []).filter(k => (state.settings.gear || {})[k] === false);
     return `<h2>${esc(r.name)}</h2>
-      <div class="rx-meta">peldaño ${r.rung} · ${esc(verb(r))} · ${r.minutes.active} min activos, ${r.minutes.total} en total · ${dbl} · nevera ${r.fridgeDays} días${r.freezesMonths ? ' · se congela' : ''}${r.proteinG ? ' · ~' + r.proteinG + ' g de proteína por porción (estimado)' : ''}</div>
+      <div class="rx-meta">peldaño ${esc(r.rung)} · ${esc(verb(r))} · ${esc(r.minutes.active)} min activos, ${esc(r.minutes.total)} en total · ${dbl} · nevera ${esc(r.fridgeDays)} días${r.freezesMonths ? ' · se congela' : ''}${r.proteinG ? ' · ~' + esc(r.proteinG) + ' g de proteína por porción (estimado)' : ''}</div>
       ${missing.length ? `<div class="refusals" style="margin:0 0 8px">Necesita ${esc(missing.map(k => GEAR_ES[k] || k).join(', '))}, que marcaste que no tienes.</div>` : ''}
       <div class="rx-h">Ingredientes ${stepper('rx', sv, 1, 12)}</div>
       <ul class="ings">${ings.map(g => `<li><span class="q">${esc(g.display)}</span><span>${esc(g.n)}</span></li>`).join('')}</ul>
       <div class="rx-h">Pasos</div>
       <ol class="steps">${(r.steps || []).map(s => { const tm = OLLA.stepTimer(s); return `<li><span>${esc(typeof s === 'string' ? s : s.t)}${tm ? `<span class="t-chip">${tm} min</span>` : ''}</span></li>`; }).join('')}</ol>
       ${(r.remates && r.remates.length) || r.addon || r.reheat ? `<div class="rx-h">Para que no aburra</div><div class="notes">${(r.remates || []).length ? `<p>Encima, un día cada uno: ${esc(r.remates.join(' · '))}.</p>` : ''}${r.addon ? `<p>${esc(r.addon)}.</p>` : ''}${r.reheat ? `<p>Recalentar: ${esc(r.reheat)}.</p>` : ''}</div>` : ''}
-      ${(r.sources || []).length ? `<div class="notes" style="margin-top:8px">${r.sources.map(u => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(String(u).replace(/^https?:\/\/(www\.)?/, '').slice(0, 48))}</a>`).join(' · ')}</div>` : ''}
+      ${(r.sources || []).filter(srcOk).length ? `<div class="notes" style="margin-top:8px">${r.sources.filter(srcOk).map(u => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(String(u).replace(/^https?:\/\/(www\.)?/, '').slice(0, 48))}</a>`).join(' · ')}</div>` : ''}
       <div class="rx-h">¿Otra vez?</div>
-      <div class="seg">${['again', 'meh', 'never'].map(v => `<button class="chip-btn${lk === v ? ' on' : ''}" data-act="like" data-id="${esc(r.id)}" data-v="${v}">${LIKE_ES[v]}</button>`).join('')}</div>
+      <div class="seg">${['again', 'meh', 'never'].map(v => `<button class="chip-btn${lk === v ? ' on' : ''}" data-act="like" data-id="${esc(r.id)}" data-v="${v}"${pressed(lk === v)}>${LIKE_ES[v]}</button>`).join('')}</div>
       <button class="strike" data-act="runner-start" data-id="${esc(r.id)}">${cap(verb(r))} ahora <small>paso a paso · con temporizadores</small></button>`;
   }
 
@@ -2973,18 +3028,21 @@ const OLLAUI = (function () {
     const eff = OLLA.effLog(state, d, sl);
     const lab = OLLA.slotLabel(state, d, sl);
     const p = preset || {};
-    sheetCtx = { kind: 'log', date: d, slot: sl, mode: p.mode || null };
+    // a cook question answered «otra cosa» BEFORE its dinner can be logged: there is no meal to log yet — the cook is off and
+    // what he bought (or cooked instead) becomes a BATCH; «lo del plan» and «no comí» would only be refused (UI review #1)
+    const early = !!p.fromCook && !OLLA.canLog(state, d, sl, T(), N());
+    sheetCtx = { kind: 'log', date: d, slot: sl, mode: p.mode || 'bought', fromCook: p.fromCook || null };   // «Compré» is the default, and shows as chosen (UI review #4)
     const sug = ['pollo rostizado'].concat(state.settings.orders || []).concat(state.recipes.filter(x => x.role === 'main').slice(0, 6).map(x => x.name));
     openSheet(`<h2>${cap(slotOf(sl, d))}</h2>
-      <div class="rx-meta">el plan: ${esc(lab)}${r ? ' · ' + KIND_ES[r.kind] : ''}</div>
-      ${eff && eff.s !== 'void' ? `<div class="notes"><p>Anotado: ${eff.s === 'ate' ? 'lo del plan' : eff.s === 'skipped' ? 'no comiste' : esc(eff.what || 'otra cosa') + (eff.left ? ', sobró ' + eff.left : '')}.</p></div><div class="under" style="justify-content:flex-start"><button class="link danger" data-act="log-void">Deshacer</button></div>` : ''}
-      <button class="strike" data-act="log-ate">Sí, lo del plan <small>${esc(lab)}</small></button>
+      <div class="rx-meta">el plan: ${esc(lab)}${r ? ' · ' + esc(KIND_ES[r.kind] || r.kind) : ''}</div>
+      ${eff && eff.s !== 'void' ? `<div class="notes"><p>Anotado: ${eff.s === 'ate' ? 'lo del plan' : eff.s === 'skipped' ? 'no comiste' : esc(eff.what || 'otra cosa') + (eff.left ? ', sobró ' + esc(eff.left) : '')}.</p></div><div class="under" style="justify-content:flex-start"><button class="link danger" data-act="log-void">Deshacer</button></div>` : ''}
+      ${early ? '' : `<button class="strike" data-act="log-ate">Sí, lo del plan <small>${esc(lab)}</small></button>`}
       <div class="rx-h">Otra cosa</div>
-      <div class="seg" data-seg="mode">${[['bought', 'Compré'], ['out', 'Pedí · fuera'], ['cooked', 'Cociné otra cosa']].map(m => `<button class="chip-btn${p.mode === m[0] ? ' on' : ''}" data-act="mode" data-v="${m[0]}">${m[1]}</button>`).join('')}</div>
+      <div class="seg" data-seg="mode">${[['bought', 'Compré'], ['out', 'Pedí · fuera'], ['cooked', 'Cociné otra cosa']].map(m => `<button class="chip-btn${sheetCtx.mode === m[0] ? ' on' : ''}" data-act="mode" data-v="${m[0]}"${pressed(sheetCtx.mode === m[0])}>${m[1]}</button>`).join('')}</div>
       <label class="field"><span>¿Qué?</span><input type="text" id="log-what" list="log-sug" value="${esc(p.what || '')}" autocomplete="off" placeholder="pollo rostizado, tallarines…"><datalist id="log-sug">${sug.map(s => `<option value="${esc(s)}">`).join('')}</datalist></label>
-      <div class="field" data-left-field${p.mode === 'out' ? ' hidden' : ''}><span>¿Sobró algo para otro día?</span>${stepper('left', p.left || 0, 0, 8)}</div>
+      <div class="field" data-left-field${sheetCtx.mode === 'out' ? ' hidden' : ''}><span>${early ? '¿Rinde para otro día, además de esta noche?' : '¿Sobró algo para otro día?'}</span>${stepper('left', p.left || 0, 0, 8)}</div>
       <button class="strike ghost sm" data-act="log-other">Guardar</button>
-      <div class="under"><button class="link" data-act="log-skip">No comí</button></div>`, sheetCtx);
+      ${early ? '' : '<div class="under"><button class="link" data-act="log-skip">No comí</button></div>'}`, sheetCtx);
   }
 
   function openCookQ(batch, d, mode) {
@@ -2995,15 +3053,14 @@ const OLLAUI = (function () {
     if (mode === 'yes') openSheet(`<h2>${esc(r ? r.name : 'La olla')}</h2><div class="rx-meta">¿Cuántos tápers salieron? Así la olla sabe lo que hay.</div>
       <div class="field">${stepper('yield', sv, 1, 12)}</div><button class="strike" data-act="cookq-save">A la olla</button>`, sheetCtx);
     else openLog(d, 'dinner', { mode: 'bought', what: r && r.assembly ? 'pollo rostizado' : '', left: 0, fromCook: batch });
-    if (mode !== 'yes') sheetCtx.fromCook = batch;
   }
 
   function openPicker(d) {
     const day = state.plan.days[d]; if (!day || !day.cook) return;
     const list = state.recipes.filter(r => r.role === 'main' && OLLA.eligible(state, r)).sort((a, b) => a.rung - b.rung || a.name.localeCompare(b.name));
     sheetCtx = { kind: 'pick', date: d };
-    openSheet(`<h2>¿Qué se ${verb(rec(day.cook.recipe)) === 'armar' ? 'arma' : 'cocina'} ${esc(dayWord(d))}?</h2><div class="rx-meta">hasta el peldaño ${(state.ladder.rung || 1) + 1}, con lo que tienes en la cocina</div>
-      <div class="card" style="padding:4px 10px;margin-top:8px">${list.map(r => `<button class="rec" data-act="choose" data-id="${esc(r.id)}"><span class="tile${r.cuisine === 'PE' ? ' pe' : ''}">${esc(r.name.charAt(0))}</span><span><span class="nm">${esc(r.name)}${day.cook.recipe === r.id ? ' ·' : ''}</span><span class="mt">${esc(verb(r))} · ${r.minutes.total} min · rinde ${OLLA.maxServings(r)}</span></span><span></span></button>`).join('')}</div>`, sheetCtx);
+    openSheet(`<h2>¿Qué se ${verb(rec(day.cook.recipe)) === 'armar' ? 'arma' : 'cocina'} ${esc(dayWord(d))}?</h2><div class="rx-meta">hasta el peldaño ${esc((+state.ladder.rung || 1) + 1)}, con lo que tienes en la cocina</div>
+      <div class="card" style="padding:4px 10px;margin-top:8px">${list.map(r => `<button class="rec" data-act="choose" data-id="${esc(r.id)}"><span class="tile${r.cuisine === 'PE' ? ' pe' : ''}">${esc(r.name.charAt(0))}</span><span><span class="nm">${esc(r.name)}${day.cook.recipe === r.id ? ' ·' : ''}</span><span class="mt">${esc(verb(r))} · ${esc(r.minutes.total)} min · rinde ${esc(OLLA.maxServings(r))}</span></span><span></span></button>`).join('')}</div>`, sheetCtx);
   }
 
   function openPot() {
@@ -3024,6 +3081,15 @@ const OLLAUI = (function () {
       <div class="rx-h">¿Compraste algo que rinde?</div>
       <button class="strike ghost sm" data-act="pot-bought">Compré algo · pollo rostizado, etc.</button>`, sheetCtx);
   }
+  /* «Compré algo» from the pot: a BATCH (addBatch, src bought), never a meal written over whatever slot the clock suggests (UI review #5) */
+  function openBought() {
+    sheetCtx = { kind: 'bought' };
+    const sug = ['pollo rostizado'].concat(state.recipes.filter(x => x.role === 'main' && x.assembly).map(x => x.name));
+    openSheet(`<h2>Compré algo</h2><div class="rx-meta">Lo que rinde va a la olla, como una olla cocinada.</div>
+      <label class="field"><span>¿Qué?</span><input type="text" id="bought-what" list="bought-sug" value="pollo rostizado" autocomplete="off"><datalist id="bought-sug">${sug.map(s => `<option value="${esc(s)}">`).join('')}</datalist></label>
+      <div class="field"><span>¿Cuántas porciones rinde?</span>${stepper('bought-n', 3, 1, 12)}</div>
+      <button class="strike" data-act="bought-save">A la olla</button>`, sheetCtx);
+  }
 
   /* ═══════════════════════════════ THE COOK-ALONG ═══════════════════════════════ */
   function openRunner(o) {
@@ -3033,16 +3099,22 @@ const OLLAUI = (function () {
       state.cookSession = { date: o.date || T(), batch: o.batch || null, recipe: r.id, servings: o.servings || r.servings, step: -1, timers: [], got: {}, startedAt: Date.now() };
       saveQuiet();
     }
-    const el = document.getElementById('runner'); el.hidden = false; document.body.style.overflow = 'hidden';
+    const el = document.getElementById('runner'); runnerFrom = document.activeElement;
+    el.hidden = false; el.setAttribute('aria-label', r.name); document.body.style.overflow = 'hidden'; behind(true);
     acquireWake(); renderRunner();
     clearInterval(runnerTimer); runnerTimer = setInterval(tickRunner, 250);
   }
+  /* the runner is a modal dialog: what is behind it is inert (no tab stop, no screen-reader path) and focus lives inside it */
+  function behind(on) { ['.app', '#bottom-tabs'].forEach(sel => { const x = document.querySelector(sel); if (x) x.inert = !!on; }); }
+  function focusRunner() { const nx = document.querySelector('#runner [data-act="r-next"]'); if (nx) nx.focus({ preventScroll: true }); }
   function closeRunner(keep) {
-    const el = document.getElementById('runner'); el.hidden = true; el.innerHTML = ''; document.body.style.overflow = '';
+    const el = document.getElementById('runner'); el.hidden = true; el.innerHTML = ''; document.body.style.overflow = ''; behind(false);
     clearInterval(runnerTimer); runnerTimer = null; releaseWake();
     if (!keep) { state.cookSession = null; saveQuiet(); }
     render();
+    if (runnerFrom && document.contains(runnerFrom)) runnerFrom.focus({ preventScroll: true }); runnerFrom = null;
   }
+  const keepSession = () => !!state.cookSession && state.cookSession.step >= 0;   // closed before «Empezar» = only looked: the session goes (UI review #2)
   function stepsOf(r) { return (r.steps || []).map(s => typeof s === 'string' ? { t: s } : s); }
   function renderRunner() {
     const s = state.cookSession; if (!s) return closeRunner(true);
@@ -3053,22 +3125,22 @@ const OLLAUI = (function () {
     let body = '', next = 'Siguiente', back = i > -1;
     if (i === -1) {
       body = `<div class="r-step-n">Antes de empezar</div><div class="r-done-h">${esc(r.name)}</div>
-        <div class="rx-meta" style="margin-top:10px">${r.minutes.active} min activos · ${r.minutes.total} en total${(r.gear || []).length ? ' · ' + esc(r.gear.map(k => GEAR_ES[k] || k).join(', ')) : ''}</div>
+        <div class="rx-meta" style="margin-top:10px">${esc(r.minutes.active)} min activos · ${esc(r.minutes.total)} en total${(r.gear || []).length ? ' · ' + esc(r.gear.map(k => GEAR_ES[k] || k).join(', ')) : ''}</div>
         <div class="field"><span>¿Para cuántas porciones?</span>${stepper('rsv', s.servings, 1, 12)}</div>
         <div class="rx-h">Saca esto · toca lo que ya tienes en la mesa</div>
-        <ul class="r-ings">${ings.map((g, k) => `<li class="${s.got[k] ? 'got' : ''}" data-act="got" data-k="${k}"><span class="q">${esc(g.display)}</span><span>${esc(g.n)}</span></li>`).join('')}</ul>`;
+        <ul class="r-ings">${ings.map((g, k) => `<li class="tap${s.got[k] ? ' got' : ''}"><button type="button" data-act="got" data-k="${k}"${pressed(s.got[k])}><span class="q">${esc(g.display)}</span><span>${esc(g.n)}</span></button></li>`).join('')}</ul>`;
       next = 'Empezar';
     } else if (i < total) {
       const st = steps[i], tm = OLLA.stepTimer(st), tmr = (s.timers || []).find(x => x.step === i && !x.done);
       const sub = (st.ing || []).map(k => ings[k]).filter(Boolean);
       body = `<div class="r-step-n">Paso ${i + 1} de ${total}</div><div class="r-text">${esc(st.t)}</div>
         ${sub.length ? `<ul class="r-ings">${sub.map(g => `<li><span class="q">${esc(g.display)}</span><span>${esc(g.n)}</span></li>`).join('')}</ul>` : ''}
-        ${tmr ? `<div class="r-big" data-tbig="${tmr.id}">--:--</div><div class="r-cap">${esc(tmr.label)}</div>`
+        ${tmr ? `<div class="r-big" data-tbig="${esc(tmr.id)}">--:--</div><div class="r-cap">${esc(tmr.label)}</div>`
               : tm ? `<button class="strike ghost" data-act="timer" data-min="${tm}">Temporizador <small>${tm} min</small></button>` : ''}`;
       if (i === total - 1) next = 'Terminar';
     } else {
       body = `<div class="r-step-n">Listo</div><div class="r-done-h">¿Cuántos tápers salieron?</div>
-        <div class="rx-meta" style="margin-top:10px">Así la olla sabe lo que hay de verdad. ${r.fridgeDays ? 'Aguanta ' + r.fridgeDays + ' días en la nevera.' : ''}${r.freezesMonths ? ' Lo que no vayas a comer en 3 días, al congelador.' : ''}</div>
+        <div class="rx-meta" style="margin-top:10px">Así la olla sabe lo que hay de verdad. ${r.fridgeDays ? 'Aguanta ' + esc(r.fridgeDays) + ' días en la nevera.' : ''}${r.freezesMonths ? ' Lo que no vayas a comer en 3 días, al congelador.' : ''}</div>
         <div class="field">${stepper('ryield', s.servings, 1, 12)}</div>
         ${r.reheat ? `<div class="notes"><p>Para recalentar: ${esc(r.reheat)}.</p></div>` : ''}`;
       next = 'A la olla';
@@ -3078,6 +3150,7 @@ const OLLAUI = (function () {
       <div class="timers" data-timers></div>
       <div class="r-body">${body}</div>
       <div class="r-nav">${back ? '<button class="back" data-act="r-back">Atrás</button>' : '<span></span>'}<button class="strike" data-act="r-next">${next}</button></div>`;
+    if (!el.contains(document.activeElement)) focusRunner();   // the step re-rendered under the finger: focus stays in the dialog
     tickRunner();
   }
   function fmtLeft(ms) { const s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
@@ -3086,7 +3159,7 @@ const OLLAUI = (function () {
     const now = Date.now(), box = el.querySelector('[data-timers]');
     let fired = false;
     (s.timers || []).forEach(x => { if (!x.done && !x.rang && now >= x.endsAt) { x.rang = true; fired = true; } });
-    if (box) box.innerHTML = (s.timers || []).filter(x => !x.done).map(x => `<button class="timer-chip${now >= x.endsAt ? ' ring-now' : ''}" data-act="timer-done" data-id="${x.id}">${esc(x.label)} · ${now >= x.endsAt ? '¡ya!' : fmtLeft(x.endsAt - now)}</button>`).join('');
+    if (box) box.innerHTML = (s.timers || []).filter(x => !x.done).map(x => `<button class="timer-chip${now >= x.endsAt ? ' ring-now' : ''}" data-act="timer-done" data-id="${esc(x.id)}">${esc(x.label)} · ${now >= x.endsAt ? '¡ya!' : fmtLeft(x.endsAt - now)}</button>`).join('');
     el.querySelectorAll('[data-tbig]').forEach(b => { const x = (s.timers || []).find(y => String(y.id) === b.dataset.tbig); if (!x) return;
       const left = x.endsAt - now; b.textContent = left > 0 ? fmtLeft(left) : '¡Ya!'; b.classList.toggle('over', left <= 0);
       b.style.setProperty('--t-left', String(Math.max(0, Math.min(1, left / (x.ms || 1))))); });
@@ -3100,9 +3173,10 @@ const OLLAUI = (function () {
   }
   function finishRunner() {
     const s = state.cookSession, r = rec(s.recipe), y = stepVal('ryield') || s.servings, t = T(), n = N(), at = Date.now();
-    let res;
-    if (s.batch) res = OLLA.logCook(state, s.batch, { s: 'made', recipe: r.id, yield: y }, t, n, at);
-    else res = OLLA.logMeal(state, s.date && s.date <= t ? s.date : t, 'dinner', { s: 'other', what: r.name, recipe: r.id, left: Math.max(0, y - 1) }, t, n, at);
+    // the plan's own batch, on its day or after → «made»; anything else (an off-plan dish, tomorrow's dish cooked today) is a NEW
+    // cooked batch — never a dinner log: that was refused before dinner and overwrote a logged one after (UI review #3)
+    const planned = !!s.batch && !!s.date && s.date <= t;
+    const res = planned ? OLLA.logCook(state, s.batch, { s: 'made', recipe: r.id, yield: y }, t, n, at) : OLLA.addBatch(state, { recipe: r.id, servings: y, src: 'cooked' }, t, n, at);
     if (res && res.ok === false) { toast(res.why || 'no se pudo anotar', true); return; }
     state.cookSession = null;
     closeRunner(true); view = 'hoy'; done('A la olla: ' + porc(y) + '.', true);
@@ -3122,24 +3196,24 @@ const OLLAUI = (function () {
   function ingName(id) { const g = OLLA.ingredient(id); return g ? g.n : id; }
   function renderKitchenSettings() {
     const S = state.settings, el = document.getElementById('kitchen-settings'); if (!el) return;
-    const dows = (name, arr) => `<div class="k-grid">${DOWS3.map((d, i) => `<button type="button" class="chip-btn${(arr || []).indexOf(i) >= 0 ? ' on' : ''}" data-kact="dow" data-k="${name}" data-i="${i}">${d}</button>`).join('')}</div>`;
+    const dows = (name, arr) => `<div class="k-grid">${DOWS3.map((d, i) => `<button type="button" class="chip-btn${(arr || []).indexOf(i) >= 0 ? ' on' : ''}" data-kact="dow" data-k="${name}" data-i="${i}" aria-label="${DOWS[i]}"${pressed((arr || []).indexOf(i) >= 0)}>${d}</button>`).join('')}</div>`;
     const ids = allIngredientIds().filter(id => { const g = OLLA.ingredient(id); return g && (g.pantry || g.section === 'Especias y aceites'); }).sort((a, b) => ingName(a).localeCompare(ingName(b)));
-    const weeklyIds = ['leche', 'yogur-griego', 'mantequilla-mani', 'huevos', 'platanos', 'pan-integral', 'avena'].filter(id => OLLA.ingredient(id));
+    const weeklyIds = ['leche', 'yogur-griego', 'mantequilla-mani', 'huevo', 'platano', 'pan-integral', 'avena'].filter(id => !OLLA.ingredient(id).unknown);   // ingredient() never returns null: an unknown id is `unknown` (UI review #6)
     el.innerHTML = `
       <div class="field"><span>Swipes por semana · minutos a pie al comedor</span><div style="display:flex;gap:10px">${stepper('k-swipes', S.hall.swipesPerWeek, 0, 30)}${stepper('k-walk', S.hall.walkMin, 0, 60)}</div></div>
       <div class="field"><span>Días con swipe (desayuno y almuerzo — la cena, nunca)</span>${dows('hall', S.hall.days)}</div>
-      <div class="field"><span>El desayuno también es swipe</span><div class="seg"><button type="button" class="chip-btn${S.hall.breakfastSwipe ? ' on' : ''}" data-kact="bfswipe" data-v="1">sí</button><button type="button" class="chip-btn${!S.hall.breakfastSwipe ? ' on' : ''}" data-kact="bfswipe" data-v="0">no</button></div></div>
+      <div class="field"><span>El desayuno también es swipe</span><div class="seg"><button type="button" class="chip-btn${S.hall.breakfastSwipe ? ' on' : ''}" data-kact="bfswipe" data-v="1"${pressed(S.hall.breakfastSwipe)}>sí</button><button type="button" class="chip-btn${!S.hall.breakfastSwipe ? ' on' : ''}" data-kact="bfswipe" data-v="0"${pressed(!S.hall.breakfastSwipe)}>no</button></div></div>
       <div class="field"><span>Días que almuerzas fuera (campus principal)</span>${dows('out', S.outDays)}</div>
       <div class="field"><span>Días de gym (la cuarta comida, después)</span>${dows('train', S.trainDays)}</div>
-      <div class="field"><span>Ventanas para cocinar · y a qué hora prefieres empezar (vacío = al abrir la ventana)</span><div class="wins">${DOWS3.map((d, i) => `<div class="win"><span class="d">${d}</span><input type="text" inputmode="numeric" data-kact="win" data-i="${i}" value="${esc((S.cookWindows[String(i)] || []).join(', '))}" placeholder="—"><input type="text" inputmode="numeric" data-kact="cookat" data-i="${i}" value="${esc((S.cookAt || {})[String(i)] || '')}" placeholder="empezar"></div>`).join('')}</div></div>
-      <div class="field"><span>Horas de comer · desayuno, almuerzo, cena, después del gym</span><div class="wins"><div class="win" style="grid-template-columns:1fr 1fr 1fr 1fr">${['bf', 'lunch', 'dinner', 'post'].map(k => `<input type="text" inputmode="numeric" data-kact="eat" data-k="${k}" value="${esc((S.eatAt || {})[k] || '')}" aria-label="${SLOT_ES[k]}">`).join('')}</div></div></div>
-      <div class="field"><span>Lo que hay en la cocina</span><div class="seg">${Object.keys(GEAR_ES).map(k => `<button type="button" class="chip-btn${S.gear[k] !== false ? ' on' : ''}" data-kact="gear" data-k="${k}">${GEAR_ES[k]}</button>`).join('')}</div></div>
+      <div class="field"><span>Ventanas para cocinar · y a qué hora prefieres empezar (vacío = al abrir la ventana)</span><div class="wins">${DOWS3.map((d, i) => `<div class="win"><span class="d">${d}</span><input type="text" inputmode="numeric" data-kact="win" data-i="${i}" value="${esc((S.cookWindows[String(i)] || []).join(', '))}" placeholder="—" aria-label="Ventana para cocinar, ${DOWS[i]}"><input type="text" inputmode="numeric" data-kact="cookat" data-i="${i}" value="${esc((S.cookAt || {})[String(i)] || '')}" placeholder="empezar" aria-label="Hora de empezar a cocinar, ${DOWS[i]}"></div>`).join('')}</div></div>
+      <div class="field"><span>Horas de comer · desayuno, almuerzo, cena, después del gym</span><div class="wins"><div class="win" style="grid-template-columns:1fr 1fr 1fr 1fr">${['bf', 'lunch', 'dinner', 'post'].map(k => `<input type="text" inputmode="numeric" data-kact="eat" data-k="${k}" value="${esc((S.eatAt || {})[k] || '')}" aria-label="Hora de comer: ${SLOT_ES[k]}">`).join('')}</div></div></div>
+      <div class="field"><span>Lo que hay en la cocina</span><div class="seg">${Object.keys(GEAR_ES).map(k => `<button type="button" class="chip-btn${S.gear[k] !== false ? ' on' : ''}" data-kact="gear" data-k="${k}"${pressed(S.gear[k] !== false)}>${GEAR_ES[k]}</button>`).join('')}</div></div>
       <div class="field"><span>Tápers</span>${stepper('k-cont', S.containers || 0, 0, 40)}</div>
-      <div class="field"><span>El súper · nombre · cierra · minutos dentro de la tienda (estimado)</span><div class="win" style="grid-template-columns:2fr 1fr 1fr"><input type="text" data-kact="store" data-k="name" value="${esc(S.store.name || '')}"><input type="text" data-kact="store" data-k="close" value="${esc(S.store.close || '')}"><input type="text" inputmode="numeric" data-kact="store" data-k="inStoreMin" value="${esc(S.store.inStoreMin || '')}"></div>
-        <div class="seg" style="margin-top:8px"><button type="button" class="chip-btn${S.store.mode !== 'delivery' ? ' on' : ''}" data-kact="mode" data-v="walk">voy a pie</button><button type="button" class="chip-btn${S.store.mode === 'delivery' ? ' on' : ''}" data-kact="mode" data-v="delivery">a domicilio</button></div></div>
-      <div class="field"><span>Lo que pides cuando pides (uno por línea)</span><textarea data-kact="orders" rows="3">${esc((S.orders || []).join('\n'))}</textarea></div>
-      <div class="field"><span>Siempre en casa — nunca va a la lista</span><div class="seg">${ids.map(id => `<button type="button" class="chip-btn${(S.pantry || []).indexOf(id) >= 0 ? ' on' : ''}" data-kact="pantry" data-k="${esc(id)}" style="font-size:15px">${esc(ingName(id))}</button>`).join('')}</div></div>
-      <div class="field"><span>Siempre en la lista</span><div class="seg">${weeklyIds.map(id => `<button type="button" class="chip-btn${(S.weekly || []).indexOf(id) >= 0 ? ' on' : ''}" data-kact="weekly" data-k="${esc(id)}" style="font-size:15px">${esc(ingName(id))}</button>`).join('')}</div></div>`;
+      <div class="field"><span>El súper · nombre · cierra · minutos dentro de la tienda (estimado)</span><div class="win" style="grid-template-columns:2fr 1fr 1fr"><input type="text" data-kact="store" data-k="name" value="${esc(S.store.name || '')}" aria-label="Nombre del súper"><input type="text" data-kact="store" data-k="close" value="${esc(S.store.close || '')}" aria-label="Hora en que cierra el súper"><input type="text" inputmode="numeric" data-kact="store" data-k="inStoreMin" value="${esc(S.store.inStoreMin || '')}" aria-label="Minutos dentro de la tienda (estimado)"></div>
+        <div class="seg" style="margin-top:8px"><button type="button" class="chip-btn${S.store.mode !== 'delivery' ? ' on' : ''}" data-kact="mode" data-v="walk"${pressed(S.store.mode !== 'delivery')}>voy a pie</button><button type="button" class="chip-btn${S.store.mode === 'delivery' ? ' on' : ''}" data-kact="mode" data-v="delivery"${pressed(S.store.mode === 'delivery')}>a domicilio</button></div></div>
+      <div class="field"><span>Lo que pides cuando pides (uno por línea)</span><textarea data-kact="orders" rows="3" aria-label="Lo que pides cuando pides, uno por línea">${esc((S.orders || []).join('\n'))}</textarea></div>
+      <div class="field"><span>Siempre en casa — nunca va a la lista</span><div class="seg">${ids.map(id => `<button type="button" class="chip-btn${(S.pantry || []).indexOf(id) >= 0 ? ' on' : ''}" data-kact="pantry" data-k="${esc(id)}"${pressed((S.pantry || []).indexOf(id) >= 0)} style="font-size:15px">${esc(ingName(id))}</button>`).join('')}</div></div>
+      <div class="field"><span>Siempre en la lista</span><div class="seg">${weeklyIds.map(id => `<button type="button" class="chip-btn${(S.weekly || []).indexOf(id) >= 0 ? ' on' : ''}" data-kact="weekly" data-k="${esc(id)}"${pressed((S.weekly || []).indexOf(id) >= 0)} style="font-size:15px">${esc(ingName(id))}</button>`).join('')}</div></div>`;
   }
   function onKitchen(e) {
     const el = e.target.closest('[data-kact]'); if (!el) return;
@@ -3153,15 +3227,44 @@ const OLLAUI = (function () {
       else if (k === 'pantry' || k === 'weekly') { const arr = S[k] = S[k] || []; const i = arr.indexOf(el.dataset.k); if (i >= 0) arr.splice(i, 1); else arr.push(el.dataset.k); }
       else return;
     } else if (e.type === 'change') {
-      const v = el.value.trim();
-      if (k === 'win') { const list = v ? v.split(',').map(x => x.trim()).filter(Boolean) : []; if (!list.every(w => /^\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}$/.test(w))) { toast('formato: 13:00-17:30', true); return; } S.cookWindows[el.dataset.i] = list.map(w => w.replace(/\s+/g, '')); }
-      else if (k === 'cookat') { S.cookAt = S.cookAt || {}; if (!v) delete S.cookAt[el.dataset.i]; else if (OLLA.hm(v) == null) { toast('formato: 15:30', true); return; } else S.cookAt[el.dataset.i] = v; }
-      else if (k === 'eat') { if (OLLA.hm(v) == null) { toast('formato: 19:00', true); return; } S.eatAt = S.eatAt || {}; S.eatAt[el.dataset.k] = v; }
-      else if (k === 'store') { const kk = el.dataset.k; if (kk === 'inStoreMin') { const n = parseInt(v, 10); if (!(n >= 5 && n <= 120)) { toast('entre 5 y 120 minutos', true); return; } S.store.inStoreMin = n; } else if (kk === 'close') { if (OLLA.hm(v) == null) { toast('formato: 22:00', true); return; } S.store.close = v; } else S.store.name = v || 'Safeway'; }
+      // a value the engine would silently ignore (19:00-13:00, 25:00, a start with no room before the window ends) is REFUSED
+      // with a toast and the field shows what is stored again (UI review #9)
+      const v = el.value.trim(), i = el.dataset.i, no = msg => { toast(msg, true); el.value = kVal(el); };
+      if (k === 'win') {
+        const list = v ? v.split(',').map(x => x.replace(/\s+/g, '')).filter(Boolean) : [];
+        if (!list.every(w => { const p = w.split('-'), s = clockMin(p[0], 1439), e2 = clockMin(p[1], 1440); return p.length === 2 && s != null && e2 != null && s < e2; })) return no('formato: 13:00-17:30, y que termine después de empezar');
+        S.cookWindows[i] = list;
+      } else if (k === 'cookat') {
+        S.cookAt = S.cookAt || {};
+        if (!v) delete S.cookAt[i];
+        else { const x = clockMin(v, 1439); if (x == null) return no('formato: 15:30'); const why = cookAtWhy(+i, x); if (why) return no(why); S.cookAt[i] = v; }
+      } else if (k === 'eat') { if (clockMin(v, 1439) == null) return no('formato: 19:00'); S.eatAt = S.eatAt || {}; S.eatAt[el.dataset.k] = v; }
+      else if (k === 'store') { const kk = el.dataset.k;
+        if (kk === 'inStoreMin') { const m = parseInt(v, 10); if (!(m >= 5 && m <= 120)) return no('entre 5 y 120 minutos'); S.store.inStoreMin = m; }
+        else if (kk === 'close') { const x = clockMin(v, 1439); if (x == null || x <= (OLLA.hm(S.store.open) ?? 360)) return no('formato: 22:00, después de que abre'); S.store.close = v; }
+        else S.store.name = v || 'Safeway'; }
       else if (k === 'orders') S.orders = v.split('\n').map(x => x.trim()).filter(Boolean).slice(0, 8);
       else return;
+      ensureWeek(); saveTap(); return;   // no re-render while he types: rebuilding the sheet dropped the field he had just tapped into (UI review #10)
     } else return;
     ensureWeek(); saveTap(); renderKitchenSettings();
+  }
+  const clockMin = (v, max) => { const m = /^(\d{1,2}):([0-5]\d)$/.exec(String(v == null ? '' : v).trim()); if (!m) return null; const x = +m[1] * 60 + +m[2]; return x <= max ? x : null; };   // HH:MM, 00:00 … max (a window may end at 24:00)
+  function kVal(el) {   // what a kitchen field shows when it holds what is stored
+    const S = state.settings, k = el.dataset.kact, i = String(el.dataset.i);
+    if (k === 'win') return (S.cookWindows[i] || []).join(', ');
+    if (k === 'cookat') return (S.cookAt || {})[i] || '';
+    if (k === 'eat') return (S.eatAt || {})[el.dataset.k] || '';
+    if (k === 'store') return String(S.store[el.dataset.k] == null ? '' : S.store[el.dataset.k]);
+    if (k === 'orders') return (S.orders || []).join('\n');
+    return el.value;
+  }
+  /* a preferred start must leave room, inside one of that weekday's windows, for the shortest dish the book would cook there */
+  function cookAtWhy(dw, x) {
+    const ws = OLLA.windowsFor(state.settings, OLLA.addDays(T(), (dw - OLLA.dow(T()) + 7) % 7));
+    if (!ws.length) return 'el ' + DOWS[dw] + ' no tiene ventana para cocinar';
+    const mains = state.recipes.filter(r => OLLA.batchable(r) && OLLA.eligible(state, r)), min = mains.length ? Math.min.apply(null, mains.map(r => +(r.minutes && r.minutes.total) || 30)) : 30;
+    return ws.some(w => x >= w.s && x + min <= w.e) ? '' : 'a esa hora no cabe cocinar el ' + DOWS[dw] + ' (' + ws.map(w => w.str).join(', ') + ')';
   }
   function onKitchenStep(name, v) {
     const S = state.settings;
@@ -3174,6 +3277,7 @@ const OLLAUI = (function () {
     const b = e.target.closest('[data-act]'); if (!b) return;
     const a = b.dataset.act, t = T(), n = N(), at = Date.now(), d = b.dataset.date, sl = b.dataset.slot;
     const res = x => { if (x && x.ok === false) { toast(x.why || 'no se pudo', true); return false; } return true; };
+    if (/^(r-back|r-next|got|timer|timer-done|runner-resume)$/.test(a) && !state.cookSession) { closeRunner(true); return; }   // no session under the runner (a pull, another tab): close it, never throw (UI review #11)
     switch (a) {
       case 'go': go(b.dataset.view); return;
       case 'pot': openPot(); return;
@@ -3188,24 +3292,28 @@ const OLLAUI = (function () {
       case 'q-no': if (res(OLLA.logCook(state, b.dataset.batch, { s: 'notmade' }, t, n, at))) done('Anotado. La semana se reacomoda.'); return;
       case 'cookq-save': { const c = sheetCtx; if (res(OLLA.logCook(state, c.batch, { s: 'made', recipe: c.recipe, yield: stepVal('yield') }, t, n, at))) done('A la olla.', true); return; }
       case 'rescue-eat': if (res(OLLA.logMeal(state, t, 'dinner', { s: 'ate', of: b.dataset.of }, t, n, at))) done('', true); return;
-      case 'rescue-home': { const r = rec(b.dataset.id); if (r && res(OLLA.logMeal(state, t, 'dinner', { s: 'other', what: r.name, recipe: r.id }, t, n, at))) { done('Anotado: ' + r.name + '.', true); openRecipe(r.id); } return; }
+      case 'rescue-home': { const r = rec(b.dataset.id); if (!r) return;
+        const row = state.plan.days[t] && state.plan.days[t].dinner, asPlanned = !!row && row.kind === 'home' && row.recipe === r.id;   // tonight already IS that fridge dish: that is the plan, not «otra cosa» (UI review #14)
+        if (res(OLLA.logMeal(state, t, 'dinner', asPlanned ? { s: 'ate' } : { s: 'other', what: r.name, recipe: r.id }, t, n, at))) { done('Anotado: ' + r.name + '.', true); openRecipe(r.id); } return; }
       case 'rescue-store': toast('Cuando vuelvas: «compré», y cuántas porciones sobraron.'); openLog(t, 'dinner', { mode: 'bought', what: b.dataset.what }); return;
       case 'rescue-order': if (res(OLLA.logMeal(state, t, 'dinner', { s: 'out', what: b.dataset.what }, t, n, at))) done('Anotado: ' + b.dataset.what + '.'); return;
       case 'toss': if (res(OLLA.logCook(state, b.dataset.batch, { s: 'tossed' }, t, n, at))) done('Fuera.'); return;
       case 'toss-keep': if (res(OLLA.logCook(state, b.dataset.batch, { s: 'tossed' }, t, n, at))) done(''); return;
-      case 'pot-eat': if (res(OLLA.logMeal(state, t, slotNow(n), { s: 'ate', of: b.dataset.of }, t, n, at))) done('', true); return;
+      case 'pot-eat': { const s0 = slotNow(); if (!s0) { toast('Ahora no toca ninguna comida.'); return; } if (res(OLLA.logMeal(state, t, s0, { s: 'ate', of: b.dataset.of }, t, n, at))) done('Anotado: ' + SLOT_ES[s0] + '.', true); return; }
       case 'pot-freeze': if (res(OLLA.freeze(state, b.dataset.of, +b.dataset.n, t, n, at))) done('Al congelador.'); return;
-      case 'pot-bought': openLog(t, slotNow(n), { mode: 'bought', what: 'pollo rostizado', left: 3 }); return;
-      case 'gear': { const g = state.settings.gear; g[b.dataset.k] = g[b.dataset.k] === false; saveTap(); render(); return; }
-      case 'cont': state.settings.containers = Math.max(0, (state.settings.containers || 0) + (+b.dataset.d)); saveTap(); render(); return;
+      case 'pot-bought': openBought(); return;
+      case 'bought-save': { const what = ((document.getElementById('bought-what') || {}).value || '').trim(), y = stepVal('bought-n'), r = state.recipes.find(x => x.name.toLowerCase() === what.toLowerCase());
+        if (res(OLLA.addBatch(state, Object.assign({ name: what || 'algo comprado', servings: y, src: 'bought' }, r ? { recipe: r.id } : {}), t, n, at))) done('A la olla: ' + porc(y) + '.', true); return; }
+      case 'gear': { const g = state.settings.gear; g[b.dataset.k] = g[b.dataset.k] === false; ensureWeek(); saveTap(); render(); return; }   // edits that change the week rebuild it NOW (UI review #8)
+      case 'cont': state.settings.containers = Math.max(0, (state.settings.containers || 0) + (+b.dataset.d)); ensureWeek(); saveTap(); render(); return;
       case 'gear-done': state.settings.gearAsked = true; done('Anotado.'); return;
       case 'cycle': { if (d < t) { toast('Ese día ya pasó.'); return; } const k = OLLA.nextKind(state, d, sl, t, n); if (k && res(OLLA.setKind(state, d, sl, k, t, n))) { saveTap(); render(); } return; }
-      case 'rule': OLLA.backToRule(state, d, sl, t, n); ensureWeek(); saveTap(); render(); return;
+      case 'rule': if (res(OLLA.backToRule(state, d, sl, t, n))) { ensureWeek(); saveTap(); render(); } return;   // a refusal says why (UI review #7)
       case 'pick': openPicker(d); return;
       case 'choose': if (res(OLLA.setCookRecipe(state, sheetCtx.date, b.dataset.id, t, n))) done('Cambiado.'); return;
-      case 'check': OLLA.check(state, b.dataset.key, b.dataset.v === '1', at); saveTap(); render(); return;
+      case 'check': OLLA.check(state, b.dataset.key, b.dataset.v === '1', at); ensureWeek(); saveTap(); render(); return;
       case 'share': shareTrip(d); return;
-      case 'like': OLLA.like(state, b.dataset.id, b.dataset.v, at); saveTap(); openRecipe(b.dataset.id, sheetCtx || {}); render(); return;
+      case 'like': OLLA.like(state, b.dataset.id, b.dataset.v, at); ensureWeek(); saveTap(); openRecipe(b.dataset.id, sheetCtx || {}); render(); return;
       case 'step': { const box = b.closest('[data-stepper]'), val = box.querySelector('[data-val]'), name = box.dataset.stepper;
         const v = Math.max(+box.dataset.min, Math.min(+box.dataset.max, (parseInt(val.textContent, 10) || 0) + (+b.dataset.d)));
         val.textContent = v;
@@ -3213,32 +3321,45 @@ const OLLAUI = (function () {
         if (name === 'rsv' && state.cookSession) { state.cookSession.servings = v; saveQuiet(); renderRunner(); }
         if (onKitchenStep(name, v)) { /* saved */ }
         return; }
-      case 'mode': { const seg = b.closest('[data-seg]'); seg.querySelectorAll('.chip-btn').forEach(x => x.classList.toggle('on', x === b)); sheetCtx.mode = b.dataset.v; const lf = document.querySelector('[data-left-field]'); if (lf) lf.hidden = b.dataset.v === 'out'; return; }
+      case 'mode': { const seg = b.closest('[data-seg]'); seg.querySelectorAll('.chip-btn').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); }); sheetCtx.mode = b.dataset.v; const lf = document.querySelector('[data-left-field]'); if (lf) lf.hidden = b.dataset.v === 'out'; return; }
       case 'log-ate': { const c = sheetCtx; if (res(OLLA.logMeal(state, c.date, c.slot, { s: 'ate' }, t, n, at))) done('', true); return; }
-      case 'log-skip': { const c = sheetCtx; if (c.fromCook) OLLA.logCook(state, c.fromCook, { s: 'notmade' }, t, n, at); if (res(OLLA.logMeal(state, c.date, c.slot, { s: 'skipped' }, t, n, at))) done('Anotado.'); return; }
+      case 'log-skip': { const c = sheetCtx; if (!res(OLLA.logMeal(state, c.date, c.slot, { s: 'skipped' }, t, n, at))) return;   // the meal first: a refused one writes nothing at all
+        if (c.fromCook) OLLA.logCook(state, c.fromCook, { s: 'notmade' }, t, n, at); done('Anotado.'); return; }
       case 'log-void': { const c = sheetCtx; if (res(OLLA.logMeal(state, c.date, c.slot, { s: 'void' }, t, n, at))) done('Deshecho.'); return; }
       case 'log-other': {
-        const c = sheetCtx, what = (document.getElementById('log-what') || {}).value || '', mode = c.mode || 'bought', left = stepVal('left');
-        if (!mode) { toast('¿Compraste, pediste o cocinaste?'); return; }
-        if (c.fromCook) OLLA.logCook(state, c.fromCook, { s: 'notmade' }, t, n, at);
+        const c = sheetCtx, what = ((document.getElementById('log-what') || {}).value || '').trim(), mode = c.mode || 'bought', left = stepVal('left');
+        const r = state.recipes.find(x => x.name.toLowerCase() === what.toLowerCase()), src = mode === 'cooked' ? 'cooked' : 'bought';   // «cociné» counts toward the rung and the rotation, «compré» never (UI review #4)
+        const remember = () => { const o = state.settings.orders = state.settings.orders || []; if (what && o.indexOf(what) < 0) { o.unshift(what); o.length = Math.min(o.length, 6); } };
+        if (c.fromCook && !OLLA.canLog(state, c.date, c.slot, t, n)) {   // before its dinner can be logged: the cook is off, and what he got instead is a BATCH (UI review #1)
+          if (!res(OLLA.logCook(state, c.fromCook, { s: 'notmade' }, t, n, at))) return;
+          if (mode === 'out') { const k = OLLA.setKind(state, c.date, c.slot, 'out', t, n); if (k.ok !== false) remember(); done(k.ok === false ? '' : 'Anotado: hoy, fuera.'); if (k.ok === false) toast(k.why, true); return; }
+          if (res(OLLA.addBatch(state, Object.assign({ name: what || (mode === 'cooked' ? 'algo cocinado' : 'algo comprado'), servings: left + 1, src }, r ? { recipe: r.id } : {}), t, n, at))) done('A la olla: ' + porc(left + 1) + '.', true);
+          return;
+        }
         let entry;
-        if (mode === 'out') { entry = { s: 'out', what: what.trim() }; const o = state.settings.orders = state.settings.orders || []; if (what.trim() && o.indexOf(what.trim()) < 0) { o.unshift(what.trim()); o.length = Math.min(o.length, 6); } }
-        else { const r = state.recipes.find(x => x.name.toLowerCase() === what.trim().toLowerCase()); entry = { s: 'other', what: what.trim() || (mode === 'bought' ? 'algo comprado' : 'algo cocinado'), left }; if (r) entry.recipe = r.id; }
-        if (res(OLLA.logMeal(state, c.date, c.slot, entry, t, n, at))) done(left ? 'Anotado: sobró ' + porc(left) + ' para la olla.' : 'Anotado.', !!left);
+        if (mode === 'out') entry = { s: 'out', what };
+        else { entry = { s: 'other', what: what || (mode === 'bought' ? 'algo comprado' : 'algo cocinado'), left, src }; if (r) entry.recipe = r.id; }
+        if (!res(OLLA.logMeal(state, c.date, c.slot, entry, t, n, at))) return;   // the meal first; the cook is answered only once the meal is on record
+        if (mode === 'out') remember();
+        if (c.fromCook) OLLA.logCook(state, c.fromCook, { s: 'notmade' }, t, n, at);
+        done(left && mode !== 'out' ? 'Anotado: sobró ' + porc(left) + ' para la olla.' : 'Anotado.', !!left && mode !== 'out');
         return; }
       case 'runner-start': { const c = sheetCtx || {}; const day = c.date && state.plan.days[c.date]; const cook = day && day.cook && day.cook.recipe === b.dataset.id ? day.cook : null;
         openRunner({ date: c.date || t, batch: cook ? cook.batch : null, recipe: b.dataset.id, servings: c.servings }); return; }
       case 'runner-resume': { const s = state.cookSession; openRunner({ date: s.date, batch: s.batch, recipe: s.recipe, servings: s.servings }); return; }
-      case 'runner-close': closeRunner(true); return;
+      case 'runner-close': closeRunner(keepSession()); return;
+      case 'runner-drop': closeRunner(false); return;
       case 'runner-recipe': openRecipe(b.dataset.id, { date: state.cookSession && state.cookSession.date }); return;
       case 'r-back': state.cookSession.step = Math.max(-1, state.cookSession.step - 1); saveQuiet(); renderRunner(); return;
       case 'r-next': { const s = state.cookSession, r = rec(s.recipe), total = stepsOf(r).length; unlockAudio(); if (s.step >= total) { finishRunner(); return; } s.step++; saveQuiet(); renderRunner(); document.querySelector('#runner .r-body') && (document.querySelector('#runner .r-body').scrollTop = 0); return; }
-      case 'got': { const s = state.cookSession; s.got[b.dataset.k] = !s.got[b.dataset.k]; saveQuiet(); b.classList.toggle('got', !!s.got[b.dataset.k]); return; }
+      case 'got': { const s = state.cookSession, on = !s.got[b.dataset.k]; s.got[b.dataset.k] = on; saveQuiet(); (b.closest('li') || b).classList.toggle('got', on); b.setAttribute('aria-pressed', String(on)); return; }
       case 'timer': addTimer(+b.dataset.min); return;
       case 'timer-done': { const s = state.cookSession, x = (s.timers || []).find(y => String(y.id) === b.dataset.id); if (x) { x.done = true; saveQuiet(); renderRunner(); } return; }
     }
   }
-  function slotNow(n) { const e = k => OLLA.eatAt(state, T(), k); return n < e('lunch') - 60 ? 'bf' : n < e('dinner') - 90 ? 'lunch' : 'dinner'; }
+  /* the meal «Comer una» is: the LATEST of today's slots that can be logged now and isn't yet — so the post-gym meal after a
+     logged dinner, never a second dinner; null before breakfast can be logged (UI review #5) */
+  function slotNow() { const t = T(), n = N(); const open = OLLA.slotsFor(state, t).filter(k => !OLLA.effLog(state, t, k) && OLLA.canLog(state, t, k, t, n)).sort((a, b) => OLLA.eatAt(state, t, a) - OLLA.eatAt(state, t, b)); return open.length ? open[open.length - 1] : null; }
   async function shareTrip(d) {
     const sh = OLLA.shopping(state, T(), N()), trip = (sh.trips || []).find(x => x.date === d); if (!trip) return;
     const text = OLLA.listText(state, trip), title = (state.settings.store.name || 'Safeway') + ' · ' + dayWord(trip.date);
@@ -3251,7 +3372,9 @@ const OLLAUI = (function () {
     ensureWeek(); applyOllaTheme();
     document.addEventListener('click', e => { if (e.target.closest('#app-root, #olla-sheet, #runner')) onClick(e); });
     document.getElementById('olla-sheet').addEventListener('click', e => { if (e.target === e.currentTarget) closeSheet(); });
-    document.getElementById('olla-sheet').addEventListener('close', () => { sheetCtx = null; });
+    // `close` is queued, not synchronous: if another sheet opened before it fired, that sheet's context is live — keep it
+    // (a late close nulled the picker's context and «choose» threw; caught by the gate, 1-oct)
+    document.getElementById('olla-sheet').addEventListener('close', e => { if (!e.currentTarget.open) sheetCtx = null; });
     document.getElementById('bottom-tabs').addEventListener('click', e => { const b = e.target.closest('.tab[data-view]'); if (b) go(b.dataset.view); });
     const ks = document.getElementById('kitchen-settings');
     ks.addEventListener('click', e => { if (e.target.closest('[data-act="step"]')) { onClick(e); return; } onKitchen(e); });
@@ -3265,7 +3388,7 @@ const OLLAUI = (function () {
       ensureWeek(); render();
       if (state.cookSession && !document.getElementById('runner').hidden) acquireWake();
     });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !document.getElementById('runner').hidden) closeRunner(true); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !document.getElementById('runner').hidden) closeRunner(keepSession()); });
     clearInterval(minuteTimer);
     minuteTimer = setInterval(() => { if (document.hidden) return; const dlg = document.getElementById('olla-sheet'); if (dlg.open || settingsModal.open || !document.getElementById('runner').hidden) return; ensureWeek(); render(); }, 60000);
     if (state.cookSession && (Date.now() - (state.cookSession.startedAt || 0)) < 8 * 3600000) { /* a cook in progress survives a reload: Hoy shows «Seguir» */ }
@@ -3466,6 +3589,7 @@ function cleanStateForSync() {
     claude: { model: state.settings.claude.model }
   } };
   delete out.pub;
+  delete out.cookSession;   // device-local: the phone's cook-along is not the Mac's, and another device's null must never end it (UI review #11)
   try { const c = ollaClock(); out.pub = OLLA.project(state, c.today, c.now, c.at); }
   catch (e) { losErr('olla.pub.fail', { err: String((e && e.message) || e).slice(0, 160) }); }   // no pub → the city refuses the file (pub.v ≥ 2) instead of reading a wrong one
   return out;
@@ -3502,6 +3626,7 @@ async function syncPull(force = false) {
       const mine = state;
       remote.settings.sync = mine.settings.sync;
       remote.settings.claude = mine.settings.claude;
+      remote.cookSession = mine.cookSession === undefined ? null : mine.cookSession;   // a cook-along in progress HERE survives adopting a newer gist
       needPush = OLLA.mergeReality(remote, mine) > 0;     // the newer plan/settings/recipes, plus every reality entry only this device had
       state = remote; adopted = true;
     } else {
@@ -3768,14 +3893,8 @@ function applyTheme(theme) {
   if (meta) meta.setAttribute('content', APP.themeColors[t]);
   document.querySelectorAll('[data-theme-pick]').forEach(b => b.classList.toggle('active', b.dataset.themePick === t));
 }
-document.querySelectorAll('[data-theme-pick]').forEach(b => {
-  b.addEventListener('click', () => {
-    const t = b.dataset.themePick;
-    state.settings.theme = t;
-    save();
-    applyTheme(t);
-  });
-});
+// The theme picks are La Olla's (auto · esmalte · loza): OLLAUI.boot binds them. The shell's listener also fired, fell back to
+// macchiato for 'auto' and saved a second time on every tap (UI review #14) — removed.
 
 /* ── mobile: tab bar + FAB + sheet backdrop ── */
 (function setupMobileUI() {
