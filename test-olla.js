@@ -1062,12 +1062,17 @@ control('re-plant: a ticked line whose dish left the plan is dropped (he bought 
 control('re-plant: «bought this week» counts today\'s own tick again (the line leaves the list the moment it is ticked)', () => tickSweep(replant('engine', "return k.slice(0, i) === id && T < today && weekStart(T) === wk", "return k.slice(0, i) === id && weekStart(T) === wk")).lost.length === 0);
 
 const SALT = ['sal', 'pimienta'];
-const needsOfWeek = (O_, s, d, h) => {   // what the week's dishes need, read from the RECIPES — never from the list under test
+let nRem = 0;
+const REM = require('vm').runInContext('REMATE_ING', BASE.ctx), ADDON = require('vm').runInContext('ADDON_ING', BASE.ctx);
+const needsOfWeek = (O_, s, d, h) => {   // what the week's dishes need — and what the app TELLS him to add (remates, add-ons) — read from the RECIPES, never from the list under test
   const need = {}, N = hm(h); s.plan = O_.buildWeek(s, d, N);
   for (let i = 0; i < 7; i++) {
     const dd = O_.addDays(d, i), day = s.plan.days[dd]; if (!day) continue;
     if (day.cook) { const cs = O_.cookState(s, dd, d, N); if (cs === 'planned' || cs === 'due' || cs === 'cooking') { const rec = O_.recipeById(s, day.cook.recipe); O_.scaleIngredients(s, rec, day.cook.servings).forEach(g => { if (g.id && !g.opt && g.q > 0) (need[g.id] = need[g.id] || []).push(rec.id); }); } }
-    O_.slotsFor(s, dd).forEach(sl => { const r = day[sl]; if (!r || r.kind !== 'home' || !r.recipe) return; const rec = O_.recipeById(s, r.recipe); if (rec) O_.scaleIngredients(s, rec, 1).forEach(g => { if (g.id && !g.opt && g.q > 0) (need[g.id] = need[g.id] || []).push(rec.id); }); });
+    O_.slotsFor(s, dd).forEach(sl => { const r = day[sl]; if (!r) return;
+      if (r.kind === 'home' && r.recipe) { const rec = O_.recipeById(s, r.recipe); if (rec) { O_.scaleIngredients(s, rec, 1).forEach(g => { if (g.id && !g.opt && g.q > 0) (need[g.id] = need[g.id] || []).push(rec.id); }); (ADDON[rec.addon] || []).forEach(([id]) => { (need[id] = need[id] || []).push('addon ' + rec.addon); }); } }
+      if (r.kind === 'leftover' && r.of && !O_.effLog(s, dd, sl) && !(dd === d && O_.eatAt(s, dd, sl) < N)) { const rm = O_.remateFor(s, r.of, dd); (REM[rm] || []).forEach(([id]) => { (need[id] = need[id] || []).push('remate ' + rm); nRem++; }); }
+    });
   }
   return need;
 };
@@ -1084,7 +1089,30 @@ const missingFromList = (B, mutate) => {
   const r = missingFromList(BASE);
   ok('every ingredient any dish of the next 7 days needs is on the list, 14 days × 5 hours — only salt and pepper are ever assumed', r.cases === 70 && r.missing.length === 0, r.missing.slice(0, 6).join(' | '));
   ok('…and the sweep really meets the ones he named: garlic and cumin are needed in it (a sweep that never needs them proves nothing)', !!r.seen.ajo && !!r.seen.comino, Object.keys(r.seen).length + ' ids; ajo ' + !!r.seen.ajo + ' comino ' + !!r.seen.comino);
+  ok('…and the sweep really meets REMATES (the toppings the app says to add): a sweep with none proves nothing', nRem > 100, String(nRem));
   ok('the seed pantry is salt and pepper, nothing else', JSON.stringify(seed.settings.pantry) === JSON.stringify(SALT));
+}
+{
+  const V = require('vm'), ING = V.runInContext('INGREDIENTS', BASE.ctx);
+  const strs = new Set(), addons = new Set(); seed.recipes.forEach(r => { (r.remates || []).forEach(x => strs.add(x)); if (r.addon) addons.add(r.addon); });
+  const noKey = [...strs].filter(x => !Array.isArray(REM[x])).concat([...addons].filter(x => !Array.isArray(ADDON[x])));
+  ok('every remate and add-on string in the book has an ingredient entry (a technique maps to [] on purpose) — a new one fails here, not silently on his list', noKey.length === 0, noKey.join(' | '));
+  const bad = []; Object.keys(REM).concat(Object.keys(ADDON)).forEach(k => (REM[k] || ADDON[k]).forEach(([id, q, u]) => { const g = ING[id]; if (!g) bad.push(k + ' → unknown ' + id); else if (g.unit !== u) bad.push(k + ' → ' + id + ' in ' + u + ', the list counts it in ' + g.unit); else if (!(q > 0)) bad.push(k + ' → ' + id + ' q=' + q); }));
+  ok('…every id exists and is written in the unit the list counts it in', bad.length === 0, bad.slice(0, 4).join(' | '));
+  ok('no remate string is mapped that no dish uses (no dead rows)', Object.keys(REM).every(k => strs.has(k)), Object.keys(REM).filter(k => !strs.has(k)).join(' | '));
+  const concrete = B => {   // the Friday of his screenshot: dinner is the bowl's leftover, «+ salsa criolla encima»
+    const out = []; ALLDAYS.slice(0, 5).forEach(d => { const s = mkWith(B.seed); s.plan = B.O.buildWeek(s, d, hm('08:00'));
+      const ls = [].concat(...B.O.shopping(s, d, hm('08:00')).trips.map(t => t.items));
+      for (let i = 0; i < 7; i++) { const dd = B.O.addDays(d, i), day = s.plan.days[dd]; if (!day) continue;
+        B.O.slotsFor(s, dd).forEach(sl => { const r = day[sl]; if (!r || r.kind !== 'leftover' || !r.of) return; const rm = B.O.remateFor(s, r.of, dd);
+          if (/salsa criolla/.test(rm || '')) out.push({ d, dd, ok: ls.some(l => l.id === 'cebolla-roja' && l.for.some(f => /salsa criolla/.test(f))) }); }); } });
+    return out;
+  };
+  const c = concrete(BASE);
+  ok('«+ salsa criolla encima» on a leftover plate puts the red onion on the list, named for the topping', c.length > 0 && c.every(x => x.ok), JSON.stringify(c.filter(x => !x.ok).slice(0, 3)) + ' of ' + c.length);
+  ok('…and a topping alone never makes a trip of its own: no week gains a trip from toppings', ALLDAYS.every(d => { const s = mkWith(BASE.seed); s.plan = O.buildWeek(s, d, hm('08:00')); const withT = O.shopping(s, d, hm('08:00')).trips.map(t => t.date).join(); const so = JSON.parse(JSON.stringify(s)); const noRem = O.shopping(Object.assign(so, { recipes: so.recipes.map(r => Object.assign({}, r, { remates: [], addon: null })) }), d, hm('08:00')).trips.map(t => t.date).join(); return withT === noRem; }));
+  control('re-plant: remates never reach the list (the original defect: «+ salsa criolla encima» with no onion)', () => concrete(replant('engine', "    eaten.forEach(x => x.lines.forEach(([id, q, u]) => {", "    [].forEach(x => x.lines.forEach(([id, q, u]) => {")).every(x => x.ok));
+  control('re-plant: the audit sees a topping missing from the list', () => missingFromList(replant('engine', "    eaten.forEach(x => x.lines.forEach(([id, q, u]) => {", "    [].forEach(x => x.lines.forEach(([id, q, u]) => {")).missing.length === 0);
 }
 control('re-plant: the old ten-staple pantry (garlic, cumin, oil, soy… «always at home») hides ingredients from the list', () => missingFromList(BASE, s => { s.settings.pantry = ['sal', 'pimienta', 'aceite', 'aceite-oliva', 'ajo', 'sillao', 'vinagre', 'comino', 'oregano', 'azucar']; }).missing.length === 0);
 {

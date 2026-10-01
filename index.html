@@ -1072,6 +1072,8 @@ const OLLA = (function () {
   }
 
   /* ── the book ── */
+  function remTable() { try { return (typeof REMATE_ING !== 'undefined' && REMATE_ING) || {}; } catch (e) { return {}; } }   // OLLA-SEED's remate → ingredients table, read at CALL time
+  function addonTable() { try { return (typeof ADDON_ING !== 'undefined' && ADDON_ING) || {}; } catch (e) { return {}; } }
   function ingTable() { try { return (typeof INGREDIENTS !== 'undefined' && INGREDIENTS) || {}; } catch (e) { return {}; } }   // OLLA-SEED's table, read at CALL time
   function ingredient(id) {
     const t = ingTable()[id];
@@ -1786,21 +1788,48 @@ const OLLA = (function () {
                      sw: [lo0 > seen ? lo0 : seen, hi0] });               // the dates a trip could have bought it for THIS cook (the plan sees 7 days ahead)
       });
     });
+    // The plate's remate («+ salsa criolla encima», «un huevo frito») and the add-on («+ un vaso de leche») are things the app SAYS
+    // he will add: each needs its ingredients on the list, for the day it is eaten. SOFT needs: they ride a trip that is happening
+    // anyway, and only make one of their own when no trip fits.
+    const eaten = [];
+    H.forEach(d => { const day = planDay(state, d); if (!day) return;
+      slotsFor(state, d).forEach(sl => { const r = day[sl]; if (!r) return;
+        const e = effLog(state, d, sl); if (e) return;                                // logged (eaten, skipped, other): nothing left to buy
+        if (d === today && eatAt(state, d, sl) < N) return;                            // that meal's hour is behind him
+        if (r.kind === 'leftover' && r.of) { const rm = remateFor(state, r.of, d); if (rm && remTable()[rm]) eaten.push({ d, lines: remTable()[rm], name: rm }); }
+        else if (r.kind === 'home' && r.recipe) { const rr = recipeById(state, r.recipe); if (rr && rr.addon && addonTable()[rr.addon]) eaten.push({ d, lines: addonTable()[rr.addon], name: rr.addon.replace(/^\+\s*/, '') }); }
+      });
+      if (day.cook && (cookState(state, d, today, now) === 'planned' || cookState(state, d, today, now) === 'due' || cookState(state, d, today, now) === 'cooking')) { const cr = recipeById(state, day.cook.recipe); if (cr && cr.addon && addonTable()[cr.addon]) eaten.push({ d, lines: addonTable()[cr.addon], name: cr.addon.replace(/^\+\s*/, '') }); }
+    });
+    eaten.forEach(x => x.lines.forEach(([id, q, u]) => {
+      if (pantry[id]) return;
+      const info = ingredient(id), bw = info.buyWithin != null ? info.buyWithin : 5, hi0 = addDays(x.d, -1), lo0 = addDays(x.d, -bw), seen = addDays(x.d, -6);
+      let hi = hi0, lo = lo0 < today ? today : lo0;
+      if (lo === today && !todayOpen) lo = tomorrow;
+      let late = false; if (hi < lo) { hi = lo = x.d; late = true; }
+      needs.push({ id, info, q, u, need: x.d, cookAt: null, for: x.name, lo, hi, late, soft: true, stable: !!info.pantry || bw >= 30, sw: [lo0 > seen ? lo0 : seen, hi0] });
+    }));
     // What a PAST trip bought. Checks are per item@trip and a trip's date passes, so each need is re-seated on the trip it
     // would have ridden — the past dates he checked something on, plus the trips the still-unbought needs force — and is
     // dropped when its item was checked there. (Without this, Thursday's list re-bought everything Wednesday's trip bought.)
     const P = {}; Object.keys(checked).forEach(k => { const i = k.lastIndexOf('@'), T = k.slice(i + 1); if (i > 0 && T < today && parse(T) && checked[k] && checked[k].v) (P[T] = P[T] || {})[k.slice(0, i)] = 1; });
     const pd = Object.keys(P).sort(), inSw = (x, T) => T >= x.sw[0] && T <= x.sw[1];
     if (pd.length) {
-      const forced = stab(needs.filter(x => !pd.some(T => inSw(x, T))));
+      const forced = stabSoft(needs.filter(x => !pd.some(T => inSw(x, T))));
       for (let i = needs.length - 1; i >= 0; i--) {
         const x = needs[i], past = pd.filter(T => inSw(x, T)); if (!past.length) continue;
         const all = past.concat(forced.filter(T => T >= x.lo && T <= x.hi)).sort(), T = x.stable ? all[0] : all[all.length - 1];
         if (P[T] && P[T][x.id]) needs.splice(i, 1);
       }
     }
-    const points = stab(needs);
-    needs.forEach(x => { const ps = points.filter(p => p >= x.lo && p <= x.hi); x.trip = x.stable ? ps[0] : ps[ps.length - 1]; });
+    const points = stabSoft(needs);
+    const soft = needs.filter(x => x.soft);
+    if (!points.length && soft.length) points.push(todayOpen ? today : tomorrow);   // a week of nothing but leftovers and toppings still needs ONE trip for what the toppings call for
+    points.sort();
+    needs.forEach(x => {
+      const ps = points.filter(p => p >= x.lo && p <= x.hi); x.trip = x.stable ? ps[0] : ps[ps.length - 1];
+      if (x.trip === undefined && x.soft) { const before = points.filter(p => p <= x.hi); x.trip = before.length ? before[before.length - 1] : points[0]; }   // no trip inside its window: the latest one before it is eaten (a little older), else the first
+    });
     // the ride-alongs: weekly staples + the fridge defaults' ingredients, once a week, on the first trip
     // «bought this week» counts only trips that have PASSED: a tick on today's (or a future) trip must stay on that very line.
     // (Counting it made every ride-along — the fridge meals and the weekly staples — leave the list the moment he ticked it.)
@@ -1828,8 +1857,8 @@ const OLLA = (function () {
       if (T === points[0]) rideIds.forEach(id => { const r = ride[id]; add(id, ingredient(id), r.parts, r.need < T ? T : r.need, r.for); });   // a ride-along is due no earlier than the trip it rides
       const list = Object.keys(items).map(id => shopLine(items[id], id + '@' + T, checked))
         .sort((a, b) => (SECTIONS.indexOf(a.section) < 0 ? 99 : SECTIONS.indexOf(a.section)) - (SECTIONS.indexOf(b.section) < 0 ? 99 : SECTIONS.indexOf(b.section)) || a.n.localeCompare(b.n, 'es'));
-      const by = mine.reduce((m, x) => (x.hi < m ? x.hi : m), '9999-12-31');   // the last day this trip can happen and still put every cook item inside its window
-      return { date: T, at: fmtHM(at), by: mine.length ? by : T, items: list, left: list.filter(it => !it.checked).length, min: inStore, late: mine.some(x => x.late), gone };
+      const hardMine = mine.filter(x => !x.soft), by = hardMine.reduce((m, x) => (x.hi < m ? x.hi : m), '9999-12-31');   // the last day this trip can happen and still put every cook item inside its window
+      return { date: T, at: fmtHM(at), by: hardMine.length ? by : T, items: list, left: list.filter(it => !it.checked).length, min: inStore, late: hardMine.some(x => x.late), gone };
     });
     // A tick is per item@trip. When a later tick makes the dish a line was for leave the plan (the cook became certain, so the
     // fridge default's tuna is no longer needed), the ticked line used to vanish: he BOUGHT it, so it stays, ticked, with no
@@ -1855,6 +1884,7 @@ const OLLA = (function () {
     const text = bare ? n : qs.length === 1 ? phrase(q0, u0, n) : display + ' de ' + n;
     return { key, id: it.id, n, q: q0, u: u0, parts: qs, section: it.section, display, text, buyBy: it.buyBy, for: it.for, checked: !!(checked[key] && checked[key].v), note: info.note || null };
   }
+  function stabSoft(list) { return stab(list.filter(x => !x.soft)); }   // only the cook's needs FORCE a trip; a remate rides one that is happening anyway
   function stab(list) {   // interval stabbing: the fewest dates that put every need inside [lo, hi] (each new date as LATE as it can be)
     const pts = []; list.slice().sort((a, b) => cmpStr(a.hi, b.hi) || cmpStr(a.id, b.id)).forEach(x => { if (!pts.some(p => p >= x.lo && p <= x.hi)) pts.push(x.hi); });
     return pts.sort();
@@ -2173,11 +2203,65 @@ const INGREDIENTS = (function () {
     'granola': shelf('granola', OTR, 'g'),
     'chia': shelf('semillas de chía', OTR, 'cda'),
     'mantequilla-mani': shelf('mantequilla de maní', OTR, 'cda'),
+    'canela': shelf('canela molida', ESP, 'cdta'),
+    'aji-molido': shelf('ají molido o shichimi', ESP, 'cdta'),
+    'pepinillos': shelf('pepinillos encurtidos', LAT, 'frasco', { indivisible: true }),
+    'aceituna-botija': shelf('aceitunas de botija', LAT, 'frasco', { indivisible: true, note: LATINA }),
     'cerveza-negra': shelf('cerveza negra (Guinness) o malta', OTR, 'ml', { note: 'la malta (Goya) da el dulzor sin alcohol' }),
     'miel': shelf('miel', OTR, 'cda'),
     'nueces': shelf('nueces', OTR, 'g'),
   };
 })();
+
+/* What a «remate» (the plate's topping/side the app tells him to add) or an «addon» actually NEEDS, per plate: [id, q, unit] in the
+   ingredient's own unit. The app SAYS «+ salsa criolla encima»; the list must therefore carry the onion and the lemon. Every
+   remate/addon string in the book MUST be a key here (a pure technique maps to [] on purpose) — test-olla pins the coverage, so a
+   new dish with a new remate fails the gate instead of silently telling him to add something the list never buys. */
+const REMATE_ING = (function () {
+  const SC = [['cebolla-roja', 0.25, 'u'], ['limon', 0.5, 'u'], ['culantro', 0.125, 'atado']];                                                       // ¼ of salsa-criolla
+  const AV = [['culantro', 0.2, 'atado'], ['jalapeno', 0.33, 'u'], ['queso-fresco', 10, 'g'], ['mayonesa', 1, 'cda'], ['limon', 0.2, 'u'], ['aji-amarillo-pasta', 0.2, 'cda']];   // ⅙ of aji-verde
+  const HUEVO = [['huevo', 1, 'u']], AJI = [['aji-chile', 0.25, 'u']], RICE = [['arroz', 0.25, 'taza']], SILLAO = [['sillao', 1, 'cda']], PAPA = [['papa', 200, 'g']], PAN = [['pan-integral', 2, 'rebanada']];
+  const plus = (...xs) => [].concat(...xs);
+  return {
+    'plátano y canela': [['platano', 1, 'u'], ['canela', 0.25, 'cdta']],
+    'mantequilla de maní encima': [['mantequilla-mani', 1, 'cda']],
+    'frutos rojos': [['frutos-rojos-congelados', 50, 'g']],
+    'salsa criolla encima': SC, 'salsa criolla': SC, 'con salsa criolla': SC, 'salsa criolla en vez de cebolla': SC,
+    'ají verde o salsa picante': [['salsa-picante', 1, 'cdta']],
+    'un huevo frito encima': HUEVO, 'con un huevo frito': HUEVO, 'con más huevo duro': HUEVO,
+    'sillao con ají': plus(SILLAO, AJI), 'con sillao y ají': plus(SILLAO, AJI),
+    'queso fresco desmoronado': [['queso-fresco', 40, 'g']],
+    'salsa picante y cebollita china': [['salsa-picante', 1, 'cdta'], ['cebollita-china', 1, 'u']],
+    'ají verde adentro': AV, 'con ají verde': AV,
+    'con queso feta': [['queso-feta', 30, 'g']],
+    'tostado en sartén seca, 1 min por lado': [],
+    'pepino en rodajas con vinagre': [['pepino', 0.5, 'u'], ['vinagre', 1, 'cda']],
+    'shichimi o ají molido': [['aji-molido', 0.25, 'cdta']],
+    'cebollita china extra': [['cebollita-china', 1, 'u']], 'con más cebollita china': [['cebollita-china', 1, 'u']],
+    'pepinillo encurtido': [['pepinillos', 0.1, 'frasco']],
+    'con yogur griego, limón y ajo': [['yogur-griego', 50, 'g'], ['limon', 0.25, 'u'], ['ajo', 0.25, 'diente']],
+    'sobre arroz graneado': RICE, 'con arroz graneado': RICE, 'frío, desmenuzado sobre arroz': RICE,
+    'con palta': [['palta', 0.5, 'u']], 'sobre arroz con palta': plus(RICE, [['palta', 0.5, 'u']]),
+    'en bowl con arroz y frejoles': plus(RICE, [['frijoles-negros', 0.25, 'lata']]),
+    'más parmesano y pimienta': [['parmesano', 15, 'g']],
+    'con 1 cda de ají amarillo en la salsa': [['aji-amarillo-pasta', 1, 'cda']], 'con ají amarillo extra': [['aji-amarillo-pasta', 1, 'cda']],
+    'gratinada al horno con queso': [['queso-rallado', 30, 'g']],
+    'queso rallado y cebollita china': [['queso-rallado', 30, 'g'], ['cebollita-china', 1, 'u']],
+    'sobre papa al horno': PAPA, 'con yuca o papa sancochada': PAPA,
+    'un chorrito de limón y ají': plus([['limon', 0.25, 'u']], AJI), 'con limón y ají': plus([['limon', 0.25, 'u']], AJI),
+    'con pan para mojar': PAN, 'deshilachado en un sánguche': PAN,
+    'con más culantro': [['culantro', 0.1, 'atado']],
+    'con pepino al lado': [['pepino', 0.5, 'u']],
+    'con más ají': AJI,
+    'con un chorrito de limón': [['limon', 0.25, 'u']],
+    'con salsa de tamarindo o salsa picante': [['salsa-picante', 1, 'cdta']],
+    'con aceituna de botija': [['aceituna-botija', 0.1, 'frasco']],
+    'con frejoles canarios o negros': [['frijoles-negros', 0.25, 'lata']],
+    'con ensalada de lechuga y tomate': [['lechuga', 0.25, 'u'], ['tomate', 0.5, 'u']],
+    'con arroz y sillao': plus(RICE, SILLAO),
+  };
+})();
+const ADDON_ING = { '+ un vaso de leche': [['leche', 250, 'ml']] };
 
 const OLLA_SEED = (function () {
   const FSIS = 'https://www.fsis.usda.gov/food-safety/safe-food-handling-and-preparation/';
