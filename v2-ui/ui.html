@@ -1,0 +1,134 @@
+<body>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <h1 id="brand-name">La <b>Olla</b></h1>
+      <span class="tagline" id="brand-tagline"></span>
+    </div>
+    <div class="actions">
+      <button class="sync-pip" id="sync-pip" title="sincronización — toca para ajustes"><span class="dot"></span><span id="sync-pip-label">offline</span></button>
+      <button class="icon-btn" id="settings-btn" aria-label="Ajustes" title="Ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></svg></button>
+    </div>
+  </header>
+
+  <!-- the shell's sidebar is kept (its code reaches for it) but never shown; export/import live in Ajustes -->
+  <aside class="sidebar" aria-hidden="true"></aside>
+
+  <main class="content">
+    <div class="content-header"><h2 id="current-view">Hoy</h2><div class="view-meta" id="view-meta"></div></div>
+    <div id="app-root"></div>
+  </main>
+</div>
+
+<dialog id="settings-modal" class="sheet">
+  <div class="modal wide">
+    <header><div><h2>Ajustes</h2><p>Tu cocina, tu semana, la sincronización.</p></div><button type="button" class="close" data-close="settings" aria-label="Cerrar">×</button></header>
+    <div class="modal-body">
+      <div class="settings-section">
+        <h3>La cocina</h3>
+        <div class="desc">Lo que la semana sabe de tu vida. Se pregunta, nunca se adivina.</div>
+        <div id="kitchen-settings"></div>
+      </div>
+      <div class="settings-section">
+        <h3>De día, de noche</h3>
+        <div class="desc">Automático: loza crema de 7 a 19, peltre negro el resto.</div>
+        <div class="theme-toggle" style="grid-template-columns:1fr 1fr 1fr">
+          <button type="button" data-theme-pick="auto"><span class="label">Auto</span><span class="sub">según la hora</span></button>
+          <button type="button" data-theme-pick="macchiato"><span class="swatches"><span class="sw" style="background:#10140d"></span><span class="sw" style="background:#a3d15c"></span></span><span class="label">Peltre</span><span class="sub">de noche</span></button>
+          <button type="button" data-theme-pick="tokyo"><span class="swatches"><span class="sw" style="background:#f3ecdc"></span><span class="sw" style="background:#3b6f17"></span></span><span class="label">Loza</span><span class="sub">de día</span></button>
+        </div>
+      </div>
+      <div class="settings-section claude-only">
+        <h3>House rules for Claude</h3>
+        <textarea id="claude-rules"></textarea>
+      </div>
+      <div class="settings-section claude-only">
+        <h3>Claude</h3>
+        <div class="form-grid">
+          <label class="span-2">Anthropic API key<input type="password" id="claude-api-key" placeholder="sk-ant-..." autocomplete="off"></label>
+          <label>Model<select id="claude-model"></select></label>
+          <label>Billing<select id="claude-mode"><option value="auto">Auto</option><option value="sub">Max plan only</option><option value="api">API key only</option></select></label>
+          <label>&nbsp;<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn-primary" id="claude-save-btn" type="button">Save</button><button class="btn-danger" id="claude-disable-btn" type="button">Forget key</button></div></label>
+        </div>
+        <div class="sync-status" id="claude-status">disabled</div>
+      </div>
+      <div class="settings-section">
+        <h3>Sincronización</h3>
+        <div class="desc">Tus datos viven en un gist privado de tu GitHub. Es también lo que LeandroOS lee para poner la cocina y el Safeway en el Heraldo, y lo que te manda los avisos al teléfono.</div>
+        <p style="margin:6px 0 12px;font-size:12px;color:var(--ink-dim);line-height:1.7">
+          <strong style="color:var(--ink)">1.</strong> <a href="https://github.com/settings/tokens/new?scopes=gist&description=La%20Olla%20sync" target="_blank" rel="noopener">Crea un token con permiso «gist»</a> y cópialo (<code>ghp_…</code>).<br>
+          <strong style="color:var(--ink)">2.</strong> Pégalo abajo. En el primer aparato deja el Gist ID vacío y toca «Activar».<br>
+          <strong style="color:var(--ink)">3.</strong> En LeandroOS → Setup → «La Olla · Gist ID», pega el ID que aparece aquí.
+        </p>
+        <div id="sync-config-blurb"></div>
+        <div class="form-grid">
+          <label class="span-2">Token de GitHub<input type="password" id="sync-pat" placeholder="ghp_..." autocomplete="off"></label>
+          <label class="span-2">Gist ID (vacío = crear uno)<input type="text" id="sync-gist-id" placeholder="opcional" autocomplete="off"></label>
+          <label class="span-2">&nbsp;
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn-primary" id="sync-enable-btn" type="button">Activar</button>
+              <button class="btn-secondary" id="sync-now-btn" type="button">Sincronizar</button>
+              <button class="btn-danger" id="sync-disable-btn" type="button">Olvidar credenciales</button>
+            </div>
+          </label>
+        </div>
+        <div class="sync-status" id="sync-status">disabled</div>
+      </div>
+      <div class="settings-section">
+        <h3>Copia</h3>
+        <div class="desc">Un archivo con todo: plan, registro, libro.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-secondary" id="export-btn" type="button">Exportar</button>
+          <button class="btn-secondary" id="import-btn" type="button">Importar</button>
+        </div>
+      </div>
+    </div>
+    <footer><span style="color:var(--ink-faint);font-size:12px">se guarda solo</span><button class="submit" data-close="settings">Listo</button></footer>
+  </div>
+</dialog>
+
+<dialog id="prompt-modal">
+  <div class="prompt-modal">
+    <h2 id="prompt-title"></h2>
+    <p id="prompt-message"></p>
+    <input type="text" id="prompt-input" autocomplete="off">
+    <div class="actions">
+      <button type="button" class="btn-secondary" data-close="prompt">Cancelar</button>
+      <button type="button" class="btn-primary" id="prompt-ok">Guardar</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- one sheet for everything that slides up: a recipe, logging a meal, a cook question, the picker -->
+<dialog id="olla-sheet" class="sheet">
+  <div class="modal">
+    <div class="sheet-body" id="olla-sheet-body"></div>
+  </div>
+</dialog>
+
+<div class="runner" id="runner" hidden></div>
+
+<aside class="claude-panel hidden" id="claude-panel">
+  <header>
+    <span class="badge">✦ claude</span>
+    <span class="panel-title" id="claude-panel-title"></span>
+    <button class="panel-close" id="claude-panel-close">×</button>
+  </header>
+  <div class="panel-body" id="claude-panel-body"></div>
+  <div class="panel-foot" id="claude-panel-foot"></div>
+</aside>
+
+<input type="file" id="import-file" accept=".json,application/json" hidden>
+
+<div class="sheet-backdrop" id="sheet-backdrop"></div>
+<button class="fab" id="fab-primary" aria-hidden="true" tabindex="-1"></button>
+<nav class="bottom-tabs" id="bottom-tabs" aria-label="Secciones">
+  <button class="tab active" data-tab="home" data-view="hoy"><span class="icon" id="tab-home-icon"></span>Hoy</button>
+  <button class="tab" data-tab="semana" data-view="semana"><span class="icon"></span>Semana</button>
+  <button class="tab" data-tab="libro" data-view="libro"><span class="icon"></span>Libro</button>
+  <button class="tab" data-tab="lista" data-view="lista"><span class="icon"></span>Lista</button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
