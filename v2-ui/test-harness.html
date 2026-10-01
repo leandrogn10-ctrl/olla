@@ -24,7 +24,8 @@ const W = () => f.contentWindow, D = () => f.contentDocument;
 const q = s => D().querySelector(s), qa = s => Array.from(D().querySelectorAll(s));
 const st = () => JSON.parse(W().localStorage.getItem('olla.v1'));
 const E = name => W().eval(name);
-async function loadApp() { f.src = 'index.html?h=' + Date.now(); await new Promise(r => f.onload = r); await sleep(800); }
+const CLOCK = '2026-10-01T19:30:00';   // a Thursday (a lift day), dinner time: every assertion below is about THIS moment, never the hour the gate runs
+async function loadApp() { f.src = 'index.html?clock=' + CLOCK + '&h=' + Date.now(); await new Promise(r => f.onload = r); await sleep(800); }
 function hit(el) { const r = el.getBoundingClientRect(); if (r.width < 8 || r.height < 8) return false; const x = D().elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return x === el || el.contains(x); }
 function eff(entries) { if (!Array.isArray(entries) || !entries.length) return null; return entries.reduce((a, b) => ((b.at || 0) >= (a.at || 0) ? b : a)); }
 (async () => {
@@ -39,7 +40,7 @@ function eff(entries) { if (!Array.isArray(entries) || !entries.length) return n
     log('Hoy renders one row per slot', qa('#app-root .row').length === slots.length, qa('#app-root .row').length + ' vs ' + slots.length);
     log('the pot panel is there', !!q('#app-root .pot-panel'));
     log('the week strip has seven bowls', qa('#app-root .bowl').length === 7, String(qa('#app-root .bowl').length));
-    log('data-theme follows the clock (auto)', (() => { const h = new (W().Date)().getHours(); return D().documentElement.getAttribute('data-theme') === (h >= 7 && h < 19 ? 'tokyo' : 'macchiato'); })());
+    log('data-theme follows the clock (auto): 19:30 is Peltre', D().documentElement.getAttribute('data-theme') === 'macchiato', D().documentElement.getAttribute('data-theme'));
     // the ring a finger would hit is the ring
     const ring = q('#app-root .row:nth-child(1) .ring');
     ring.scrollIntoView({ block: 'center' }); await sleep(80);
@@ -114,7 +115,7 @@ function eff(entries) { if (!Array.isArray(entries) || !entries.length) return n
     // the sibling's gist is refused
     log('looksLikeMyState refuses cuaderno.json', E('looksLikeMyState')({ settings: {}, exercises: [], sessions: [] }) === false);
     log('looksLikeMyState accepts our state', E('looksLikeMyState')(st()) === true);
-    log('the app reads the LOCAL day', E('OLLAUI').todayYmd() === E('OLLA').ymd(new (W().Date)()));
+    log('the app reads the pinned LOCAL day, through the one clock', E('OLLAUI').todayYmd() === '2026-10-01' && E('OLLAUI').nowMin() >= 19 * 60 + 30 && E('OLLAUI').nowMin() < 19 * 60 + 40, E('OLLAUI').todayYmd() + ' ' + E('OLLAUI').nowMin());
     log('CONTROL (must read FAIL): Hoy has zero rows', qa('#app-root .row').length === 0 && false);
   } catch (e) { log('harness crashed', false, String(e && e.stack || e).slice(0, 300)); }
   out.push('HARNESS: DONE'); render();

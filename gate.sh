@@ -3,6 +3,7 @@
 # taps, and survives a reload on a real layout (headless Chrome). Run before every push; bump CACHE_NAME in sw.js in
 # the same commit as any index.html change.
 set -u
+set -o pipefail   # without it `node test-olla.js | tail` exits with TAIL's status and a red engine reads green
 cd "$(dirname "$0")"
 CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 PORT=$((8700 + RANDOM % 200))
@@ -13,8 +14,9 @@ echo "── test-harness.html (headless Chrome on :$PORT) ──"
 python3 -m http.server "$PORT" >/dev/null 2>&1 &
 SRV=$!
 trap 'kill $SRV 2>/dev/null' EXIT
-sleep 0.8
-if ! curl -sf "http://localhost:$PORT/index.html" | grep -q 'OLLA-ENGINE-BEGIN'; then echo "gate: FAIL — the server on :$PORT is not serving THIS index.html"; exit 1; fi
+for _ in $(seq 1 40); do curl -s -o /dev/null "http://localhost:$PORT/" && break; sleep 0.25; done   # poll, never a fixed sleep: python can take >1s to bind
+SERVED=$(mktemp); curl -sf "http://localhost:$PORT/index.html" -o "$SERVED" || true   # to a FILE: under pipefail, curl | grep -q dies of SIGPIPE on the first match and reads as a failure
+if ! LC_ALL=C grep -q 'OLLA-ENGINE-BEGIN' "$SERVED"; then echo "gate: FAIL — the server on :$PORT is not serving THIS index.html"; exit 1; fi
 # --dump-dom writes the DOM within a second and then Chrome LINGERS (it wakes the Google Updater on exit and never
 # returns under this sandbox), so the gate polls the dump for </html> and kills Chrome itself, never waits on it.
 OUT=$(mktemp)
@@ -28,8 +30,9 @@ printf '%s\n' "$LINES"
 TOTAL=$(printf '%s\n' "$LINES" | grep -c 'HARNESS: \(PASS\|FAIL\)')
 FAILS=$(printf '%s\n' "$LINES" | grep 'HARNESS: FAIL' | grep -vc 'CONTROL (must read FAIL)')
 CTRL=$(printf '%s\n' "$LINES" | grep -c 'HARNESS: FAIL >> CONTROL (must read FAIL)')
+CTRL_ALL=$(printf '%s\n' "$LINES" | grep -c 'CONTROL (must read FAIL)')
 DONE=$(printf '%s\n' "$LINES" | grep -xc 'HARNESS: DONE')   # -x: the harness SOURCE also contains the string, and --dump-dom prints the source
 if [ "$TOTAL" -lt 20 ] || [ "$DONE" -ne 1 ]; then echo "gate: FAIL — harness did not run to the end ($TOTAL lines, done=$DONE)"; exit 1; fi
-if [ "$CTRL" -ne 1 ]; then echo "gate: FAIL — the control line did not read FAIL: this harness cannot go red"; exit 1; fi
+if [ "$CTRL_ALL" -lt 2 ] || [ "$CTRL" -ne "$CTRL_ALL" ]; then echo "gate: FAIL — $CTRL of $CTRL_ALL CONTROL lines read FAIL (need all, and at least 2): this harness cannot go red"; exit 1; fi
 if [ "$FAILS" -ne 0 ]; then echo "gate: FAIL — $FAILS harness line(s) failed"; exit 1; fi
 echo "gate: OK — engine pins green, $TOTAL harness lines, control red"

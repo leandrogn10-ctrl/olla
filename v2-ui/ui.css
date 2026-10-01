@@ -43,6 +43,10 @@
   color-scheme: light;
 }
 
+/* `hidden` must WIN: author `display:flex/block` on .runner and .field beats the UA rule, and a hidden full-screen
+   runner sat on top of every tap (caught by the harness hit-test, 1-oct). */
+[hidden] { display: none !important; }
+
 /* ── ground: one light source from the top (steam rising), grain, no sidebar ── */
 html { -webkit-text-size-adjust: 100%; }
 body {
@@ -141,10 +145,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 
 /* ── the pot (hero) ── */
-.pot-panel { display: grid; grid-template-columns: 1fr 128px; gap: 6px; align-items: center; padding: 18px 16px 16px 20px; border-radius: 22px; background: var(--card-hi); }
+.pot-panel { display: grid; grid-template-columns: 1fr 128px; gap: 6px; align-items: center; text-align: left; width: 100%; padding: 18px 16px 16px 20px; border-radius: 22px; background: var(--card-hi); }
 .pot-panel .kicker { font-family: var(--serif); font-style: italic; font-size: 17px; color: var(--ink-faint); }
 .pot-num { font-family: var(--serif); font-size: clamp(88px, 27vw, 120px); line-height: .86; letter-spacing: -0.03em; font-variant-numeric: lining-nums;
   color: color-mix(in oklab, var(--fresh) calc(var(--steam, .5) * 100%), var(--cold)); text-shadow: 0 0 34px color-mix(in srgb, var(--accent) calc(var(--steam, .5) * 30%), transparent); }
+.pot-num .u { font-size: 22px; font-style: italic; letter-spacing: 0; color: var(--ink-dim); text-shadow: none; margin-left: 8px; vertical-align: baseline; }
 .pot-num.word { font-size: clamp(54px, 16vw, 72px); font-style: italic; line-height: .95; color: var(--ink-dim); text-shadow: none; }
 .pot-num.pop { animation: countpop .5s cubic-bezier(.2,.8,.2,1); }
 .pot-name { font-family: var(--serif); font-size: 23px; line-height: 1.1; color: var(--ink); margin-top: 6px; }
@@ -311,6 +316,7 @@ dialog.sheet .modal::before { content: ''; display: block; width: 38px; height: 
 @keyframes sheetIn { from { transform: translateY(100%); } to { transform: none; } }
 .sheet-body { padding: 4px 20px 22px; overflow-y: auto; max-height: calc(92vh - 70px); }
 .sheet-body h2 { font-size: 34px; line-height: 1.05; font-style: italic; }
+.sheet-body .strike { font-size: 26px; }
 .field { display: block; margin-top: 14px; }
 .field > span { display: block; font-family: var(--serif); font-style: italic; font-size: 16px; color: var(--ink-faint); margin-bottom: 6px; }
 .field input[type=text], .field input[type=number], .field textarea, .field select {
@@ -402,3 +408,4 @@ dialog.sheet .modal::before { content: ''; display: block; width: 38px; height: 
   .brand h1 { font-size: 28px; }
   .modal, .modal.wide { width: 100%; }
 }
+

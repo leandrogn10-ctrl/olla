@@ -8,7 +8,7 @@ const OLLAUI = (function () {
   const DOW1 = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
   const DOWS3 = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
   const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-  const SLOT_ES = { bf: 'desayuno', lunch: 'almuerzo', dinner: 'cena', post: 'después del gym' };
+  const SLOT_ES = { bf: 'desayuno', lunch: 'almuerzo', dinner: 'cena', post: 'tras el gym' };
   const KIND_ES = { swipe: 'swipe', leftover: 'sobra', cook: 'cocinar', home: 'nevera', out: 'fuera' };
   const RUNG_ES = { 1: 'armar, sin cuchillo', 2: 'una sartén', 3: 'arroz y un guiso', 4: 'el saltado, fuego alto', 5: 'el plato de verdad' };
   const ROLE_ES = { main: '', side: 'acompañamiento', condiment: 'para encima', bf: 'desayuno', snack: 'entre comidas' };
@@ -17,8 +17,8 @@ const OLLAUI = (function () {
   let view = 'hoy', lid = false, minuteTimer = null, runnerTimer = null, wake = null, actx = null, sheetCtx = null;
 
   /* ── the clock lives HERE, never in the engine ── */
-  const T = () => OLLA.ymd(new Date());
-  const N = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
+  const T = () => OLLA.ymd(ollaNow());
+  const N = () => { const d = ollaNow(); return d.getHours() * 60 + d.getMinutes(); };
   const esc = s => escapeHtml(s == null ? '' : String(s));
   const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
   const hmOf = min => OLLA.fmtHM(Math.max(0, Math.min(1439, Math.round(min))));
@@ -43,10 +43,10 @@ const OLLAUI = (function () {
   }
 
   /* ── theme: auto follows the clock (Loza 7–19h), unless he picked one ── */
-  function themePref() { const p = state.settings.theme; return state.settings.themeChosen ? (p || 'auto') : 'auto'; }
+  function themePref() { const p = state.settings.theme; return p === 'macchiato' ? 'esmalte' : p === 'tokyo' ? 'loza' : (p === 'esmalte' || p === 'loza' ? p : 'auto'); }   // the engine migrates v1's macchiato→auto, tokyo→loza
   function applyOllaTheme() {
-    const pref = themePref(), h = new Date().getHours();
-    const t = (pref === 'tokyo' || pref === 'loza') ? 'tokyo' : (pref === 'macchiato' || pref === 'esmalte') ? 'macchiato' : (h >= 7 && h < 19 ? 'tokyo' : 'macchiato');
+    const pref = themePref(), h = ollaNow().getHours();
+    const t = pref === 'loza' ? 'tokyo' : pref === 'esmalte' ? 'macchiato' : (h >= 7 && h < 19 ? 'tokyo' : 'macchiato');   // the CSS keeps the shell's attribute names
     document.documentElement.setAttribute('data-theme', t);
     const meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.setAttribute('content', t === 'tokyo' ? '#f3ecdc' : '#10140d');
     document.querySelectorAll('[data-theme-pick]').forEach(b => b.classList.toggle('active', b.dataset.themePick === pref));
@@ -63,7 +63,7 @@ const OLLAUI = (function () {
       <path class="wisp" d="M46 30 q-7 -8 0 -15 q7 -7 0 -14"/><path class="wisp" d="M64 26 q-7 -8 0 -15 q7 -7 0 -14"/><path class="wisp" d="M82 30 q-7 -8 0 -15 q7 -7 0 -14"/>
       <path class="handle" d="M20 57 q-13 0 -13 10 q0 10 13 10"/><path class="handle" d="M108 57 q13 0 13 10 q0 10 -13 10"/>
       <path class="body" d="M20 47 L108 47 L103 102 Q101 111 92 111 L36 111 Q27 111 25 102 Z"/>
-      <rect class="fill" clip-path="url(#pc${o.id || 0})" x="14" y="${top.toFixed(1)}" width="100" height="${(lv * 58 + 6).toFixed(1)}"/>
+      ${lv > 0 ? `<rect class="fill" clip-path="url(#pc${o.id || 0})" x="14" y="${top.toFixed(1)}" width="100" height="${(lv * 58 + 6).toFixed(1)}"/>` : ''}
       ${SPK.map(p => `<circle class="spk" cx="${p[0]}" cy="${p[1]}" r="1.1"/>`).join('')}
       <rect class="rim" x="14" y="41" width="100" height="9" rx="4.5"/>
       <g class="lid-g"><path class="lid" d="M18 40 Q64 16 110 40 Z"/><rect class="knob" x="57" y="17" width="14" height="8" rx="4"/></g>
@@ -82,7 +82,7 @@ const OLLAUI = (function () {
   /* ═══════════════════════════════ HOY ═══════════════════════════════ */
   function potPanel(t, n) {
     const pot = OLLA.potNow(state, t, n).filter(b => b.left > 0 && !b.frozen);
-    const fz = OLLA.reality(state, t, n).batches.filter(b => b.frozen && b.left > 0);
+    const fz = OLLA.freezer(state, t, n);
     const closing = lid; lid = false;
     if (!pot.length) {
       setSteam(0.06);
@@ -100,9 +100,9 @@ const OLLAUI = (function () {
     const more = pot.slice(1).map(b => esc(b.name) + ' (' + b.left + ')').join(', ');
     return `<button class="card speckle pot-panel rise" style="--i:1" data-act="pot" aria-label="La olla">
       <div><div class="kicker">En la olla</div>
-        <div class="pot-num${closing ? ' pop' : ''}">${total}</div>
-        <div class="pot-name">${esc(p.name)} <span class="unit">· ${total === 1 ? 'porción' : 'porciones'}</span></div>
-        <div class="pot-meta">${p.src === 'bought' ? 'comprado' : 'hecho'} ${dayWord(p.date)} · ${warn}</div>
+        <div class="pot-num${closing ? ' pop' : ''}">${total}<span class="u">${total === 1 ? 'porción' : 'porciones'}</span></div>
+        <div class="pot-name">${esc(cap(p.name))}</div>
+        <div class="pot-meta">${p.src === 'made' ? 'hecho' : 'desde'} ${dayWord(p.date)} · ${warn}</div>
         ${more ? `<div class="pot-more">y ${more}</div>` : ''}
         ${fz.length ? `<div class="pot-more">en el congelador: ${fz.map(b => esc(b.name) + ' (' + b.left + ')').join(', ')}</div>` : ''}</div>
       ${potSvg(lvl, { closing, cold: steam < 0.2 })}</button>`;
@@ -126,6 +126,7 @@ const OLLAUI = (function () {
       if (!r) return '';
       const v = verb(r), at = act.at || c.at;
       return `<button class="strike rise" style="--i:2" data-act="cook" data-date="${act.date}">${cap(v)} <small>${act.kind === 'cook-soon' ? 'a las ' : ''}${esc(at)} · ${esc(r.name)}<br>${r.minutes.total} min · ${porc(c.servings || r.servings)}</small></button>
+        ${act.trip && act.trip.left ? `<button class="strike ghost sm rise" style="--i:3" data-act="go" data-view="lista">Primero, ${esc(state.settings.store.name || 'Safeway')} <small>${act.trip.left} ${act.trip.left === 1 ? 'cosa' : 'cosas'} · a las ${esc(act.trip.at)}</small></button>` : ''}
         <div class="under rise" style="--i:3"><button class="link" data-act="recipe" data-id="${esc(r.id)}" data-date="${act.date}">ver la receta</button><button class="link" data-act="skip-cook" data-date="${act.date}">hoy no ${v === 'armar' ? 'armo' : 'cocino'}</button></div>`;
     }
     if (act.kind === 'eat') {
@@ -184,7 +185,7 @@ const OLLAUI = (function () {
     const t = T(), eat = OLLA.eatAt(state, d, sl), past = d < t || (d === t && eat <= n);
     const eff = OLLA.effLog(state, d, sl);
     let dish = OLLA.slotLabel(state, d, sl), sub = [];
-    if (r.kind === 'swipe') sub.push('swipe · ' + hmOf(eat), '<span class="acc">+ leche o yogur con el swipe</span>');
+    if (r.kind === 'swipe') sub.push('swipe · ' + hmOf(eat), '<span class="acc">+ leche o yogur</span>');
     else if (r.kind === 'leftover') { sub.push('sobra · ' + hmOf(eat)); const b = r.of && OLLA.reality(state, t, n).byId[r.of]; const rm = b && OLLA.remateFor(state, b, d); if (rm) sub.push('<span class="acc">+ ' + esc(rm) + '</span>'); if (b && b.state === 'unconfirmed') sub.push('si se hizo'); }
     else if (r.kind === 'cook') { const c = day.cook, rr = c && rec(c.recipe); sub.push((rr ? verb(rr) : 'cocinar') + (c ? ' a las ' + c.at : '') + ' · se come ' + hmOf(eat)); }
     else if (r.kind === 'home') { const rr = r.recipe && rec(r.recipe); sub.push('de la nevera' + (rr ? ' · ' + rr.minutes.total + ' min' : '')); if (rr && rr.addon) sub.push('<span class="acc">' + esc(rr.addon) + '</span>'); }
@@ -196,7 +197,7 @@ const OLLAUI = (function () {
       else { rcls += ' other'; ring = '↗'; sub = [(eff.s === 'out' ? 'fuera' : 'otra cosa') + (eff.left ? ' · sobró ' + eff.left : '')]; dish = eff.what || (eff.s === 'out' ? 'Fuera' : 'Otra cosa'); }
     }
     return `<div class="row${past ? ' past' : ''}${eff && eff.s !== 'void' ? ' done' : ''}">
-      <div><div class="slot">${cap(SLOT_ES[sl])}</div><div class="dish">${esc(dish)}</div><div class="sub">${sub.join(' · ')}</div></div>
+      <div><div class="slot">${cap(SLOT_ES[sl])}</div><div class="dish">${esc(cap(dish))}</div><div class="sub">${sub.join(' · ')}</div></div>
       <button class="${rcls}" data-act="log" data-date="${d}" data-slot="${sl}" aria-label="Anotar ${esc(SLOT_ES[sl])}">${ring}</button></div>`;
   }
 
@@ -280,7 +281,7 @@ const OLLAUI = (function () {
       else if (r.kind === 'swipe') small = '+ leche o yogur';
       const hand = r.hand ? `<button class="back-rule" data-act="rule" data-date="${d}" data-slot="${sl}">a mano · volver a la regla</button>` : '';
       return `<div class="srow${r.hand ? ' hand' : ''}"><span class="slot">${cap(SLOT_ES[sl])}</span>
-        <div class="dish">${esc(dish)}${small ? `<small>${esc(small)}</small>` : ''}${hand}</div>
+        <div class="dish">${esc(cap(dish))}${small ? `<small>${esc(small)}</small>` : ''}${hand}</div>
         <button class="kind k-${r.kind}" data-act="cycle" data-date="${d}" data-slot="${sl}">${KIND_ES[r.kind]}</button></div>`;
     }).join('');
     let cook = '';
@@ -299,7 +300,7 @@ const OLLAUI = (function () {
   function viewLibro() {
     const t = T(), n = N(), rung = state.ladder.rung || 1, by = {};
     state.recipes.forEach(r => { (by[r.rung] = by[r.rung] || []).push(r); });
-    const chk = OLLA.rungCheck ? OLLA.rungCheck(state, t) : { n: 0 };
+    const chk = OLLA.rungCheck(state, t, n);
     const roleOrder = { main: 0, side: 1, condiment: 2, bf: 3, snack: 4 };
     return `<div class="page-title rise" style="--i:0">El libro</div>
       <div class="lead rise" style="--i:0">Tres platos hasta aburrirte, luego uno más. Se sube de peldaño comiendo, no leyendo.</div>
@@ -330,7 +331,7 @@ const OLLAUI = (function () {
           <div class="meta">${trip.left ? trip.left + ' por comprar' : 'todo comprado'} · para ${esc(tripFor(trip))}${trip.by && trip.by !== trip.date ? ' · antes del ' + dayShort(trip.by) : ''}</div></div>
           <button class="icon-btn" data-act="share" data-date="${trip.date}" aria-label="Compartir la lista">${SHARE}</button></div>
           ${Object.keys(groups).map(sec => `<div class="aisle">${esc(sec)}</div>${groups[sec].map(it => `<button class="item${it.checked ? ' on' : ''}" data-act="check" data-key="${esc(it.key)}" data-v="${it.checked ? 0 : 1}">
-            <span class="box">${CHECK}</span><span><span class="nm">${esc(it.n)}</span><span class="fr">${esc((it.for || []).join(', '))}${it.buyBy && it.buyBy === trip.date && trip.date !== trip.by ? '' : ''}${it.buyBy === trip.date ? ' · <span class="soon">compra el mismo día</span>' : ''}</span></span>
+            <span class="box">${CHECK}</span><span><span class="nm">${esc(it.n)}</span><span class="fr">${esc((it.for || []).join(', '))}${(OLLA.ingredient(it.id) || {}).buyWithin === 0 ? ' · <span class="soon">el mismo día que cocinas</span>' : ''}</span></span>
             <span class="q mono">${esc(it.display || '')}</span></button>`).join('')}`).join('')}</section>`; }).join('')}`;
   }
 
@@ -426,7 +427,7 @@ const OLLAUI = (function () {
   function openPot() {
     const t = T(), n = N();
     const pot = OLLA.potNow(state, t, n).filter(b => b.left > 0 && !b.frozen);
-    const fz = OLLA.reality(state, t, n).batches.filter(b => b.frozen && b.left > 0);
+    const fz = OLLA.freezer(state, t, n);
     sheetCtx = { kind: 'pot' };
     const line = b => { const r = b.recipe && rec(b.recipe); const canFreeze = !b.frozen && r && r.freezesMonths && b.left >= 1;
       return `<div class="card speckle" style="margin-top:10px"><div class="pot-name" style="margin:0">${esc(b.name)}</div>
@@ -511,7 +512,7 @@ const OLLAUI = (function () {
   }
   function addTimer(min) {
     const s = state.cookSession, r = rec(s.recipe), st = stepsOf(r)[s.step] || {};
-    const label = (st.t || '').split(/[,.;:]/)[0].slice(0, 28) || 'paso ' + (s.step + 1);
+    const label = 'paso ' + (s.step + 1);
     s.timers = (s.timers || []).concat([{ id: Date.now(), step: s.step, label, ms: min * 60000, endsAt: Date.now() + min * 60000 }]);
     saveQuiet(); unlockAudio(); renderRunner();
   }
@@ -596,7 +597,7 @@ const OLLAUI = (function () {
       case 'pot': openPot(); return;
       case 'recipe': if (b.dataset.id) openRecipe(b.dataset.id, { date: d }); return;
       case 'cook': { const c = state.plan.days[d] && state.plan.days[d].cook; if (c) openRunner({ date: d, batch: c.batch, recipe: c.recipe, servings: c.servings }); return; }
-      case 'skip-cook': if (res(OLLA.setKind(state, d, 'dinner', 'home', t, n))) done('Hoy no. La semana se reacomoda.'); return;
+      case 'skip-cook': { const c = state.plan.days[d] && state.plan.days[d].cook; if (c && res(OLLA.logCook(state, c.batch, { s: 'notmade' }, t, n, at))) done('Hoy no. La semana se reacomoda.'); return; }   // the engine's «not today»: the cook stays on record as not made, coverage re-seats the days after
       case 'ate': if (res(OLLA.logMeal(state, d, sl, { s: 'ate' }, t, n, at))) done('', true); return;
       case 'skip-meal': if (res(OLLA.logMeal(state, d, sl, { s: 'skipped' }, t, n, at))) done('Anotado.'); return;
       case 'log': openLog(d, sl); return;
@@ -675,7 +676,7 @@ const OLLAUI = (function () {
     ks.addEventListener('change', onKitchen);
     // openSettings is a shell function declaration the shell already bound; the kitchen section renders on every door in (capture phase)
     ['settings-btn', 'sync-pip'].forEach(id => document.getElementById(id).addEventListener('click', renderKitchenSettings, true));
-    document.querySelectorAll('[data-theme-pick]').forEach(b => b.addEventListener('click', () => { state.settings.themeChosen = true; state.settings.theme = b.dataset.themePick; save(); applyOllaTheme(); }));
+    document.querySelectorAll('[data-theme-pick]').forEach(b => b.addEventListener('click', () => { state.settings.theme = b.dataset.themePick; save(); applyOllaTheme(); }));
     settingsModal.addEventListener('close', () => render());
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) return;
