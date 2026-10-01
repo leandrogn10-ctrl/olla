@@ -414,8 +414,9 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
   --gold: #c9c0a3; --danger: #e07a6a;
   --card: color-mix(in srgb, var(--paper) 84%, transparent);
   --card-hi: color-mix(in srgb, var(--paper-hi) 88%, transparent);
-  --strike: linear-gradient(180deg, #c4e98a 0%, #a3d15c 45%, #7aa83a 100%);
-  --strike-glow: 0 12px 30px -10px rgba(163,209,92,.55), inset 0 1px 0 rgba(240,255,210,.55);
+  --strike: linear-gradient(180deg, #a9c777 0%, #93b560 55%, #7d9d4e 100%);   /* calmer than --accent on purpose: the big filled surfaces (today's action, a cook day) must not shout */
+  --fill: #8fb05b;
+  --strike-glow: 0 10px 26px -12px rgba(143,176,91,.40), inset 0 1px 0 rgba(240,255,210,.28);
   --speckle-op: .5; --grain-op: .28;
   --shadow: 0 1px 0 rgba(241,234,219,.04) inset, 0 14px 34px rgba(0,0,0,.45);
   --c-sage-fg: #a3d15c; --c-sage-bg: rgba(163,209,92,.12); --c-sage-bd: rgba(163,209,92,.38);
@@ -433,8 +434,9 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
   --gold: #7c6a3a; --danger: #b4432f;
   --card: color-mix(in srgb, var(--paper) 92%, transparent);
   --card-hi: color-mix(in srgb, var(--paper-hi) 92%, transparent);
-  --strike: linear-gradient(180deg, #b9e27a 0%, #a3d15c 45%, #86b53f 100%);
-  --strike-glow: 0 12px 26px -12px rgba(79,127,29,.55), inset 0 1px 0 rgba(255,255,240,.7);
+  --strike: linear-gradient(180deg, #cfdcab 0%, #bccf94 55%, #a9c07c 100%);   /* sage, not lime: on cream the saturated fill was too bright to live with */
+  --fill: #b2c88a;
+  --strike-glow: 0 8px 20px -12px rgba(79,100,40,.38), inset 0 1px 0 rgba(255,255,240,.55);
   --speckle-op: .35; --grain-op: .16;
   --shadow: 0 1px 0 rgba(255,255,255,.6) inset, 0 10px 26px rgba(60,50,20,.12);
   --c-sage-fg: #3b6f17; --c-sage-bg: rgba(79,127,29,.10); --c-sage-bd: rgba(79,127,29,.35);
@@ -621,7 +623,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .row.done .dish { color: var(--ink-dim); }
 .ring { width: 44px; height: 44px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; box-shadow: inset 0 0 0 1.5px var(--line); color: var(--ink-faint); font-family: var(--serif); font-size: 20px; justify-self: end; transition: transform .1s, background .2s; }
 .ring:active { transform: scale(.92); }
-.ring.ate { background: var(--accent); color: var(--accent-ink); box-shadow: 0 0 16px -4px var(--accent); }
+.ring.ate { background: var(--fill); color: var(--accent-ink); box-shadow: 0 0 14px -6px var(--fill); }
 .ring.other { box-shadow: inset 0 0 0 1.5px var(--accent); color: var(--accent-text); font-style: italic; }
 .ring.skipped { color: var(--danger); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--danger) 50%, transparent); }
 .ring svg { width: 18px; height: 18px; }
@@ -631,11 +633,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .bowl { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 4px 0; border-radius: 12px; }
 .bowl svg { width: 100%; max-width: 46px; height: 30px; overflow: visible; }
 .bowl .b-out { fill: none; stroke: color-mix(in srgb, var(--ink) 28%, transparent); stroke-width: 1.4; }
-.bowl .b-fill { fill: var(--accent); }
-.bowl .b-half { fill: color-mix(in srgb, var(--accent) 45%, var(--paper-hi)); }
+.bowl .b-fill { fill: var(--fill); }
+.bowl .b-half { fill: color-mix(in srgb, var(--fill) 45%, var(--paper-hi)); }
 .bowl .b-home { fill: color-mix(in srgb, var(--ink) 16%, transparent); }
 .bowl .d { font-size: 11px; color: var(--ink-faint); }
-.bowl.today { background: color-mix(in srgb, var(--accent) 9%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent); }
+.bowl.today { background: color-mix(in srgb, var(--fill) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fill) 40%, transparent); }
 .bowl.today .d { color: var(--ink); }
 .bowl .tag { font-size: 10px; line-height: 1; color: var(--accent-text); min-height: 10px; }
 .register { font-family: var(--serif); font-style: italic; font-size: 16px; color: var(--ink-dim); padding: 0 14px 14px; text-align: center; }
@@ -652,7 +654,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .srow .dish { font-family: var(--serif); font-size: 19px; line-height: 1.15; color: var(--ink); }
 .srow .dish small { display: block; font-family: var(--mono); font-size: 11px; color: var(--ink-faint); margin-top: 2px; }
 .kind { min-width: 78px; min-height: 44px; padding: 6px 10px; border-radius: 999px; font-family: var(--mono); font-size: 12px; color: var(--ink-dim); box-shadow: inset 0 0 0 1px var(--line); text-align: center; }
-.kind.k-cook { color: var(--accent-ink); background: var(--accent); box-shadow: none; }
+.kind.k-cook { color: var(--accent-ink); background: var(--fill); box-shadow: none; }
 .kind.k-leftover { color: var(--accent-text); box-shadow: inset 0 0 0 1.2px color-mix(in srgb, var(--accent) 55%, transparent); }
 .kind.k-out { font-style: italic; }
 .kind:active { transform: scale(.96); }
@@ -696,11 +698,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .item { display: grid; grid-template-columns: 34px 1fr auto; gap: 10px; align-items: center; width: 100%; text-align: left; padding: 10px 0; border-top: 1px solid var(--line-soft); min-height: 54px; }
 .item .box { width: 26px; height: 26px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--ink) 30%, transparent); display: inline-flex; align-items: center; justify-content: center; }
 .item .box svg { width: 14px; height: 14px; opacity: 0; }
-.item.on .box { background: var(--accent); box-shadow: none; } .item.on .box svg { opacity: 1; }
+.item.on .box { background: var(--fill); box-shadow: none; } .item.on .box svg { opacity: 1; }
 .item .nm { font-family: var(--serif); font-size: 20px; line-height: 1.15; color: var(--ink); }
 .item .fr { display: block; font-family: var(--mono); font-size: 11px; color: var(--ink-faint); margin-top: 2px; }
 .item .q { font-size: 13px; color: var(--ink-dim); text-align: right; }
-.item.on .nm { color: var(--ink-faint); text-decoration: line-through; text-decoration-color: var(--line); }
+.item.on .nm { color: var(--ink-dim); }   /* a ticked line keeps its place and wears only the mark */
 .item .soon { color: var(--danger); }
 
 /* ── sheets (dialogs become bottom sheets on the phone) ── */
@@ -1800,7 +1802,9 @@ const OLLA = (function () {
     const points = stab(needs);
     needs.forEach(x => { const ps = points.filter(p => p >= x.lo && p <= x.hi); x.trip = x.stable ? ps[0] : ps[ps.length - 1]; });
     // the ride-alongs: weekly staples + the fridge defaults' ingredients, once a week, on the first trip
-    const wk = weekStart(today), boughtThisWeek = id => Object.keys(checked).some(k => { const i = k.lastIndexOf('@'); return k.slice(0, i) === id && weekStart(k.slice(i + 1)) === wk && checked[k] && checked[k].v; });
+    // «bought this week» counts only trips that have PASSED: a tick on today's (or a future) trip must stay on that very line.
+    // (Counting it made every ride-along — the fridge meals and the weekly staples — leave the list the moment he ticked it.)
+    const wk = weekStart(today), boughtThisWeek = id => Object.keys(checked).some(k => { const i = k.lastIndexOf('@'), T = k.slice(i + 1); return k.slice(0, i) === id && T < today && weekStart(T) === wk && checked[k] && checked[k].v; });
     const ride = {};
     H.forEach(d => { const day = planDay(state, d); if (!day) return; slotsFor(state, d).forEach(sl => { const r = day[sl]; if (!r || r.kind !== 'home' || !r.recipe) return; const rec = recipeById(state, r.recipe); if (!rec) return;
       scaleIngredients(state, rec, 1).forEach(it => { if (!it.id || it.opt || pantry[it.id]) return; const x = ride[it.id] || (ride[it.id] = { id: it.id, parts: {}, need: d, for: [] }); x.parts[it.u] = (x.parts[it.u] || 0) + it.q; if (x.for.indexOf(rec.name) < 0) x.for.push(rec.name); }); }); });
@@ -1827,6 +1831,19 @@ const OLLA = (function () {
       const by = mine.reduce((m, x) => (x.hi < m ? x.hi : m), '9999-12-31');   // the last day this trip can happen and still put every cook item inside its window
       return { date: T, at: fmtHM(at), by: mine.length ? by : T, items: list, left: list.filter(it => !it.checked).length, min: inStore, late: mine.some(x => x.late), gone };
     });
+    // A tick is per item@trip. When a later tick makes the dish a line was for leave the plan (the cook became certain, so the
+    // fridge default's tuna is no longer needed), the ticked line used to vanish: he BOUGHT it, so it stays, ticked, with no
+    // quantity to claim. Only today's trip (tomorrow's once the store has closed) — an old tick is history, not a line.
+    const live = {}; trips.forEach(t => t.items.forEach(it => { live[it.key] = 1; }));
+    Object.keys(checked).forEach(k => {
+      const c = checked[k], i = k.lastIndexOf('@'); if (!c || !c.v || live[k] || !(i > 0)) return;
+      const id = k.slice(0, i), T = k.slice(i + 1); if (!parse(T) || T < today || T > addDays(today, 1)) return;
+      const t = trips.find(x => x.date === T), info = ingredient(id);
+      if (!t || info.unknown || trips.some(x => x.items.some(it => it.id === id && Math.abs(diffDays(T, x.date)) <= 1))) return;
+      const n = nameFor(info, 1, info.unit || '');
+      t.items.push({ key: k, id, n, q: 0, u: info.unit || '', parts: [], section: info.section || NO_SECTION, display: '', text: n, buyBy: T, for: [], checked: true, note: info.note || null });
+    });
+    trips.forEach(t => { t.left = t.items.filter(it => !it.checked).length; });
     return { trips, next: trips.find(t => t.left > 0 && !t.gone) || null };
   }
   /* one list line: per-unit quantities rounded (indivisible → ceil); a spoonful of a jar is not a shopping quantity — the jar is */
@@ -2509,7 +2526,7 @@ const OLLA_SEED = (function () {
       containers: 0,                                                       // 0 = never asked
       store: { name: 'Safeway', open: '06:00', close: '22:00', inStoreMin: 30, mode: 'walk' },
       orders: [],
-      pantry: ['sal', 'pimienta', 'aceite', 'aceite-oliva', 'ajo', 'sillao', 'vinagre', 'comino', 'oregano', 'azucar'],
+      pantry: ['sal', 'pimienta'],                                         // the ONLY things assumed in the house: every other ingredient a dish needs is on the list, every time
       weekly: ['leche', 'yogur-griego', 'mantequilla-mani'],
       theme: 'auto',
     },
@@ -2520,7 +2537,7 @@ const OLLA_SEED = (function () {
 /* ═══ OLLA-SEED-END ═══ */
 
 /* ── app hooks (SLOT:APP-LOGIC) — La Olla ── */
-const OLLA_SCHEMA = 2;   // 2 = LA-OLLA-V2-SPEC.md §2.1: settings.{hall(+closes), outDays, cookWindows, cookAt, eatAt, trainDays, fridge(+post), gear, gearAsked, containers, store, orders, pantry[ids], weekly[ids], theme}, ladder, recipes (v2 shape), plan{via, days(+post, cook.batch)}, log{date:slot: [entries]}, cooks, extra, likes, groceries.checked{item@trip: {v, at}}, cookSession
+const OLLA_SCHEMA = 3;   // 3 = settings.pantry is ONLY sal + pimienta (the first build assumed ten staples at home; cumin and garlic never reached the list). 2 = LA-OLLA-V2-SPEC.md §2.1: settings.{hall(+closes), outDays, cookWindows, cookAt, eatAt, trainDays, fridge(+post), gear, gearAsked, containers, store, orders, pantry[ids], weekly[ids], theme}, ladder, recipes (v2 shape), plan{via, days(+post, cook.batch)}, log{date:slot: [entries]}, cooks, extra, likes, groceries.checked{item@trip: {v, at}}, cookSession
 const OLLA_PRE_SCHEMA2_KEY = 'olla.v1.pre-schema2';   // the raw schema-1 state, written ONCE per device before its first migration (his only copy may be this phone's)
 /* The v1 book as it shipped (9dc95c2): FNV-1a of JSON [id, name, steps] per recipe, frozen here. A v1-shaped recipe whose
    hash still matches was never edited, so its v2 version replaces it; anything else is his and wins. */
@@ -2575,6 +2592,7 @@ function appMigrate(s) {
   S.store = Object.assign({}, D.store, isObj(S.store) ? S.store : {});
   if (!Array.isArray(S.orders)) S.orders = D.orders.slice();
   S.pantry = ollaIdList(S.pantry, D.pantry, OLLA_V1_PANTRY);
+  if (!(s.schema >= 3)) S.pantry = D.pantry.slice();      // schema 3: whatever was stored was the old ten-staple default, never his choice — he has said the house holds salt and pepper, nothing else
   S.weekly = ollaIdList(S.weekly, D.weekly, OLLA_V1_WEEKLY);
   delete S.feed;                                          // v1's free-text lift-night feed is now a recipe: fridge.post = batido-post
   if (['auto', 'esmalte', 'loza'].indexOf(S.theme) < 0) S.theme = S.theme === 'tokyo' ? 'loza' : 'auto';   // v1's shell keys: macchiato was the default, tokyo was a choice

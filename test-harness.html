@@ -68,7 +68,8 @@ function eff(entries) { if (!Array.isArray(entries) || !entries.length) return n
     const today = E('OLLAUI').todayYmd();
     log('boots on Hoy', q('#bottom-tabs .tab.active') && q('#bottom-tabs .tab.active').dataset.view === 'hoy');
     log('state written on boot with a plan for today', !!(st() && st().plan && st().plan.days[today]));
-    log('schema is 2', st() && st().schema === 2, st() && String(st().schema));
+    log('schema is 3', st() && st().schema === 3, st() && String(st().schema));
+    log('the house holds salt and pepper, nothing else', JSON.stringify(st().settings.pantry) === JSON.stringify(['sal', 'pimienta']), JSON.stringify(st().settings.pantry));
     const slots = E('OLLA').slotsFor(st(), today);
     log('Hoy renders one row per slot', qa('#app-root .row').length === slots.length, qa('#app-root .row').length + ' vs ' + slots.length);
     log('the pot panel is there', !!q('#app-root .pot-panel'));
@@ -143,6 +144,12 @@ function eff(entries) { if (!Array.isArray(entries) || !entries.length) return n
       const c = (st().groceries.checked || {})[key];
       log('checking an item persists per item@trip', !!c && (c.v === true || c === true), key + ' ' + JSON.stringify(c));
       log('the key carries the trip date', /@\d{4}-\d{2}-\d{2}$/.test(key || ''), key);
+      const total = qa('#app-root .item').length, onRow = q('#app-root .item[data-key="' + key + '"]');
+      log('the ticked line STAYS where it was, wearing the mark (it never leaves the list)', !!onRow && onRow.classList.contains('on') && onRow.getAttribute('aria-pressed') === 'true', onRow ? onRow.className : 'GONE');
+      const tickedKeys = [key]; for (let g = 0; g < total + 2; g++) { const nx = qa('#app-root .item:not(.on)').find(x => x.dataset.key.slice(-10) <= E('OLLA').addDays(today, 1)); if (!nx) break; tickedKeys.push(nx.dataset.key); nx.click(); await sleep(40); }   // every tap re-renders the page: re-query, never hold a node
+      const ticked = Array.from(new Set(tickedKeys)), gone = ticked.filter(k => !q('#app-root .item.on[data-key="' + k + '"]'));
+      log('ticking line after line, every TICKED line is still there, marked (another dish may legitimately drop its own unticked lines once the cook is certain)', ticked.length >= total - 6 && gone.length === 0, ticked.length + ' ticked of ' + total + ' at first; gone: ' + gone.join(','));
+      log('CONTROL (must read FAIL): a line that was never on the list is found by the same query', !!q('#app-root .item[data-key="no-such-line@2026-10-01"]'));
     }
     // settings
     q('#settings-btn').click(); await sleep(200);

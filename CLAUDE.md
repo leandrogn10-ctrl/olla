@@ -57,6 +57,10 @@ lives in the private `leandro-os-prototype` repo: `LA-OLLA-PLAN.md`, `LA-OLLA-V2
   seven days, a day the engine can't project is omitted. `appMigrate` deletes `pub` on load.
 - `appMigrate` merges over the seed field by field, idempotent on load AND every pull; the first schema-2
   migration on a device writes `olla.v1.pre-schema2` once. Seed recipes upgrade only when he never edited them.
+- **The house holds salt and pepper, nothing else** (`settings.pantry`, schema 3 — he said so on 1-oct-2026). The first build
+  assumed ten staples (garlic, cumin, oil, soy…) and they never reached the list; schema 3 resets a stored pantry ONCE. Every
+  other ingredient a dish needs is on the list, every time. A ticked line stays on the list, ticked — never filtered, never
+  struck through; `shopping()` keeps a ticked line even when the dish it was for leaves the plan. Pinned by §34 of `test-olla.js`.
 - `sw.js` deletes ONLY `olla-*` caches: every sibling app shares the `leandrogn10-ctrl.github.io` origin.
 
 ## The load-bearing rules

@@ -526,7 +526,7 @@ const v1Snapshot = () => {
 {
   const L = load(), raw = v1Snapshot();
   const m = L.H.appMigrate(JSON.parse(JSON.stringify(raw)));
-  ok('schema 2', m.schema === 2 && L.H.OLLA_SCHEMA === 2);
+  ok('schema 3 (2 = the v2 shape, 3 = the pantry is salt and pepper only)', m.schema === 3 && L.H.OLLA_SCHEMA === 3);
   ok('log {s,ts} → [{s, at}] (ate/skipped keep their meaning)', Array.isArray(m.log['2026-09-29:dinner']) && m.log['2026-09-29:dinner'][0].s === 'ate' && m.log['2026-09-29:dinner'][0].at === raw.log['2026-09-29:dinner'].ts);
   ok('cooks, extra, likes exist; cookSession survives as null', m.cooks && m.extra && m.likes && m.cookSession === null);
   ok('v1\'s name-keyed checks are dropped without throwing', JSON.stringify(m.groceries) === '{"checked":{}}');
@@ -849,7 +849,7 @@ const listLines = B => {
       ingredients: [{ n: 'cebolla roja', q: 1, u: 'u' }, { n: 'sillao', q: 2, u: 'cda' }, { n: 'MI salsa secreta', q: 1, u: 'frasco' }], steps: ['Todo a la olla.'] });
     s.plan = B.O.buildWeek(s, WED, hm('08:00')); const r = B.O.setCookRecipe(s, FRI, 'mi-guiso', WED, hm('08:00'));
     const all = [].concat(...B.O.shopping(s, WED, hm('08:00')).trips.map(t => t.items)).filter(i => i.for.indexOf('Mi guiso') >= 0);
-    out.v1 = r.ok && all.some(i => i.id === 'cebolla-roja' && i.section === 'Frutas y verduras') && all.some(i => i.n === 'MI salsa secreta' && i.section === 'sin sección') && !all.some(i => /sillao/.test(i.id)); out.v1Txt = JSON.stringify(r) + ' ' + all.map(i => i.id + ':' + i.section).join(' '); }
+    out.v1 = r.ok && all.some(i => i.id === 'cebolla-roja' && i.section === 'Frutas y verduras') && all.some(i => i.n === 'MI salsa secreta' && i.section === 'sin sección') && all.some(i => i.id === 'sillao'); out.v1Txt = JSON.stringify(r) + ' ' + all.map(i => i.id + ':' + i.section).join(' '); }
   return out;
 };
 {
@@ -857,7 +857,7 @@ const listLines = B => {
   ok('one ingredient in two units is ONE line carrying both quantities (2 dientes + 1 cda), never a dropped one', r.units, r.unitsTxt);
   ok('a spoonful of a jar is listed as the jar (its name), not «¾ cdta»', r.jar, r.jarTxt);
   ok('a weekly ride-along is due no earlier than the trip it rides', r.ride, r.rideTxt);
-  ok('a hand-edited v1 recipe {n,q,u}: known names land in their aisle (and his pantry hides sillao), an unknown one shows «sin sección»', r.v1, r.v1Txt);
+  ok('a hand-edited v1 recipe {n,q,u}: known names land in their aisle (sillao is NOT assumed at home: it is bought), an unknown one shows «sin sección»', r.v1, r.v1Txt);
 }
 control('re-plant v1\'s unit merge (`if (it.u === u) it.q += q`): the tablespoon of garlic is silently dropped', () => listLines(replant('engine', 'Object.keys(parts).forEach(u => { it.parts[u] = (it.parts[u] || 0) + parts[u]; });', 'Object.keys(parts).forEach(u => { if (!Object.keys(it.parts).length || it.parts[u] != null) it.parts[u] = (it.parts[u] || 0) + parts[u]; });')).units);
 control('re-plant: spoon quantities printed for a jar («¾ cdta aceite de ajonjolí»)', () => listLines(replant('engine', "const bare = !qs.length || qs.every(p => SPOON[p.u] || (info.pantry && p.u === 'taza'));", 'const bare = !qs.length;')).jar);
@@ -1014,6 +1014,88 @@ const batchCase = B => {
 }
 control('re-plant a log key on addBatch: the batch dies with a meal that never existed, and tonight is not fed', () => batchCase(replant('engine',
   "x.src : 'other', from: null, at: +at };", "x.src : 'other', from: null, at: +at, log: date + ':dinner' };")).thuEats);
+
+
+console.log('\n34. A ticked line STAYS, ticked — and the list carries everything a dish needs except salt and pepper (1-oct-2026: cumin and garlic never reached it)');
+const ALLDAYS = []; for (let i = 0; i < 14; i++) ALLDAYS.push(O.addDays(THU, i));
+const HOURS = ['08:00', '14:00', '16:40', '20:00', '23:00'];
+const tickSweep = B => {   // every line of every trip, ticked one at a time, then the week re-derived exactly as the app does (ensureWeek → render)
+  let n = 0, lost = [];
+  ALLDAYS.slice(0, 7).forEach(d => HOURS.forEach(h => {
+    const base = mkWith(B.seed); base.plan = B.O.buildWeek(base, d, hm(h));
+    B.O.shopping(base, d, hm(h)).trips.forEach(t => t.items.forEach(it => {
+      const s = JSON.parse(JSON.stringify(base)); B.O.check(s, it.key, true, AT(d, h)); s.plan = B.O.buildWeek(s, d, hm(h));
+      const back = [].concat(...B.O.shopping(s, d, hm(h)).trips.map(x => x.items)).find(x => x.key === it.key); n++;
+      if (!(back && back.checked)) lost.push(d + ' ' + h + ' ' + it.key);
+    }));
+  }));
+  return { n, lost };
+};
+{
+  const r = tickSweep(BASE);
+  ok('ticking ANY line on ANY trip, at any hour of seven days, leaves that line in place and ticked', r.n > 400 && r.lost.length === 0, r.n + ' ticks; lost: ' + r.lost.slice(0, 6).join(', '));
+  ok('…and the sweep really ticks ride-alongs (the fridge meals and the weekly staples): leche, yogur-griego, mantequilla-mani are among the lines', (() => { const s = mkWith(BASE.seed); s.plan = O.buildWeek(s, THU, hm('16:40')); const ids = [].concat(...O.shopping(s, THU, hm('16:40')).trips.map(t => t.items)).map(i => i.id); return ['leche', 'yogur-griego', 'mantequilla-mani'].every(x => ids.indexOf(x) >= 0); })());
+  ok('a ride-along ticked on a trip that has PASSED is still not re-bought on the next trip this week', (() => {
+    const s = mkWith(BASE.seed); s.plan = O.buildWeek(s, THU, hm('09:00')); const t0 = O.shopping(s, THU, hm('09:00')).trips[0], lech = t0.items.find(i => i.id === 'leche');
+    O.check(s, lech.key, true, AT(THU, '10:00')); s.plan = O.buildWeek(s, FRI, hm('09:00'));
+    return lech && ![].concat(...O.shopping(s, FRI, hm('09:00')).trips.map(t => t.items.filter(i => !i.checked))).some(i => i.id === 'leche' && /cada semana/.test(i.for.join(' ')));
+  })());
+}
+const cumulative = B => {   // tick line after line (each tick re-derives the week, which may move a trip by a day); every line ticked so far must still read ticked
+  const lost = []; let n = 0;
+  ALLDAYS.slice(0, 4).forEach(d => ['08:00', '14:00', '16:40', '19:30', '23:00'].forEach(h => {
+    const s = mkWith(B.seed); s.plan = B.O.buildWeek(s, d, hm(h)); const done = [];
+    const lines = () => [].concat(...B.O.shopping(s, d, hm(h)).trips.filter(t => t.date <= O.addDays(d, 1)).map(t => t.items));   // the trip he is actually ON: today's (tomorrow's once the store has closed)
+    for (let g = 0; g < 60; g++) {
+      const nx = lines().find(i => !i.checked); if (!nx) break;
+      B.O.check(s, nx.key, true, AT(d, h) + g); s.plan = B.O.buildWeek(s, d, hm(h)); done.push(nx.id); n++;
+      const now = lines(); done.forEach(id => { if (!now.some(i => i.id === id && i.checked)) lost.push(d + ' ' + h + ' ' + id + ' after ' + nx.id); });
+    }
+  }));
+  return { n, lost };
+};
+{
+  const r = cumulative(BASE);
+  ok('ticking line after line on the trip he is ON (each tick re-derives the week and can drop the dish a line was for), no TICKED line ever leaves', r.n > 200 && r.lost.length === 0, r.n + ' ticks; lost: ' + r.lost.slice(0, 4).join(' | '));
+}
+control('re-plant: a ticked line whose dish left the plan is dropped (he bought the tuna; the list forgets it)', () => cumulative(replant('engine', "if (!t || info.unknown ||", 'if (true ||')).lost.length === 0);
+control('re-plant: «bought this week» counts today\'s own tick again (the line leaves the list the moment it is ticked)', () => tickSweep(replant('engine', "return k.slice(0, i) === id && T < today && weekStart(T) === wk", "return k.slice(0, i) === id && weekStart(T) === wk")).lost.length === 0);
+
+const SALT = ['sal', 'pimienta'];
+const needsOfWeek = (O_, s, d, h) => {   // what the week's dishes need, read from the RECIPES — never from the list under test
+  const need = {}, N = hm(h); s.plan = O_.buildWeek(s, d, N);
+  for (let i = 0; i < 7; i++) {
+    const dd = O_.addDays(d, i), day = s.plan.days[dd]; if (!day) continue;
+    if (day.cook) { const cs = O_.cookState(s, dd, d, N); if (cs === 'planned' || cs === 'due' || cs === 'cooking') { const rec = O_.recipeById(s, day.cook.recipe); O_.scaleIngredients(s, rec, day.cook.servings).forEach(g => { if (g.id && !g.opt && g.q > 0) (need[g.id] = need[g.id] || []).push(rec.id); }); } }
+    O_.slotsFor(s, dd).forEach(sl => { const r = day[sl]; if (!r || r.kind !== 'home' || !r.recipe) return; const rec = O_.recipeById(s, r.recipe); if (rec) O_.scaleIngredients(s, rec, 1).forEach(g => { if (g.id && !g.opt && g.q > 0) (need[g.id] = need[g.id] || []).push(rec.id); }); });
+  }
+  return need;
+};
+const missingFromList = (B, mutate) => {
+  let missing = [], seen = {}, cases = 0;
+  ALLDAYS.forEach(d => HOURS.forEach(h => {
+    const s = mkWith(B.seed); if (mutate) mutate(s);
+    const need = needsOfWeek(B.O, s, d, h), listed = {}; [].concat(...B.O.shopping(s, d, hm(h)).trips.map(t => t.items)).forEach(i => { listed[i.id] = 1; }); cases++;
+    Object.keys(need).forEach(id => { seen[id] = 1; if (SALT.indexOf(id) < 0 && !listed[id]) missing.push(d + ' ' + h + ' ' + id + ' (' + need[id][0] + ')'); });
+  }));
+  return { missing, seen, cases };
+};
+{
+  const r = missingFromList(BASE);
+  ok('every ingredient any dish of the next 7 days needs is on the list, 14 days × 5 hours — only salt and pepper are ever assumed', r.cases === 70 && r.missing.length === 0, r.missing.slice(0, 6).join(' | '));
+  ok('…and the sweep really meets the ones he named: garlic and cumin are needed in it (a sweep that never needs them proves nothing)', !!r.seen.ajo && !!r.seen.comino, Object.keys(r.seen).length + ' ids; ajo ' + !!r.seen.ajo + ' comino ' + !!r.seen.comino);
+  ok('the seed pantry is salt and pepper, nothing else', JSON.stringify(seed.settings.pantry) === JSON.stringify(SALT));
+}
+control('re-plant: the old ten-staple pantry (garlic, cumin, oil, soy… «always at home») hides ingredients from the list', () => missingFromList(BASE, s => { s.settings.pantry = ['sal', 'pimienta', 'aceite', 'aceite-oliva', 'ajo', 'sillao', 'vinagre', 'comino', 'oregano', 'azucar']; }).missing.length === 0);
+{
+  const OLD = ['sal', 'pimienta', 'aceite', 'aceite-oliva', 'ajo', 'sillao', 'vinagre', 'comino', 'oregano', 'azucar'];
+  const legacy = () => { const s = mkWith(seed); s.schema = 2; s.settings.pantry = OLD.slice(); return s; };
+  const L = load(), m = L.H.appMigrate(legacy());
+  ok('a schema-2 copy (his phone, the gist) holding the old ten staples comes out salt + pepper', JSON.stringify(m.settings.pantry) === JSON.stringify(SALT) && m.schema === 3, JSON.stringify(m.settings.pantry));
+  const mine = L.H.appMigrate(Object.assign(JSON.parse(JSON.stringify(m)), { settings: Object.assign({}, m.settings, { pantry: ['sal', 'pimienta', 'aceite'] }) }));
+  ok('…and from schema 3 on, a pantry he sets himself is kept (the reset runs once, not on every pull)', JSON.stringify(mine.settings.pantry) === JSON.stringify(['sal', 'pimienta', 'aceite']), JSON.stringify(mine.settings.pantry));
+  control('re-plant: the schema-3 pantry reset is gone — the legacy staples survive the migration', () => { const R = replant('hooks', "  if (!(s.schema >= 3)) S.pantry = D.pantry.slice();", ''); return JSON.stringify(R.H.appMigrate(legacy()).settings.pantry) === JSON.stringify(SALT); });
+}
 
 console.log('\n20. Sync (the shell): pull merges reality both ways and saves without a push; push GETs first, PATCHes olla.json only');
 function syncRig(local, remote, syncSrc) {
