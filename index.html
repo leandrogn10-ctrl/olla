@@ -1016,6 +1016,8 @@ const OLLA = (function () {
   const COOK_S = { made: 1, notmade: 1, tossed: 1, void: 1 };
   const EXTRA_SRC = { bought: 1, other: 1, cooked: 1 };
   const EARLY = 90;   // a meal may be logged from 90 min before its eat time (the «eat» window), never further ahead
+  const FZ_ID = 'cena-congelada';   // v3 §6.2 the freezer floor's ONE list line; a TICKED line is the stock (derived in reality(), never stored)
+  const isFz = id => typeof id === 'string' && id.indexOf('fz@') === 0;
 
   /* ── time (unchanged from v1: local, noon-anchored so a setDate walk can't be shifted a day by DST) ── */
   const p2 = n => (n < 10 ? '0' : '') + n;
@@ -1070,6 +1072,17 @@ const OLLA = (function () {
     const walk = st.walkMin != null ? int(st.walkMin, 10) : int((settings.hall || {}).walkMin, 10);
     return 2 * walk + inStore;
   }
+  /* v3 §6.2 THE WEEKLY WALK: `store.trip = {dow, at}` — one trip a week, sized for the week. Absent (or malformed) = v2's per-item
+     seating. `cookDays` = the weekdays the PLANNER may seat a cook on (windows elsewhere stay, for his hand cooks); absent = every
+     day with a window. `freezer.target` = bought frozen dinners to keep on hand; 0 = no freezer line. */
+  function weeklyTrip(settings) {
+    const t = ((settings && settings.store) || {}).trip; if (!t || typeof t !== 'object') return null;
+    const d = +t.dow; if (!(d >= 0 && d <= 6 && d === Math.floor(d))) return null;
+    return { dow: d, at: hm(t.at) };
+  }
+  function tripDayFor(settings, date) { const t = weeklyTrip(settings); return t ? addDays(date, -((dow(date) - t.dow + 7) % 7)) : null; }   // the weekly trip that shops for `date`: the latest trip day on or before it
+  function cookDay(settings, date) { const cd = settings && settings.cookDays; return !Array.isArray(cd) || cd.indexOf(dow(date)) >= 0; }
+  function freezerTarget(settings) { const f = settings && settings.freezer; return Math.max(0, int(f && f.target, 0)); }
 
   /* ── the book ── */
   function remTable() { try { return (typeof REMATE_ING !== 'undefined' && REMATE_ING) || {}; } catch (e) { return {}; } }   // OLLA-SEED's remate → ingredients table, read at CALL time
@@ -1169,6 +1182,13 @@ const OLLA = (function () {
             fridgeDays: x.fridgeDays != null ? +x.fridgeDays : (x.src === 'frozen' ? 90 : (rec && rec.fridgeDays) || 3),
             src: x.src || 'other', state: eff && eff.s === 'tossed' ? 'tossed' : 'made', frozen: x.src === 'frozen', from: x.from || null, at: null, total: 0 });
     });
+    const ck = (state.groceries && state.groceries.checked) || {};
+    Object.keys(ck).sort().forEach(k => {   // v3 §6.2 the freezer floor: ONE batch per TICKED freezer line, derived here and never stored — an extra could not be unticked (mergeReality is add-only on extras, and every push re-merges the remote)
+      const i = k.lastIndexOf('@'), c = ck[k]; if (i <= 0 || k.slice(0, i) !== FZ_ID || !c || !c.v) return;
+      const T = k.slice(i + 1), id = 'fz@' + T; if (!parse(T) || byId[id]) return;
+      const n = Math.max(1, int(c.q, 1));
+      add({ id, date: T, name: 'Cena congelada', recipe: null, servings: n, planned: n, fridgeDays: 90, src: 'bought-frozen', state: 'made', frozen: true, from: null, at: null, total: 0 });
+    });
     batches.forEach(b => { b.frozenOut = frozeOf(state, b.id).reduce((n, e) => n + Math.max(0, +e.n || 0), 0); });
     const log = state.log || {}, walk = {};
     Object.keys(days).forEach(d => { walk[d] = 1; }); Object.keys(log).forEach(k => { const d = k.slice(0, 10); if (parse(d)) walk[d] = 1; });   // the plan prunes at 21 days; the log never does (a frozen portion eaten 3 weeks ago stays eaten)
@@ -1251,7 +1271,7 @@ const OLLA = (function () {
      once today's store hours are gone) — unknown reads as unbought: the pot holds less when unsure. Everything bought, part of
      it TODAY: he is still walking home (`walk`). */
   function leadFor(state, rec, date, today, now) {
-    const S = S_(state), pantry = pantrySet(state), sameDayOnly = date === today || (date === addDays(today, 1) && !storeOpenAfter(S, now));
+    const S = S_(state), pantry = pantrySet(state), sameDayOnly = date === today || (date === addDays(today, 1) && !storeOpenAfter(S, now)) || tripDayFor(S, date) === date;   // v3: on the weekly walk's own day, what is not bought yet is bought THAT day — the cook waits for the walk (else the list seats a trip the day before)
     let lead = 0, boughtToday = false;
     (rec.ingredients || []).forEach(g => {
       const id = g.id || idForName(g.n) || (g.n ? '~' + slugOf(g.n) : null);   // the list's key for a v1 {n,q,u} item, so its check counts here too
@@ -1319,13 +1339,25 @@ const OLLA = (function () {
     const upRecent = Object.keys(hist).some(id => { const r = recipeById(state, id); return r && r.rung === rung + 1 && diffDays(hist[id], date) < 7; });
     if (up && madeAtRung(state, rung) >= 4 && !upRecent) set = set.concat([up]);
     const rest = atRung.concat(below).filter(r => set.indexOf(r) < 0);
-    const fits = r => { const need = needOf(r); if (!(need > 0)) return false; if (need > (r.servings || 1) && r.doubles === false) return false; return !!cookSlot(state, date, r, today, N); };
+    // v3 §6.2 perishability under the weekly walk: a dish whose ingredient would sit longer than its buyWithin between the trip that
+    // shops for `date` and the cook is not a candidate (the deli chicken, buyWithin 0, is «armado» ON the trip day only) — unless
+    // that ingredient was already bought inside its window.
+    const pantryP = pantrySet(state);
+    const freshOn = (r, d) => { const tD = tripDayFor(S, d), gap = tD ? diffDays(tD, d) : 0; return !gap || (r.ingredients || []).every(g => {
+      const id = g.id || idForName(g.n) || (g.n ? '~' + slugOf(g.n) : null); if (!id || g.opt || pantryP[id] || !(+g.q > 0)) return true;
+      const bw = ingredient(id).buyWithin; return bw == null || bw >= gap || !!boughtIn(state, id, addDays(d, -bw), d);
+    }); };
+    const fresh = r => freshOn(r, date);
+    // …and ON the trip day, spend it on what ONLY the trip day allows (the deli chicken): at rung 1 every other batchable dish but one
+    // needs it, so a Wednesday that took the one that keeps left Thursday the same dish again (20-oct probe: frijoles twice)
+    const onTrip = tripDayFor(S, date) === date, tripOnly = r => onTrip && !freshOn(r, addDays(date, 1));
+    const fits = r => { const need = needOf(r); if (!(need > 0)) return false; if (need > (r.servings || 1) && r.doubles === false) return false; if (!fresh(r)) return false; return !!cookSlot(state, date, r, today, N); };
     const recency = (a, b) => cmpStr(hist[a.id] || '', hist[b.id] || '') || rank(a) - rank(b) || cmpStr(a.id, b.id);
     const choose = (list, repeat) => {
       const c = list.filter(r => fits(r) && (repeat || r.id !== prev));
       const cov = r => Math.min(maxServings(r), needOf(r)), best = c.reduce((m, r) => Math.max(m, cov(r)), 0);   // eaters it actually feeds: needOf is already cut at ITS fridge life
       const big = c.filter(r => cov(r) >= best);                    // a dish that feeds more of the stretch beats one that feeds less (a 2-day dish doesn't «cover» four)
-      return (big.length ? big : c).sort(recency)[0] || null;
+      return (big.length ? big : c).sort((a, b) => (tripOnly(a) ? 0 : 1) - (tripOnly(b) ? 0 : 1) || recency(a, b))[0] || null;
     };
     return choose(set) || choose(rest) || choose(set.concat(rest), true);
   }
@@ -1372,6 +1404,8 @@ const OLLA = (function () {
     const R0 = reality(Object.assign({}, state, { plan: { via: 'fallback', days: prov } }), today, N);
     const pot = R0.batches.filter(b => !b.frozen && b.left > 0 && b.expires >= today && (realB(b) || (b.state === 'planned' && b.date === today)))
       .map(b => ({ id: b.id, date: b.date, expires: b.expires, left: b.left, real: realB(b), end: realB(b) || b.at == null ? null : b.at + b.total }));
+    // v3 §6.2: bought frozen dinners are a FLOOR, never part of the pot above — so they can never tell seatCook «the pot covers the stretch»
+    const fzPool = R0.batches.filter(b => b.src === 'bought-frozen' && b.state === 'made' && b.left > 0 && b.expires >= today).map(b => ({ id: b.id, date: b.date, expires: b.expires, left: b.left }));
     const hist = cookHistory(state, today);
     let prev = lastRecipeBefore(state, today);
     const alive = (b, e) => e.d >= b.date && e.d <= b.expires && !(e.d === b.date && b.end != null && b.end > e.t);
@@ -1389,7 +1423,7 @@ const OLLA = (function () {
       if (commit) pot.forEach(b => { b.left = left[b.id]; });
       return { got, unfed };
     }
-    const capable = d => windowsFor(S, d).length > 0;
+    const capable = d => windowsFor(S, d).length > 0 && (cookDay(S, d) || !!(fr[d] && fr[d].cook && (fr[d].cook.hand || fr[d].cookKeep)));   // v3: the planner cooks only on cookDays; a hand or started cook still makes its day a stretch
     function nextCapable(d) { for (let k = 1; k <= 14; k++) { const e = addDays(d, k); if (capable(e)) return e; } return addDays(d, 7); }
     function eatersIn(from, to, onlyHorizon) {   // pot-eating slots in [from, to), in time order; past the horizon the rule stands in
       const E = [];
@@ -1430,7 +1464,10 @@ const OLLA = (function () {
         const f = fr[e.d], r = f.rows[e.sl] || {}, bid = got.get(e);
         if (bid) f.rows[e.sl] = Object.assign(e.kind === 'hand' ? { hand: true } : {}, { kind: 'leftover', of: bid }, e.ofHand ? { ofHand: true } : {});
         else if (e.kind === 'hand') f.rows[e.sl] = Object.assign({}, r, { of: r.ofHand ? r.of : null });   // can't be satisfied: it stays, the gate flags no-batch
-        else f.rows[e.sl] = homeRow(S, e.sl);
+        else {   // v3 §6.2 THE FREEZER FLOOR: a dinner no pot can feed eats a bought frozen dinner before it falls to the fridge default (never a lunch, never a hand row)
+          const z = e.sl === 'dinner' && e.kind === 'rule' ? fzPool.filter(b => b.left > 0 && e.d >= b.date && e.d <= b.expires).sort((a, b) => cmpStr(a.date, b.date) || cmpStr(a.id, b.id))[0] : null;
+          if (z) { z.left--; f.rows[e.sl] = { kind: 'leftover', of: z.id }; } else f.rows[e.sl] = homeRow(S, e.sl);
+        }
       });
     }
     // 2. walk the stretches: a stretch starts today and at every later day that can cook
@@ -1738,6 +1775,7 @@ const OLLA = (function () {
   }
   function batchRef(state, batch) {   // id or object → {id, date, recipe}, without needing `today`
     if (batch && typeof batch === 'object') return { id: batch.id, date: batch.date, recipe: batch.recipe };
+    if (isFz(batch)) return { id: batch, date: batch.slice(3), recipe: null };
     const d = cookDateOf(state, batch);
     if (d) { const c = planDay(state, d).cook, e = effCook(state, batch); return { id: batch, date: d, recipe: (e && e.s === 'made' && e.recipe) || c.recipe }; }
     const x = (state.extra || {})[batch]; return x ? { id: batch, date: x.date, recipe: x.recipe || null } : null;
@@ -1809,6 +1847,12 @@ const OLLA = (function () {
       let late = false; if (hi < lo) { hi = lo = x.d; late = true; }
       needs.push({ id, info, q, u, need: x.d, cookAt: null, for: x.name, lo, hi, late, soft: true, stable: !!info.pantry || bw >= 30, sw: [lo0 > seen ? lo0 : seen, hi0] });
     }));
+    // v3 §6.2 THE WEEKLY WALK. With `store.trip` set, every need whose window holds a trip day he can still make is bought ON that
+    // day: one walk a week, sized for the week. A need whose window holds none (the deli chicken for a Saturday hand cook; Thursday's
+    // cook once Wednesday's store hours are gone) keeps v2's own seating — a catch-up, never a second weekly day.
+    const wt = weeklyTrip(S), tripOK = T => T > today || (T === today && todayOpen);
+    if (wt) needs.forEach(x => { const c = []; for (let T = x.lo; T <= x.hi; T = addDays(T, 1)) if (dow(T) === wt.dow && tripOK(T)) c.push(T); if (c.length) x.lo = x.hi = x.stable ? c[0] : c[c.length - 1]; });
+    const nextTrip = wt ? (H.find(T => dow(T) === wt.dow && tripOK(T)) || null) : null;
     // What a PAST trip bought. Checks are per item@trip and a trip's date passes, so each need is re-seated on the trip it
     // would have ridden — the past dates he checked something on, plus the trips the still-unbought needs force — and is
     // dropped when its item was checked there. (Without this, Thursday's list re-bought everything Wednesday's trip bought.)
@@ -1839,10 +1883,20 @@ const OLLA = (function () {
       scaleIngredients(state, rec, 1).forEach(it => { if (!it.id || it.opt || pantry[it.id]) return; const x = ride[it.id] || (ride[it.id] = { id: it.id, parts: {}, need: d, for: [] }); x.parts[it.u] = (x.parts[it.u] || 0) + it.q; if (x.for.indexOf(rec.name) < 0) x.for.push(rec.name); }); }); });
     (S.weekly || []).forEach(id => { if (!ride[id]) ride[id] = { id, parts: {}, need: today, for: [] }; if (ride[id].for.indexOf('cada semana') < 0) ride[id].for.push('cada semana'); });
     const rideIds = Object.keys(ride).filter(id => !pantry[id] && !boughtThisWeek(id)).sort();
-    if (!points.length && rideIds.length) points.push(todayOpen ? today : tomorrow);
+    const rideT = nextTrip || points[0] || (todayOpen ? today : tomorrow);   // the ride-alongs (and the freezer line) ride the weekly walk when there is one
+    // v3 §6.2 the freezer line: what tops the bought frozen dinners back up to the target, counted on the stock that will still be there
+    // at the trip (a line already ticked keeps the quantity he bought — its own batch is dated the trip day, so it is never counted here)
+    const target = freezerTarget(S); let fzQ = 0;
+    if (target > 0) {
+      const c = checked[FZ_ID + '@' + rideT];
+      if (c && c.v) fzQ = Math.max(1, int(c.q, 1));
+      else fzQ = Math.max(0, target - reality(state, today, now).batches.filter(b => b.src === 'bought-frozen' && b.state === 'made' && b.date < rideT && b.expires >= rideT).reduce((n, b) => n + Math.max(0, b.left), 0));
+    }
+    if ((rideIds.length || fzQ > 0) && points.indexOf(rideT) < 0) { points.push(rideT); points.sort(); }
     const trips = points.map(T => {
       const mine = needs.filter(x => x.trip === T), same = mine.filter(x => x.need === T && x.cookAt != null);
       let at = same.length ? Math.min.apply(null, same.map(x => x.cookAt - trip)) : clamp(eatAt(state, T, 'lunch') + 60, open, close - inStore - walk);
+      if (!same.length && wt && wt.at != null && dow(T) === wt.dow) at = clamp(wt.at, open, close - inStore - walk);   // the weekly walk leaves at ITS hour
       // today's SAME-DAY trip keeps the plan's own departure (its cook stays at its hour once the trip has left — buildWeek):
       // clamped to `now` it became the publish minute, and the Worker's [at − 90, at) window was shut before it could read it
       if (T === today && !same.length) at = Math.max(at, ceil5(N));
@@ -1854,7 +1908,8 @@ const OLLA = (function () {
         if (by < it.buyBy) it.buyBy = by; (Array.isArray(f) ? f : [f]).forEach(n => { if (n && it.for.indexOf(n) < 0) it.for.push(n); });
       };
       mine.forEach(x => add(x.id, x.info, { [x.u]: x.q }, x.need, x.for));
-      if (T === points[0]) rideIds.forEach(id => { const r = ride[id]; add(id, ingredient(id), r.parts, r.need < T ? T : r.need, r.for); });   // a ride-along is due no earlier than the trip it rides
+      if (T === rideT) rideIds.forEach(id => { const r = ride[id]; add(id, ingredient(id), r.parts, r.need < T ? T : r.need, r.for); });   // a ride-along is due no earlier than the trip it rides
+      if (T === rideT && fzQ > 0) add(FZ_ID, ingredient(FZ_ID), { u: fzQ }, T, 'congelador');
       const list = Object.keys(items).map(id => shopLine(items[id], id + '@' + T, checked))
         .sort((a, b) => (SECTIONS.indexOf(a.section) < 0 ? 99 : SECTIONS.indexOf(a.section)) - (SECTIONS.indexOf(b.section) < 0 ? 99 : SECTIONS.indexOf(b.section)) || a.n.localeCompare(b.n, 'es'));
       const hardMine = mine.filter(x => !x.soft), by = hardMine.reduce((m, x) => (x.hi < m ? x.hi : m), '9999-12-31');   // the last day this trip can happen and still put every cook item inside its window
@@ -1889,9 +1944,10 @@ const OLLA = (function () {
     const pts = []; list.slice().sort((a, b) => cmpStr(a.hi, b.hi) || cmpStr(a.id, b.id)).forEach(x => { if (!pts.some(p => p >= x.lo && p <= x.hi)) pts.push(x.hi); });
     return pts.sort();
   }
-  function check(state, key, v, at) {
+  function check(state, key, v, at, q) {
     state.groceries = state.groceries || {}; state.groceries.checked = state.groceries.checked || {};
     state.groceries.checked[key] = { v: !!v, at: +at || 0 };
+    if (v && int(q, 0) > 0) state.groceries.checked[key].q = int(q, 0);   // v3: what he bought on a line whose quantity matters later (the freezer line IS the stock)
     return { ok: true };
   }
   function listText(state, trip) {
@@ -2003,6 +2059,7 @@ const OLLA = (function () {
     return clamp(Math.round(m), 10, 180);
   }
   function batchName(state, id) {
+    if (isFz(id)) return 'Cena congelada';
     const b = batchRef(state, id); if (!b) return null;
     const rec = b.recipe && recipeById(state, b.recipe), x = (state.extra || {})[id];
     return (x && x.name) || (rec && rec.name) || b.recipe || null;
@@ -2013,7 +2070,7 @@ const OLLA = (function () {
     if (r.kind === 'swipe') return (S.hall && S.hall.name) || 'swipe';
     if (r.kind === 'out') return 'fuera';
     if (r.kind === 'cook') { const rec = day.cook && recipeById(state, cookRecipeOf(state, day.cook)); return rec ? rec.name : 'cocinar'; }
-    if (r.kind === 'leftover') { const n = r.of && batchName(state, r.of); return n ? n + ' (sobra)' : 'sobra'; }
+    if (r.kind === 'leftover') { if (isFz(r.of)) return 'Cena congelada'; const n = r.of && batchName(state, r.of); return n ? n + ' (sobra)' : 'sobra'; }   // a frozen dinner is not a leftover of anything he cooked
     const rec = r.recipe && recipeById(state, r.recipe); return rec ? rec.name : 'de la nevera';
   }
 
@@ -2046,7 +2103,7 @@ const OLLA = (function () {
     pub.pot = potNow(state, today, N).map(b => ({ name: trunc(b.name, 60), left: int(b.left), expires: b.expires }));
     return pub;
   }
-  function trips4(t) { const f = []; t.items.forEach(it => { if (it.checked) return; it.for.forEach(n => { if (n !== 'cada semana' && f.indexOf(n) < 0) f.push(n); }); }); return f.slice(0, 4).map(n => trunc(n, 60)); }
+  function trips4(t) { const f = []; t.items.forEach(it => { if (it.checked) return; it.for.forEach(n => { if (n !== 'cada semana' && n !== 'congelador' && f.indexOf(n) < 0) f.push(n); }); }); return f.slice(0, 4).map(n => trunc(n, 60)); }
 
   /* Merge REALITY from another copy (another device's gist). Arrays are unioned by content, sorted by `at` (ties by
      content, so every device converges on the same order); likes and checks: the later `at` wins; extras by id.
@@ -2077,7 +2134,7 @@ const OLLA = (function () {
   }
 
   return { SLOTS, MEALS, KINDS, SECTIONS, ymd, parse, addDays, dow, diffDays, weekStart, isoWeek, hm, fmtHM,
-           windowsFor, hallDay, outDay, trainDay, slotsFor, eatAt, tripMinutes,
+           windowsFor, hallDay, outDay, trainDay, slotsFor, eatAt, tripMinutes, weeklyTrip, tripDayFor, cookDay, freezerTarget,
            recipeById, ingredient, eligible, maxServings, gearOk, verbFor, batchable,
            liveEntries, effLog, effCook, reality, potNow, freezer, expired, cookState, questions, cookSlot,
            buildWeek, trimSwipes, swipesUsed, validateWeek, editable, canLog, setKind, nextKind, setCookRecipe, backToRule,
@@ -2160,6 +2217,7 @@ const INGREDIENTS = (function () {
     'arvejas-congeladas': i('arvejas congeladas', CON, 'g', 30),
     'papas-fritas-congeladas': i('papas fritas congeladas (para horno)', CON, 'g', 30),
     'frutos-rojos-congelados': i('frutos rojos congelados', CON, 'g', 30),
+    'cena-congelada': u('cena congelada', 'cenas congeladas', CON, 60, { note: 'lista para el microondas en ≤5 min, sin preparar nada: la que le gana a pedir' }),   // v3 §6.2 the freezer floor's one generic line
     // Arroz, pasta y legumbres
     'arroz': shelf('arroz blanco de grano largo', ARR, 'taza'),
     'arroz-listo': shelf('arroz listo (Ready Rice)', ARR, 'bolsa', { indivisible: true }),
@@ -2621,7 +2679,7 @@ const OLLA_SEED = (function () {
 /* ═══ OLLA-SEED-END ═══ */
 
 /* ── app hooks (SLOT:APP-LOGIC) — La Olla ── */
-const OLLA_SCHEMA = 3;   // 3 = settings.pantry is ONLY sal + pimienta (the first build assumed ten staples at home; cumin and garlic never reached the list). 2 = LA-OLLA-V2-SPEC.md §2.1: settings.{hall(+closes), outDays, cookWindows, cookAt, eatAt, trainDays, fridge(+post), gear, gearAsked, containers, store, orders, pantry[ids], weekly[ids], theme}, ladder, recipes (v2 shape), plan{via, days(+post, cook.batch)}, log{date:slot: [entries]}, cooks, extra, likes, groceries.checked{item@trip: {v, at}}, cookSession
+const OLLA_SCHEMA = 4;   // 4 = v3 §6.2 (20-oct-2026): settings.store.trip {dow, at}, settings.cookDays, settings.freezer {target}, checks may carry q — set ONCE on upgrade. 3 = settings.pantry is ONLY sal + pimienta (the first build assumed ten staples at home; cumin and garlic never reached the list). 2 = LA-OLLA-V2-SPEC.md §2.1: settings.{hall(+closes), outDays, cookWindows, cookAt, eatAt, trainDays, fridge(+post), gear, gearAsked, containers, store, orders, pantry[ids], weekly[ids], theme}, ladder, recipes (v2 shape), plan{via, days(+post, cook.batch)}, log{date:slot: [entries]}, cooks, extra, likes, groceries.checked{item@trip: {v, at}}, cookSession
 const OLLA_PRE_SCHEMA2_KEY = 'olla.v1.pre-schema2';   // the raw schema-1 state, written ONCE per device before its first migration (his only copy may be this phone's)
 /* The v1 book as it shipped (9dc95c2): FNV-1a of JSON [id, name, steps] per recipe, frozen here. A v1-shaped recipe whose
    hash still matches was never edited, so its v2 version replaces it; anything else is his and wins. */
@@ -2642,8 +2700,15 @@ function ollaIdList(list, dflt, v1Default) {
   const out = []; list.forEach(n => { const id = ollaIdFor(n); if (id && out.indexOf(id) < 0) out.push(id); });
   return out;
 }
+/* v3 §6.2 defaults (decided 20-oct-2026; the reasoning lives in the private spec): one walk a week on a cook day, at its window's
+   start; the planner cooks on the two weekday windows; four frozen dinners on hand (an ESTIMATE, his to change). Kept OUT of
+   OLLA_SEED on purpose: the seed is the v2 contract the engine pins run on; these are applied to a new device and ONCE to an
+   upgrading one, and are his settings from then on. */
+const OLLA_V3 = { trip: { dow: 3, at: '13:00' }, cookDays: [3, 4], freezer: { target: 4 } };
+function ollaApplyV3(S) { S.store = Object.assign({}, S.store || {}, { trip: JSON.parse(JSON.stringify(OLLA_V3.trip)) }); S.cookDays = OLLA_V3.cookDays.slice(); S.freezer = JSON.parse(JSON.stringify(OLLA_V3.freezer)); }
 function appDefaultState() {
   const s = JSON.parse(JSON.stringify(OLLA_SEED));
+  ollaApplyV3(s.settings);
   return { settings: s.settings, ladder: s.ladder, recipes: s.recipes, plan: { via: 'fallback', days: {} }, log: {}, cooks: {}, extra: {}, likes: {}, groceries: { checked: {} }, cookSession: null, schema: OLLA_SCHEMA };
 }
 /* Idempotent on every load AND every gist pull: MERGE over the seed's defaults, field by field, never assign wholesale — a
@@ -2678,6 +2743,9 @@ function appMigrate(s) {
   S.pantry = ollaIdList(S.pantry, D.pantry, OLLA_V1_PANTRY);
   if (!(s.schema >= 3)) S.pantry = D.pantry.slice();      // schema 3: whatever was stored was the old ten-staple default, never his choice — he has said the house holds salt and pepper, nothing else
   S.weekly = ollaIdList(S.weekly, D.weekly, OLLA_V1_WEEKLY);
+  if (!(s.schema >= 4)) ollaApplyV3(S);                   // schema 4: v3's weekly walk, set ONCE on upgrade; afterwards it is his
+  if (S.cookDays != null && !Array.isArray(S.cookDays)) S.cookDays = null;
+  S.freezer = Object.assign({ target: 0 }, isObj(S.freezer) ? S.freezer : {});
   delete S.feed;                                          // v1's free-text lift-night feed is now a recipe: fridge.post = batido-post
   if (['auto', 'esmalte', 'loza'].indexOf(S.theme) < 0) S.theme = S.theme === 'tokyo' ? 'loza' : 'auto';   // v1's shell keys: macchiato was the default, tokyo was a choice
   s.ladder = Object.assign({}, seed.ladder, isObj(s.ladder) ? s.ladder : {});
@@ -2707,7 +2775,7 @@ function appMigrate(s) {
   s.cooks = isObj(s.cooks) ? s.cooks : {}; s.extra = isObj(s.extra) ? s.extra : {}; s.likes = isObj(s.likes) ? s.likes : {};
   // v1 checked items by NAME for "the current Sunday week" — that can't be mapped to (item, trip) safely, and was a convenience: dropped
   const ck = (isObj(s.groceries) && isObj(s.groceries.checked)) ? s.groceries.checked : {}, kept = {};
-  Object.keys(ck).forEach(k => { const v = ck[k]; if (isObj(v) && k.indexOf('@') > 0) kept[k] = { v: !!v.v, at: +v.at || 0 }; });
+  Object.keys(ck).forEach(k => { const v = ck[k]; if (isObj(v) && k.indexOf('@') > 0) { kept[k] = { v: !!v.v, at: +v.at || 0 }; if (Math.floor(+v.q) > 0) kept[k].q = Math.floor(+v.q); } });   // q: v3, what the freezer line bought — dropping it here would shrink his stock on every pull
   s.groceries = { checked: kept };
   delete s.pub;                                           // derived at push time, never trusted on the way in
   if (s.cookSession === undefined) s.cookSession = null;
@@ -2741,6 +2809,7 @@ const OLLAUI = (function () {
   const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
   const SLOT_ES = { bf: 'desayuno', lunch: 'almuerzo', dinner: 'cena', post: 'tras el gym' };
   const KIND_ES = { swipe: 'swipe', leftover: 'sobra', cook: 'cocinar', home: 'nevera', out: 'fuera' };
+  const kindEs = r => (r && r.kind === 'leftover' && String(r.of || '').indexOf('fz@') === 0) ? 'congelador' : (KIND_ES[r && r.kind] || (r && r.kind) || '—');   // v3: a bought frozen dinner is not a «sobra» of anything he cooked
   const RUNG_ES = { 1: 'armar, sin cuchillo', 2: 'una sartén', 3: 'arroz y un guiso', 4: 'el saltado, fuego alto', 5: 'el plato de verdad' };
   const ROLE_ES = { main: '', side: 'acompañamiento', condiment: 'para encima', bf: 'desayuno', snack: 'entre comidas' };
   const GEAR_ES = { pot: 'olla', pan: 'sartén', oven: 'horno', microwave: 'microondas', riceCooker: 'arrocera', blender: 'licuadora', thermometer: 'termómetro', sheetPan: 'bandeja de horno' };
@@ -2949,7 +3018,7 @@ const OLLAUI = (function () {
       else if (k === 'home') fill = '<path class="b-home" d="M12 24 L34 24 Q30 27 23 27 Q16 27 12 24 Z"/>';
       const outline = k === 'out' ? '<path class="b-out" stroke-dasharray="3 3" d="M3 9 L43 9 Q41 27 23 27 Q5 27 3 9 Z"/>' : '<path class="b-out" d="M3 9 L43 9 Q41 27 23 27 Q5 27 3 9 Z"/>';
       const tag = day.cook ? hmShort(day.cook.at) : (day.train ? 'gym' : '');
-      out.push(`<button class="bowl${d === t ? ' today' : ''}" data-act="go" data-view="semana" aria-label="${esc(fmtDate(d) + ' · cena: ' + (KIND_ES[k] || '—') + (day.cook ? ' · cocinar a las ' + day.cook.at : '') + (day.train ? ' · gym' : ''))}"><svg viewBox="0 0 46 30">${fill}${outline}</svg><span class="d">${DOW1[OLLA.dow(d)]} ${OLLA.parse(d).getDate()}</span><span class="tag">${esc(tag)}</span></button>`);
+      out.push(`<button class="bowl${d === t ? ' today' : ''}" data-act="go" data-view="semana" aria-label="${esc(fmtDate(d) + ' · cena: ' + kindEs(day.dinner) + (day.cook ? ' · cocinar a las ' + day.cook.at : '') + (day.train ? ' · gym' : ''))}"><svg viewBox="0 0 46 30">${fill}${outline}</svg><span class="d">${DOW1[OLLA.dow(d)]} ${OLLA.parse(d).getDate()}</span><span class="tag">${esc(tag)}</span></button>`);
     }
     return out.join('');
   }
@@ -3019,7 +3088,7 @@ const OLLAUI = (function () {
       const hand = r.hand && OLLA.editable(state, d, sl, t, n).ok ? `<button class="back-rule" data-act="rule" data-date="${esc(d)}" data-slot="${esc(sl)}">a mano · volver a la regla</button>` : '';   // only where backToRule can act (UI review #7)
       return `<div class="srow${r.hand ? ' hand' : ''}"><span class="slot">${cap(SLOT_ES[sl])}</span>
         <div class="dish">${esc(cap(dish))}${small ? `<small>${esc(small)}</small>` : ''}${hand}</div>
-        <button class="kind k-${esc(r.kind)}" data-act="cycle" data-date="${esc(d)}" data-slot="${esc(sl)}">${esc(KIND_ES[r.kind] || r.kind)}</button></div>`;
+        <button class="kind k-${esc(r.kind)}" data-act="cycle" data-date="${esc(d)}" data-slot="${esc(sl)}">${esc(kindEs(r))}</button></div>`;
     }).join('');
     let cook = '';
     if (day.cook) { const r = rec(day.cook.recipe), st = OLLA.cookState(state, d, t, n);
@@ -3069,7 +3138,7 @@ const OLLAUI = (function () {
         return `<section class="card speckle rise" style="--i:${i + 1}"><div class="trip-h"><div><h3>${cap(dayWord(trip.date))}${trip.at ? ' · ' + esc(trip.at) : ''}</h3>
           <div class="meta">${trip.left ? trip.left + ' por comprar' : 'todo comprado'} · para ${esc(tripFor(trip))}${trip.by && trip.by !== trip.date ? ' · antes del ' + dayShort(trip.by) : ''}</div></div>
           <button class="icon-btn" data-act="share" data-date="${trip.date}" aria-label="Compartir la lista">${SHARE}</button></div>
-          ${Object.keys(groups).map(sec => `<div class="aisle">${esc(sec)}</div>${groups[sec].map(it => `<button class="item${it.checked ? ' on' : ''}" data-act="check" data-key="${esc(it.key)}" data-v="${it.checked ? 0 : 1}"${pressed(it.checked)}>
+          ${Object.keys(groups).map(sec => `<div class="aisle">${esc(sec)}</div>${groups[sec].map(it => `<button class="item${it.checked ? ' on' : ''}" data-act="check" data-key="${esc(it.key)}" data-v="${it.checked ? 0 : 1}" data-q="${it.q || 0}"${pressed(it.checked)}>
             <span class="box">${CHECK}</span><span><span class="nm">${esc(it.n)}</span><span class="fr">${esc((it.for || []).join(', '))}${(OLLA.ingredient(it.id) || {}).buyWithin === 0 ? ' · <span class="soon">el mismo día que cocinas</span>' : ''}</span></span>
             <span class="q mono">${esc(it.display || '')}</span></button>`).join('')}`).join('')}</section>`; }).join('')}`;
   }
@@ -3136,7 +3205,7 @@ const OLLAUI = (function () {
     sheetCtx = { kind: 'log', date: d, slot: sl, mode: p.mode || 'bought', fromCook: p.fromCook || null };   // «Compré» is the default, and shows as chosen (UI review #4)
     const sug = ['pollo rostizado'].concat(state.settings.orders || []).concat(state.recipes.filter(x => x.role === 'main').slice(0, 6).map(x => x.name));
     openSheet(`<h2>${cap(slotOf(sl, d))}</h2>
-      <div class="rx-meta">el plan: ${esc(lab)}${r ? ' · ' + esc(KIND_ES[r.kind] || r.kind) : ''}</div>
+      <div class="rx-meta">el plan: ${esc(lab)}${r ? ' · ' + esc(kindEs(r)) : ''}</div>
       ${eff && eff.s !== 'void' ? `<div class="notes"><p>Anotado: ${eff.s === 'ate' ? 'lo del plan' : eff.s === 'skipped' ? 'no comiste' : esc(eff.what || 'otra cosa') + (eff.left ? ', sobró ' + esc(eff.left) : '')}.</p></div><div class="under" style="justify-content:flex-start"><button class="link danger" data-act="log-void">Deshacer</button></div>` : ''}
       ${early ? '' : `<button class="strike" data-act="log-ate">Sí, lo del plan <small>${esc(lab)}</small></button>`}
       <div class="rx-h">Otra cosa</div>
@@ -3413,7 +3482,7 @@ const OLLAUI = (function () {
       case 'rule': if (res(OLLA.backToRule(state, d, sl, t, n))) { ensureWeek(); saveTap(); render(); } return;   // a refusal says why (UI review #7)
       case 'pick': openPicker(d); return;
       case 'choose': if (res(OLLA.setCookRecipe(state, sheetCtx.date, b.dataset.id, t, n))) done('Cambiado.'); return;
-      case 'check': OLLA.check(state, b.dataset.key, b.dataset.v === '1', at); ensureWeek(); saveTap(); render(); return;
+      case 'check': OLLA.check(state, b.dataset.key, b.dataset.v === '1', at, +b.dataset.q || 0); ensureWeek(); saveTap(); render(); return;
       case 'share': shareTrip(d); return;
       case 'like': OLLA.like(state, b.dataset.id, b.dataset.v, at); ensureWeek(); saveTap(); openRecipe(b.dataset.id, sheetCtx || {}); render(); return;
       case 'step': { const box = b.closest('[data-stepper]'), val = box.querySelector('[data-val]'), name = box.dataset.stepper;

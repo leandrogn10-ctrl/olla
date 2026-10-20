@@ -31,8 +31,14 @@ const q = s => D().querySelector(s), qa = s => Array.from(D().querySelectorAll(s
 const st = () => JSON.parse(W().localStorage.getItem('olla.v1'));
 const E = name => W().eval(name);
 const CLOCK = '2026-10-01T19:30:00';   // a Thursday (a training day), dinner time: every assertion below is about THIS moment, never the hour the gate runs
-async function loadApp() { f.src = 'index.html?clock=' + CLOCK + '&h=' + Date.now(); await new Promise(r => f.onload = r); await sleep(800); }
-async function loadAt(clock) { f.src = 'index.html?clock=' + clock + '&h=' + Date.now(); await new Promise(r => f.onload = r); await sleep(800); }
+/* The UI scenarios below were written against the v2 week (a Saturday cook, trips seated per item) and test FLOWS, not the planner:
+   while V3 is false, an empty store is seeded with a v2-mode state (no weekly walk, every window cooks, no freezer line) — appMigrate
+   fills the rest from the seed exactly as on a fresh device. The v3 block at the end boots the REAL default (V3 = true). */
+let V3 = false;
+const V2_SEED = { schema: 4, settings: { store: { trip: null }, cookDays: null, freezer: { target: 0 } }, ladder: { rung: 1, since: null, passed: [] }, plan: { via: 'fallback', days: {} }, recipes: [] };
+function seedMode() { if (!V3 && !localStorage.getItem('olla.v1')) localStorage.setItem('olla.v1', JSON.stringify(V2_SEED)); }
+async function loadApp() { seedMode(); f.src = 'index.html?clock=' + CLOCK + '&h=' + Date.now(); await new Promise(r => f.onload = r); await sleep(800); }
+async function loadAt(clock) { seedMode(); f.src = 'index.html?clock=' + clock + '&h=' + Date.now(); await new Promise(r => f.onload = r); await sleep(800); }
 function patchSt(fn) { const s = st(); fn(s); W().localStorage.setItem('olla.v1', JSON.stringify(s)); }   // edit the stored state between two loads
 const toastErr = () => q('#toast').classList.contains('show') && q('#toast').classList.contains('err');
 function smallTargets(scope) {   // every visible tap target under scope narrower or shorter than 44px
@@ -68,7 +74,7 @@ function eff(entries) { if (!Array.isArray(entries) || !entries.length) return n
     const today = E('OLLAUI').todayYmd();
     log('boots on Hoy', q('#bottom-tabs .tab.active') && q('#bottom-tabs .tab.active').dataset.view === 'hoy');
     log('state written on boot with a plan for today', !!(st() && st().plan && st().plan.days[today]));
-    log('schema is 3', st() && st().schema === 3, st() && String(st().schema));
+    log('schema is 4', st() && st().schema === 4, st() && String(st().schema));
     log('the house holds salt and pepper, nothing else', JSON.stringify(st().settings.pantry) === JSON.stringify(['sal', 'pimienta']), JSON.stringify(st().settings.pantry));
     const slots = E('OLLA').slotsFor(st(), today);
     log('Hoy renders one row per slot', qa('#app-root .row').length === slots.length, qa('#app-root .row').length + ' vs ' + slots.length);
@@ -359,6 +365,35 @@ function eff(entries) { if (!Array.isArray(entries) || !entries.length) return n
       sty.remove();
     }
     log('CONTROL (must read FAIL): Hoy has zero rows', qa('#app-root .row').length === 0 && false);
+
+    // ── v3 (LA-OLLA-V2-SPEC.md §6.2): a NEW device boots on the weekly walk; the freezer line rides Wednesday's list; its tap stores q
+    V3 = true; localStorage.clear(); await loadAt('2026-10-05T09:00:00');   // a Monday
+    { const S3 = st().settings;
+      log('v3: a new device boots on the weekly walk (Wednesday 13:00, cooks Wed/Thu, four frozen dinners)', S3.store.trip && S3.store.trip.dow === 3 && S3.store.trip.at === '13:00' && JSON.stringify(S3.cookDays) === '[3,4]' && S3.freezer.target === 4, JSON.stringify([S3.store.trip, S3.cookDays, S3.freezer]));
+      const cooks = Object.keys(st().plan.days).filter(d => st().plan.days[d].cook);
+      log('v3: the week cooks Wednesday and Thursday only', JSON.stringify(cooks) === JSON.stringify(['2026-10-07', '2026-10-08']), JSON.stringify(cooks)); }
+    q('#bottom-tabs .tab[data-view="lista"]').click(); await sleep(150);
+    { const trips = Array.from(new Set(qa('#app-root .item').map(x => x.dataset.key.slice(-10))));
+      log('v3: La lista is ONE trip, the Wednesday walk', JSON.stringify(trips) === JSON.stringify(['2026-10-07']), JSON.stringify(trips));
+      const fz = q('#app-root .item[data-key="cena-congelada@2026-10-07"]');
+      log('v3: the freezer line is on it, with its quantity', !!fz && fz.dataset.q === '4', fz ? fz.dataset.q : 'MISSING');
+      if (fz) { fz.scrollIntoView({ block: 'center' }); await sleep(60); log('v3: the freezer line is what a finger hits', hit(fz)); fz.click(); await sleep(150); }
+      const c = (st().groceries.checked || {})['cena-congelada@2026-10-07'];
+      log('v3: ticking it stores what he bought (q = 4): the stock', !!c && c.v === true && c.q === 4, JSON.stringify(c));
+      const back = q('#app-root .item[data-key="cena-congelada@2026-10-07"]');
+      log('v3: …and the ticked line stays, marked', !!back && back.classList.contains('on'));
+      if (back) { back.click(); await sleep(150); }   // untick, then tick again with the carrier stripped: the control
+      const again = q('#app-root .item[data-key="cena-congelada@2026-10-07"]'); if (again) { again.removeAttribute('data-q'); again.click(); await sleep(150); }
+      const c2 = (st().groceries.checked || {})['cena-congelada@2026-10-07'];
+      log('CONTROL (must read FAIL): the same tap with the button\'s data-q stripped still stores q = 4', !!c2 && c2.v === true && c2.q === 4, JSON.stringify(c2));
+      for (const v of [0, 1]) { const b = q('#app-root .item[data-key="cena-congelada@2026-10-07"]'); if (b) { b.click(); await sleep(150); } } }   // untick the control's tick, tick again for real
+    await loadAt('2026-10-07T20:00:00');   // Wednesday night: the tick is stock now
+    { const fr = E('OLLA').freezer(st(), '2026-10-07', 20 * 60);
+      log('v3: on Wednesday night the freezer holds the bought dinners (RELOAD kept the tick)', fr.length === 1 && fr[0].src === 'bought-frozen' && fr[0].left === 4, JSON.stringify(fr.map(b => [b.id, b.left])));
+      q('#bottom-tabs .tab[data-view="semana"]').click(); await sleep(200);
+      const chip = d => { const b = q('#app-root .kind[data-date="' + d + '"][data-slot="dinner"]'); return b ? b.textContent.trim() : 'MISSING'; };
+      log('v3: next Monday\'s dinner is a frozen one, and its chip says «congelador», never «sobra»', st().plan.days['2026-10-12'].dinner.of === 'fz@2026-10-07' && chip('2026-10-12') === 'congelador', chip('2026-10-12') + ' ' + JSON.stringify(st().plan.days['2026-10-12'].dinner));
+      log('CONTROL (must read FAIL): Friday\'s real leftover of the Wednesday pot also reads «congelador»', chip('2026-10-09') === 'congelador', chip('2026-10-09')); }
   } catch (e) { log('harness crashed', false, String(e && e.stack || e).slice(0, 300)); }
   out.push('HARNESS: DONE'); render();
 })();
